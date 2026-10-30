@@ -6,16 +6,16 @@ Detalles de la variante **Notas Rápidas Web**: la interfaz es HTML/CSS/JS y Pyt
 
 | Fichero | Función |
 |---|---|
-| `notas-rapidas/app_web/notas_web.py` | Backend Python: ventana, API para JS, ficheros, configuración, log |
-| `notas-rapidas/app_web/ui/index.html` | Interfaz completa en un solo HTML (CSS y JS incluidos) |
-| `notas-rapidas/app_web/construir_app_web.ps1` | Entorno, icono y `.exe` con PyInstaller |
-| `notas-rapidas/app_web/construir_app_web.bat` | Lanzador con doble clic |
-| `notas-rapidas/app_web/icono.png`, `icono.ico` | Icono de ejemplo |
+| `app_web/notas_web.py` | Backend Python: ventana, API para JS, ficheros, configuración, log |
+| `app_web/ui/index.html` | Interfaz completa en un solo HTML (CSS y JS incluidos) |
+| `app_web/construir_app_web.ps1` | Entorno, icono y `.exe` con PyInstaller |
+| `app_web/construir_app_web.bat` | Lanzador con doble clic |
+| `app_web/icono.png`, `icono.ico` | Icono de ejemplo |
 
 ## Inicio rápido
 
 ```powershell
-cd notas-rapidas/app_web
+cd app_web
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install pywebview

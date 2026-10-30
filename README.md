@@ -4,39 +4,35 @@ Ejemplos de aplicaciones de escritorio en Python que se ejecutan con **doble cli
 
 ## Organización
 
-El repositorio tiene un proyecto por sistema operativo. Dentro de cada uno, **cada app vive en su propia carpeta**, de modo que el código de apps distintas nunca se mezcla.
+El repositorio tiene una carpeta por sistema operativo. Dentro, **cada app es una carpeta completamente autocontenida**: lleva su propio código, su `.vscode/`, sus guías (`docs/`), su manual y su `.gitignore`. El código de apps distintas nunca se mezcla.
 
 ```
 code/
-├── macos/                              ← proyecto de VS Code para macOS (.app con py2app)
-│   ├── .vscode/                        ← configuración común (launch, tasks, settings, extensions)
-│   ├── docs/                           ← guías generales
-│   │   ├── GUIA_APP_MACOS.md
-│   │   └── GUIA_PYWEBVIEW.md
-│   ├── MANUAL_VSCODE.md
-│   └── notas-rapidas/                  ← app «Notas Rápidas»
+├── macos/                              ← apps para macOS (.app con py2app)
+│   └── notas-rapidas/                  ← app «Notas Rápidas» (proyecto de VS Code completo)
+│       ├── .vscode/
 │       ├── app_tk/                     ← versión Tkinter
-│       └── app_web/                    ← versión pywebview (HTML)
-└── windows/                            ← proyecto de VS Code para Windows (.exe con PyInstaller)
-    ├── .vscode/
-    ├── docs/
-    │   ├── GUIA_APP_WINDOWS.md
-    │   └── GUIA_PYWEBVIEW_WINDOWS.md
-    ├── MANUAL_VSCODE_WINDOWS.md
+│       ├── app_web/                    ← versión pywebview (HTML)
+│       ├── docs/
+│       │   ├── GUIA_APP_MACOS.md
+│       │   └── GUIA_PYWEBVIEW.md
+│       ├── .gitignore
+│       └── MANUAL_VSCODE.md
+└── windows/                            ← apps para Windows (.exe con PyInstaller)
     └── notas-rapidas/
+        ├── .vscode/
         ├── app_tk/
-        └── app_web/
+        ├── app_web/
+        ├── docs/
+        │   ├── GUIA_APP_WINDOWS.md
+        │   └── GUIA_PYWEBVIEW_WINDOWS.md
+        ├── .gitignore
+        └── MANUAL_VSCODE_WINDOWS.md
 ```
 
-- Abre `macos/` o `windows/` como carpeta raíz en VS Code (*File → Open Folder…*).
-- Lo común a todas las apps (`.vscode/`, `docs/`, manual) está en la raíz de cada proyecto.
-- Cada app tiene su carpeta, con nombre en minúsculas y guiones, y una subcarpeta por variante.
-
-### Añadir una app nueva
-
-1. Crea `macos/<mi-app>/` y/o `windows/<mi-app>/` con sus variantes dentro.
-2. Añade su configuración en `.vscode/launch.json` y sus tareas en `.vscode/tasks.json`, apuntando a `${workspaceFolder}/<mi-app>/...`.
-3. Si necesita documentación propia, ponla en `<mi-app>/` o en `docs/`.
+- Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) como raíz en VS Code (*File → Open Folder…*).
+- Una app nueva se crea copiando una carpeta existente como plantilla y renombrándola (`macos/<mi-app>/`, `windows/<mi-app>/`). Los pasos están en la sección «Convención» del manual de cada app.
+- Nombres de carpeta en minúsculas y guiones.
 
 ## App de ejemplo: Notas Rápidas
 
@@ -51,8 +47,8 @@ Un bloc de notas en dos versiones:
 
 | Plataforma | Manual | Construir (desde la carpeta de la variante) |
 |---|---|---|
-| macOS | [`macos/MANUAL_VSCODE.md`](macos/MANUAL_VSCODE.md) | `./construir_app.sh` → `dist/Notas Rápidas.app` |
-| Windows | [`windows/MANUAL_VSCODE_WINDOWS.md`](windows/MANUAL_VSCODE_WINDOWS.md) | `.\construir_app.ps1` → `dist\NotasRapidas\NotasRapidas.exe` |
+| macOS | [`macos/notas-rapidas/MANUAL_VSCODE.md`](macos/notas-rapidas/MANUAL_VSCODE.md) | `./construir_app.sh` → `dist/Notas Rápidas.app` |
+| Windows | [`windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md`](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | `.\construir_app.ps1` → `dist\NotasRapidas\NotasRapidas.exe` |
 
 En VS Code, `Cmd/Ctrl+Shift+B` lanza la construcción desde cualquier punto del proyecto.
 

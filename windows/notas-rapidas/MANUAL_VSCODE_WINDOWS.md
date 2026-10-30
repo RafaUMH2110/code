@@ -2,9 +2,10 @@
 
 Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
 
-- **`notas-rapidas/`** (carpeta de la app) con dos variantes:
-  - **`app_tk/`**: interfaz con Tkinter.
-  - **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview + Edge WebView2).
+- **`app_tk/`**: interfaz con Tkinter.
+- **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview + Edge WebView2).
+
+La app es **autocontenida**: esta carpeta (`windows/notas-rapidas/` en el repositorio) lleva su propio `.vscode/`, sus guías, su manual y su `.gitignore`. Se abre como proyecto independiente en VS Code, sin depender de otras apps del repositorio.
 
 > **Requisito:** todo se hace en un equipo con **Windows 10 u 11**, con VS Code instalado en ese mismo equipo. PyInstaller construye ejecutables para el sistema en el que se ejecuta: un `.exe` de Windows solo se puede construir en Windows.
 
@@ -13,43 +14,43 @@ Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
 ## 1. Estructura de la carpeta
 
 ```
-windows/
-├── .vscode/                       ← configuración COMÚN a todas las apps
+notas-rapidas/                     ← raíz del proyecto de VS Code (se abre esta carpeta)
+├── .vscode/
 │   ├── launch.json                ← ejecución y depuración (F5)
 │   ├── tasks.json                 ← tareas: construir, abrir, ver logs, limpiar
 │   ├── settings.json              ← intérprete, formato, exclusiones
 │   └── extensions.json            ← extensiones recomendadas
-├── notas-rapidas/                 ← UNA CARPETA POR APP
-│   ├── app_tk/                    ← versión Tkinter
-│   │   ├── notas_app.py
-│   │   ├── construir_app.ps1      ← construye el .exe (PyInstaller)
-│   │   ├── construir_app.bat      ← lo mismo con doble clic
-│   │   └── icono.png / icono.ico
-│   └── app_web/                   ← versión pywebview
-│       ├── notas_web.py
-│       ├── ui/index.html          ← la interfaz
-│       ├── construir_app_web.ps1
-│       ├── construir_app_web.bat
-│       └── icono.png / icono.ico
-├── docs/                          ← guías generales, válidas para cualquier app
+├── app_tk/                        ← versión Tkinter
+│   ├── notas_app.py
+│   ├── construir_app.ps1          ← construye el .exe (PyInstaller)
+│   ├── construir_app.bat          ← lo mismo con doble clic
+│   └── icono.png / icono.ico
+├── app_web/                       ← versión pywebview
+│   ├── notas_web.py
+│   ├── ui/index.html              ← la interfaz
+│   ├── construir_app_web.ps1
+│   ├── construir_app_web.bat
+│   └── icono.png / icono.ico
+├── docs/
 │   ├── GUIA_APP_WINDOWS.md        ← conceptos básicos y avanzados
 │   └── GUIA_PYWEBVIEW_WINDOWS.md  ← detalles de la variante pywebview
 ├── .gitignore
 └── MANUAL_VSCODE_WINDOWS.md       ← este manual
 ```
 
-Dentro de cada app, las variantes se llaman `app_tk` y `app_web` a propósito: **nunca nombres una carpeta `tkinter` o `webview`**, porque taparía el módulo real y provocaría errores de importación.
+Dentro de la app, las variantes se llaman `app_tk` y `app_web` a propósito: **nunca nombres una carpeta `tkinter` o `webview`**, porque taparía el módulo real y provocaría errores de importación.
 
-### Convención: una carpeta por app
+### Convención: una carpeta autocontenida por app
 
-Cada app nueva va en su **propia carpeta** de primer nivel, con nombre en minúsculas y guiones (`notas-rapidas`, `conversor-unidades`…). Dentro, una subcarpeta por variante o tecnología. Lo que es común (`.vscode/`, `docs/`, `.gitignore`, el manual) se queda en la raíz del proyecto.
+En el repositorio, cada app es una carpeta de primer nivel dentro de `windows/` (nombre en minúsculas y guiones: `notas-rapidas`, `conversor-unidades`…) que contiene **todo lo suyo**: código, `.vscode/`, `docs/`, manual y `.gitignore`. Así las apps no comparten ficheros y se pueden abrir, copiar o eliminar de forma independiente.
 
-Para añadir una app:
+Para añadir una app nueva:
 
-1. Crea `<mi-app>/` con sus subcarpetas (por ejemplo `<mi-app>/app_tk/`) y copia ahí los ficheros de la app y su script de construcción.
-2. En `.vscode/launch.json` añade una configuración con `program` y `cwd` apuntando a `${workspaceFolder}/<mi-app>/...`.
-3. En `.vscode/tasks.json` añade las tareas de construir y abrir, con `options.cwd` apuntando a la misma carpeta.
-4. Si la app tiene una guía propia, ponla en `docs/` o dentro de `<mi-app>/`.
+1. Copia la carpeta `notas-rapidas/` como plantilla y renómbrala (`windows/<mi-app>/`).
+2. Sustituye el código de `app_tk/` y `app_web/` (o crea las variantes que necesites).
+3. Ajusta `.vscode/launch.json` y `.vscode/tasks.json` con los nombres de los ficheros y de los `.exe`/`.app` de la nueva app.
+4. Edita el manual y las guías para que hablen de la nueva app.
+5. En VS Code, abre `windows/<mi-app>/` como carpeta raíz.
 
 ---
 
@@ -71,7 +72,7 @@ py -3 -c "import tkinter; print(tkinter.TkVersion)"   # debe mostrar 8.6 o super
 ### 2.2 Instalar VS Code y abrir la carpeta
 
 1. Instala VS Code desde <https://code.visualstudio.com>.
-2. *File → Open Folder…* y elige `windows`.
+2. *File → Open Folder…* y elige `windows/notas-rapidas`.
 3. VS Code propondrá instalar las extensiones recomendadas (`.vscode/extensions.json`). Acepta. Las importantes son **Python** y **Python Debugger** (Microsoft); **PowerShell** ayuda a editar los `.ps1`.
 4. Si te lo pide, confía en el autor de la carpeta (*Trust*).
 
@@ -111,7 +112,7 @@ Después selecciona el intérprete: `Ctrl+Shift+P` → *Python: Select Interpret
 
 **Consejos**
 
-- Edita la interfaz web en `notas-rapidas\app_web\ui\index.html`; la lógica de Python en `notas_web.py`.
+- Edita la interfaz web en `app_web\ui\index.html`; la lógica de Python en `notas_web.py`.
 - Los métodos de la clase `Api` sin guion bajo son los que llama JavaScript. Los que empiezan por `_` son internos.
 - Los `.ps1` deben guardarse como **UTF-8 con BOM** y fin de línea CRLF para que Windows PowerShell 5.1 lea bien las tildes; `settings.json` ya lo aplica a esos ficheros.
 
@@ -123,8 +124,8 @@ Abre la vista de ejecución (`Ctrl+Shift+D`), elige una configuración y pulsa *
 
 | Configuración | Qué hace |
 |---|---|
-| **Tkinter: ejecutar / depurar** | Lanza `notas-rapidas\app_tk\notas_app.py` |
-| **pywebview: ejecutar / depurar (con inspector web)** | Lanza `notas-rapidas\app_web\notas_web.py --debug` |
+| **Tkinter: ejecutar / depurar** | Lanza `app_tk\notas_app.py` |
+| **pywebview: ejecutar / depurar (con inspector web)** | Lanza `app_web\notas_web.py --debug` |
 | **pywebview: ejecutar sin inspector** | Igual, sin herramientas de desarrollo |
 | **Fichero actual** | Ejecuta el `.py` abierto |
 
@@ -154,7 +155,7 @@ VS Code depura Python, no el JavaScript de la ventana. Para JavaScript:
 2. Pulsa `F12` o haz clic derecho → **Inspeccionar** (herramientas de Edge).
 3. En *Consola*, *Red* y *Elementos* verás lo habitual de un navegador.
 
-Para probar solo el diseño, abre `notas-rapidas\app_web\ui\index.html` en el navegador (los botones que llaman a Python no funcionarán).
+Para probar solo el diseño, abre `app_web\ui\index.html` en el navegador (los botones que llaman a Python no funcionarán).
 
 ---
 
@@ -166,8 +167,8 @@ Para probar solo el diseño, abre `notas-rapidas\app_web\ui\index.html` en el na
 
 | Tarea | Resultado |
 |---|---|
-| **Construir .exe Tkinter (carpeta)** | `notas-rapidas\app_tk\dist\NotasRapidas\NotasRapidas.exe` |
-| **Construir .exe pywebview (carpeta)** | `notas-rapidas\app_web\dist\NotasRapidasWeb\NotasRapidasWeb.exe` |
+| **Construir .exe Tkinter (carpeta)** | `app_tk\dist\NotasRapidas\NotasRapidas.exe` |
+| **Construir .exe pywebview (carpeta)** | `app_web\dist\NotasRapidasWeb\NotasRapidasWeb.exe` |
 | **… (un solo .exe)** | `dist\NotasRapidas.exe` / `dist\NotasRapidasWeb.exe` |
 | **… con consola (depuración)** | `.exe` que abre una consola con trazas y errores |
 | **Abrir .exe …** | Lo ejecuta como si hicieras doble clic |
@@ -180,12 +181,12 @@ Los scripts `construir_app*.ps1` hacen, en orden: crean un `.venv` propio dentro
 
 ### 5.2 Con doble clic
 
-Abre `notas-rapidas/app_tk` o `notas-rapidas/app_web` en el Explorador y haz doble clic en `construir_app.bat` / `construir_app_web.bat`. Argumentos opcionales desde terminal: `construir_app.bat -UnSoloExe` o `-Consola`.
+Abre `app_tk` o `app_web` en el Explorador y haz doble clic en `construir_app.bat` / `construir_app_web.bat`. Argumentos opcionales desde terminal: `construir_app.bat -UnSoloExe` o `-Consola`.
 
 ### 5.3 Desde el terminal integrado
 
 ```powershell
-cd notas-rapidas/app_tk
+cd app_tk
 .\construir_app.ps1                 # carpeta
 .\construir_app.ps1 -UnSoloExe      # un solo .exe
 .\construir_app.ps1 -Consola        # con consola para depurar
@@ -261,7 +262,7 @@ Tras cambiar opciones o el icono, usa la tarea **Limpiar build/ y dist/** antes 
 | «Windows protegió su PC» | SmartScreen | *Más información → Ejecutar de todas formas*, o firmar el `.exe` |
 | `Permission denied` al reconstruir | El `.exe` sigue abierto | Cerrar la app y reintentar; limpiar `dist` |
 | El icono no cambia | Caché de iconos | Reiniciar el Explorador o `ie4uinit.exe -show` |
-| Las tareas no aparecen | Carpeta mal abierta | Abrir `windows` (la raíz que contiene `.vscode`) |
+| Las tareas no aparecen | Carpeta mal abierta | Abrir `windows/notas-rapidas` (la raíz que contiene `.vscode`) |
 | Se abren ventanas sin parar | Falta `freeze_support()` | Ya incluido; mantenerlo si cambias `main()` |
 
 ---

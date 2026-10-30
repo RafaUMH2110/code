@@ -1,15 +1,15 @@
 # Crear una app de Windows con Python (doble clic sobre el icono)
 
-Guía de conceptos básicos y avanzados, con el ejemplo **Notas Rápidas** (`notas-rapidas/app_tk/notas_app.py`).
+Guía de conceptos básicos y avanzados, con el ejemplo **Notas Rápidas** (`app_tk/notas_app.py`).
 
 ## Contenido del proyecto
 
 | Fichero | Función |
 |---|---|
-| `notas-rapidas/app_tk/notas_app.py` | Código de la aplicación (Tkinter) |
-| `notas-rapidas/app_tk/construir_app.ps1` | Script que crea el entorno, el icono y el `.exe` con PyInstaller |
-| `notas-rapidas/app_tk/construir_app.bat` | Lanzador con doble clic para el script anterior |
-| `notas-rapidas/app_tk/icono.png`, `icono.ico` | Icono de ejemplo |
+| `app_tk/notas_app.py` | Código de la aplicación (Tkinter) |
+| `app_tk/construir_app.ps1` | Script que crea el entorno, el icono y el `.exe` con PyInstaller |
+| `app_tk/construir_app.bat` | Lanzador con doble clic para el script anterior |
+| `app_tk/icono.png`, `icono.ico` | Icono de ejemplo |
 | `docs/GUIA_APP_WINDOWS.md` | Esta guía |
 
 ## Inicio rápido
@@ -19,10 +19,10 @@ Guía de conceptos básicos y avanzados, con el ejemplo **Notas Rápidas** (`not
 py -3 -c "import tkinter; print(tkinter.TkVersion)"   # debe mostrar 8.6 o superior
 
 # 2. Prueba el script tal cual
-py -3 notas-rapidas\app_tk\notas_app.py
+py -3 app_tk\notas_app.py
 
 # 3. Constrúyelo como app independiente
-cd notas-rapidas/app_tk
+cd app_tk
 .\construir_app.ps1          # o doble clic en construir_app.bat
 
 # 4. Doble clic en dist\NotasRapidas\NotasRapidas.exe

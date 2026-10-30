@@ -13,7 +13,7 @@
       "label": "Construir .app Tkinter (independiente)",
       "type": "shell",
       "command": "./construir_app.sh",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_tk" },
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
       "group": { "kind": "build", "isDefault": true },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "dedicated" }
@@ -22,7 +22,7 @@
       "label": "Construir .app pywebview (independiente)",
       "type": "shell",
       "command": "./construir_app_web.sh",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_web" },
+      "options": { "cwd": "${workspaceFolder}/app_web" },
       "group": "build",
       "problemMatcher": [],
       "presentation": { "reveal": "always", "panel": "dedicated" }
@@ -32,14 +32,14 @@
       "label": "Alias .app Tkinter (desarrollo rápido)",
       "type": "shell",
       "command": "${workspaceFolder}/.venv/bin/python setup.py py2app -A",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_tk" },
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
       "problemMatcher": []
     },
     {
       "label": "Alias .app pywebview (desarrollo rápido)",
       "type": "shell",
       "command": "${workspaceFolder}/.venv/bin/python setup_web.py py2app -A",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_web" },
+      "options": { "cwd": "${workspaceFolder}/app_web" },
       "problemMatcher": []
     },
 
@@ -47,14 +47,14 @@
       "label": "Abrir .app Tkinter",
       "type": "shell",
       "command": "open 'dist/Notas Rápidas.app'",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_tk" },
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
       "problemMatcher": []
     },
     {
       "label": "Abrir .app pywebview",
       "type": "shell",
       "command": "open 'dist/Notas Rápidas Web.app'",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_web" },
+      "options": { "cwd": "${workspaceFolder}/app_web" },
       "problemMatcher": []
     },
 
@@ -62,14 +62,14 @@
       "label": "Ejecutar .app Tkinter con salida en terminal",
       "type": "shell",
       "command": "'dist/Notas Rápidas.app/Contents/MacOS/Notas Rápidas'",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_tk" },
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
       "problemMatcher": []
     },
     {
       "label": "Ejecutar .app pywebview con salida en terminal",
       "type": "shell",
       "command": "'dist/Notas Rápidas Web.app/Contents/MacOS/Notas Rápidas Web'",
-      "options": { "cwd": "${workspaceFolder}/notas-rapidas/app_web" },
+      "options": { "cwd": "${workspaceFolder}/app_web" },
       "problemMatcher": []
     },
 
@@ -91,7 +91,7 @@
     {
       "label": "Limpiar build/ y dist/ (ambas apps)",
       "type": "shell",
-      "command": "rm -rf notas-rapidas/app_tk/build notas-rapidas/app_tk/dist notas-rapidas/app_web/build notas-rapidas/app_web/dist",
+      "command": "rm -rf app_tk/build app_tk/dist app_web/build app_web/dist",
       "problemMatcher": []
     }
   ]
