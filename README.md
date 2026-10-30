@@ -30,6 +30,14 @@ code/
         └── MANUAL_VSCODE_WINDOWS.md
 ```
 
+Además, `generador-apps/` agrupa herramientas de línea de comandos multiplataforma (no son apps de escritorio): el generador de apps web con IA, en dos versiones separadas. Ver [`generador-apps/README.md`](generador-apps/README.md).
+
+```
+generador-apps/
+├── python-app-api-anthropic/   ← versión base
+└── mejora-de-codigo/           ← versión mejorada (reintentos, copias .bak, errores claros)
+```
+
 - Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) como raíz en VS Code (*File → Open Folder…*).
 - Una app nueva se crea copiando una carpeta existente como plantilla y renombrándola (`macos/<mi-app>/`, `windows/<mi-app>/`). Los pasos están en la sección «Convención» del manual de cada app.
 - Nombres de carpeta en minúsculas y guiones.
