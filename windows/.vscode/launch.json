@@ -5,8 +5,8 @@
       "name": "Tkinter: ejecutar / depurar",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/app_tk/notas_app.py",
-      "cwd": "${workspaceFolder}/app_tk",
+      "program": "${workspaceFolder}/notas-rapidas/app_tk/notas_app.py",
+      "cwd": "${workspaceFolder}/notas-rapidas/app_tk",
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -14,9 +14,9 @@
       "name": "pywebview: ejecutar / depurar (con inspector web)",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/app_web/notas_web.py",
+      "program": "${workspaceFolder}/notas-rapidas/app_web/notas_web.py",
       "args": ["--debug"],
-      "cwd": "${workspaceFolder}/app_web",
+      "cwd": "${workspaceFolder}/notas-rapidas/app_web",
       "console": "integratedTerminal",
       "justMyCode": true
     },
@@ -24,8 +24,8 @@
       "name": "pywebview: ejecutar sin inspector",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/app_web/notas_web.py",
-      "cwd": "${workspaceFolder}/app_web",
+      "program": "${workspaceFolder}/notas-rapidas/app_web/notas_web.py",
+      "cwd": "${workspaceFolder}/notas-rapidas/app_web",
       "console": "integratedTerminal"
     },
     {

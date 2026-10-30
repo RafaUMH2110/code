@@ -2,8 +2,9 @@
 
 Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
 
-- **`app_tk/`**: interfaz con Tkinter.
-- **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview).
+- **`notas-rapidas/`** (carpeta de la app) con dos variantes:
+  - **`app_tk/`**: interfaz con Tkinter.
+  - **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview).
 
 > **Requisito:** todo se hace en un **Mac**, con VS Code instalado en ese mismo Mac. El `.app` solo se puede construir en macOS (no vale Codespaces, WSL ni SSH a Linux).
 
@@ -12,31 +13,43 @@ Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
 ## 1. Estructura de la carpeta
 
 ```
-notas_macos_vscode/
-├── .vscode/
-│   ├── launch.json        ← configuraciones de ejecución y depuración (F5)
-│   ├── tasks.json         ← tareas: construir, abrir, ver logs, limpiar
-│   ├── settings.json      ← intérprete, formato, exclusiones
-│   └── extensions.json    ← extensiones recomendadas
-├── app_tk/                ← versión Tkinter
-│   ├── notas_app.py
-│   ├── setup.py           ← configuración de py2app
-│   ├── construir_app.sh
-│   └── icono.png
-├── app_web/               ← versión pywebview
-│   ├── notas_web.py
-│   ├── ui/index.html      ← la interfaz
-│   ├── setup_web.py
-│   ├── construir_app_web.sh
-│   └── icono.png
-├── docs/
-│   ├── GUIA_APP_MACOS.md  ← conceptos básicos y avanzados (Tkinter, empaquetado, firma)
-│   └── GUIA_PYWEBVIEW.md  ← detalles de la variante pywebview
+macos/
+├── .vscode/                       ← configuración COMÚN a todas las apps
+│   ├── launch.json                ← ejecución y depuración (F5)
+│   ├── tasks.json                 ← tareas: construir, abrir, ver logs, limpiar
+│   ├── settings.json              ← intérprete, formato, exclusiones
+│   └── extensions.json            ← extensiones recomendadas
+├── notas-rapidas/                 ← UNA CARPETA POR APP
+│   ├── app_tk/                    ← versión Tkinter
+│   │   ├── notas_app.py
+│   │   ├── setup.py               ← configuración de py2app
+│   │   ├── construir_app.sh
+│   │   └── icono.png
+│   └── app_web/                   ← versión pywebview
+│       ├── notas_web.py
+│       ├── ui/index.html          ← la interfaz
+│       ├── setup_web.py
+│       ├── construir_app_web.sh
+│       └── icono.png
+├── docs/                          ← guías generales, válidas para cualquier app
+│   ├── GUIA_APP_MACOS.md          ← conceptos básicos y avanzados (Tkinter, empaquetado, firma)
+│   └── GUIA_PYWEBVIEW.md          ← detalles de la variante pywebview
 ├── .gitignore
-└── MANUAL_VSCODE.md       ← este manual
+└── MANUAL_VSCODE.md               ← este manual
 ```
 
-Las carpetas se llaman `app_tk` y `app_web` a propósito: **nunca nombres una carpeta `tkinter` o `webview`**, porque taparía el módulo real y provocaría errores de importación.
+Dentro de cada app, las variantes se llaman `app_tk` y `app_web` a propósito: **nunca nombres una carpeta `tkinter` o `webview`**, porque taparía el módulo real y provocaría errores de importación.
+
+### Convención: una carpeta por app
+
+Cada app nueva va en su **propia carpeta** de primer nivel, con nombre en minúsculas y guiones (`notas-rapidas`, `conversor-unidades`…). Dentro, una subcarpeta por variante o tecnología. Lo que es común (`.vscode/`, `docs/`, `.gitignore`, el manual) se queda en la raíz del proyecto.
+
+Para añadir una app:
+
+1. Crea `<mi-app>/` con sus subcarpetas (por ejemplo `<mi-app>/app_tk/`) y copia ahí los ficheros de la app y su script de construcción.
+2. En `.vscode/launch.json` añade una configuración con `program` y `cwd` apuntando a `${workspaceFolder}/<mi-app>/...`.
+3. En `.vscode/tasks.json` añade las tareas de construir y abrir, con `options.cwd` apuntando a la misma carpeta.
+4. Si la app tiene una guía propia, ponla en `docs/` o dentro de `<mi-app>/`.
 
 ---
 
@@ -56,7 +69,7 @@ python3 -c "import tkinter; print(tkinter.TkVersion)"   # debe mostrar 8.6 o sup
 ### 2.2 Instalar VS Code y abrir la carpeta
 
 1. Instala VS Code desde <https://code.visualstudio.com>.
-2. *File → Open Folder…* y elige `notas_macos_vscode`.
+2. *File → Open Folder…* y elige `macos`.
 3. VS Code propondrá instalar las extensiones recomendadas (`.vscode/extensions.json`). Acepta. Las importantes son **Python** y **Debugpy** (Microsoft).
 4. Si te lo pide, confía en el autor de la carpeta (*Trust*).
 
@@ -93,7 +106,7 @@ Después, selecciona el intérprete: `Cmd+Shift+P` → *Python: Select Interpret
 
 **Consejos**
 
-- Edita la interfaz web en `app_web/ui/index.html`; la lógica de Python en `notas_web.py`.
+- Edita la interfaz web en `notas-rapidas/app_web/ui/index.html`; la lógica de Python en `notas_web.py`.
 - Pylance marca en la barra lateral errores y avisos (pestaña *Problems*, `Cmd+Shift+M`).
 - Los métodos de la clase `Api` sin guion bajo son los que llama JavaScript. Los que empiezan por `_` son internos.
 
@@ -105,8 +118,8 @@ Abre la vista de ejecución (`Cmd+Shift+D`), elige una configuración en el desp
 
 | Configuración | Qué hace |
 |---|---|
-| **Tkinter: ejecutar / depurar** | Lanza `app_tk/notas_app.py` |
-| **pywebview: ejecutar / depurar (con inspector web)** | Lanza `app_web/notas_web.py --debug` |
+| **Tkinter: ejecutar / depurar** | Lanza `notas-rapidas/app_tk/notas_app.py` |
+| **pywebview: ejecutar / depurar (con inspector web)** | Lanza `notas-rapidas/app_web/notas_web.py --debug` |
 | **pywebview: ejecutar sin inspector** | Igual, sin herramientas de desarrollo |
 | **Fichero actual** | Ejecuta el `.py` abierto |
 
@@ -136,7 +149,7 @@ VS Code depura Python, no el JavaScript de la ventana. Para JavaScript:
 2. Haz clic derecho en la ventana → **Inspeccionar elemento**.
 3. En la pestaña *Consola* verás los errores; en *Red* y *Elementos*, lo habitual de Safari.
 
-Para probar la interfaz sin Python, abre `app_web/ui/index.html` en el navegador (los botones que llaman a Python no funcionarán, pero verás diseño y estilos).
+Para probar la interfaz sin Python, abre `notas-rapidas/app_web/ui/index.html` en el navegador (los botones que llaman a Python no funcionarán, pero verás diseño y estilos).
 
 ---
 
@@ -148,8 +161,8 @@ Para probar la interfaz sin Python, abre `app_web/ui/index.html` en el navegador
 
 | Tarea | Resultado |
 |---|---|
-| **Construir .app Tkinter (independiente)** | `app_tk/dist/Notas Rápidas.app` |
-| **Construir .app pywebview (independiente)** | `app_web/dist/Notas Rápidas Web.app` |
+| **Construir .app Tkinter (independiente)** | `notas-rapidas/app_tk/dist/Notas Rápidas.app` |
+| **Construir .app pywebview (independiente)** | `notas-rapidas/app_web/dist/Notas Rápidas Web.app` |
 | **Alias .app … (desarrollo rápido)** | `.app` ligero que apunta a tu código fuente |
 | **Abrir .app …** | Lo abre como si hicieras doble clic |
 | **Ejecutar .app … con salida en terminal** | Lo lanza desde el terminal para ver errores |
@@ -158,14 +171,14 @@ Para probar la interfaz sin Python, abre `app_web/ui/index.html` en el navegador
 
 Los scripts `construir_app*.sh` hacen, en orden: crean un `.venv` propio dentro de la carpeta de la app, instalan `py2app` (y `pywebview`), convierten `icono.png` en `icono.icns`, construyen y firman con firma *ad-hoc*.
 
-La primera vez, macOS puede pedir permiso para ejecutar el script: `chmod +x` ya está aplicado; si da *Permission denied*, ejecuta en el terminal `chmod +x app_tk/construir_app.sh app_web/construir_app_web.sh`.
+La primera vez, macOS puede pedir permiso para ejecutar el script: `chmod +x` ya está aplicado; si da *Permission denied*, ejecuta en el terminal `chmod +x notas-rapidas/app_tk/construir_app.sh notas-rapidas/app_web/construir_app_web.sh`.
 
 ### 5.2 Desde el terminal integrado
 
 ```bash
-cd app_tk && ./construir_app.sh
+cd notas-rapidas/app_tk && ./construir_app.sh
 # o
-cd app_web && ./construir_app_web.sh
+cd notas-rapidas/app_web && ./construir_app_web.sh
 ```
 
 ### 5.3 Dos modos de construcción
@@ -227,12 +240,12 @@ Tras cambiar `setup*.py` o el icono, usa la tarea **Limpiar build/ y dist/** ant
 | `ModuleNotFoundError: tkinter` | Python sin Tk | Instalar Python de python.org o `brew install python-tk` |
 | F5 no hace nada o aparece «Debugger not found» | Falta la extensión | Instalar *Python Debugger* (`ms-python.debugpy`) |
 | La ventana de Tkinter se ve vacía o rara | Tk antiguo | Usar Python de python.org |
-| `Permission denied: ./construir_app.sh` | Sin permiso de ejecución | `chmod +x app_tk/construir_app.sh app_web/construir_app_web.sh` |
+| `Permission denied: ./construir_app.sh` | Sin permiso de ejecución | `chmod +x notas-rapidas/app_tk/construir_app.sh notas-rapidas/app_web/construir_app_web.sh` |
 | El script falla en `codesign` o `iconutil` | Faltan *Command Line Tools* | `xcode-select --install` |
 | El `.app` se abre y se cierra | Error de arranque | Tarea *Ejecutar .app … con salida en terminal* y revisar el log |
 | `ModuleNotFoundError` solo en el `.app` | py2app no detectó el módulo | Añadirlo a `"packages"` / `"includes"` y reconstruir |
 | El icono no cambia | Caché de iconos de Finder | `touch` al `.app` o `killall Finder` |
-| Las tareas no aparecen | Carpeta mal abierta | Abrir `notas_macos_vscode` (la raíz que contiene `.vscode`) |
+| Las tareas no aparecen | Carpeta mal abierta | Abrir `macos` (la raíz que contiene `.vscode`) |
 | El formateador no actúa | Falta la extensión Black | Instalarla o quitar `editor.defaultFormatter` de `settings.json` |
 | «App dañada» al copiarla a otro Mac | Cuarentena de macOS | Clic derecho → Abrir; o firmar y notarizar |
 
