@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notas Rápidas
+GenericName=Bloc de notas
+Comment=Bloc de notas sencillo
+Exec=notas-rapidas %F
+Icon=notas-rapidas
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;
+StartupNotify=true
+StartupWMClass=NotasRapidas

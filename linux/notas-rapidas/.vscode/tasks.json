@@ -1,0 +1,136 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "0a. Instalar paquetes del sistema (apt)",
+      "type": "shell",
+      "command": "sudo apt update && sudo apt install -y python3-tk python3-venv python3-pip python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 binutils dpkg-dev",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "0b. Crear entorno de desarrollo (.venv)",
+      "type": "shell",
+      "command": "python3 -m venv --system-site-packages .venv && .venv/bin/python -m pip install --upgrade pip pyinstaller pywebview",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+
+    {
+      "label": "Crear .deb Tkinter",
+      "type": "shell",
+      "command": "./crear_deb.sh",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Crear .deb pywebview",
+      "type": "shell",
+      "command": "./crear_deb.sh",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+
+    {
+      "label": "Instalar en local Tkinter (sin sudo)",
+      "type": "shell",
+      "command": "./instalar_local.sh",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Instalar en local pywebview (sin sudo)",
+      "type": "shell",
+      "command": "./instalar_local.sh",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Desinstalar local Tkinter",
+      "type": "shell",
+      "command": "./instalar_local.sh --desinstalar",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Desinstalar local pywebview",
+      "type": "shell",
+      "command": "./instalar_local.sh --desinstalar",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Construir binario Tkinter (PyInstaller, carpeta)",
+      "type": "shell",
+      "command": "./construir_app.sh",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Construir binario Tkinter (PyInstaller, un solo fichero)",
+      "type": "shell",
+      "command": "./construir_app.sh --onefile",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Construir binario pywebview (PyInstaller, experimental)",
+      "type": "shell",
+      "command": "./construir_app_web.sh",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+
+    {
+      "label": "Ejecutar binario Tkinter con salida en terminal",
+      "type": "shell",
+      "command": "./dist/notas-rapidas/notas-rapidas",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Ejecutar binario pywebview con salida en terminal",
+      "type": "shell",
+      "command": "./dist/notas-rapidas-web/notas-rapidas-web",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Ver log de la app Tkinter",
+      "type": "shell",
+      "command": "tail -n 50 -f \"${XDG_STATE_HOME:-$HOME/.local/state}/notas-rapidas/app.log\"",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Ver log de la app pywebview",
+      "type": "shell",
+      "command": "tail -n 50 -f \"${XDG_STATE_HOME:-$HOME/.local/state}/notas-rapidas-web/app.log\"",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Abrir carpeta dist (gestor de archivos)",
+      "type": "shell",
+      "command": "xdg-open app_tk/dist; xdg-open app_web/dist",
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Limpiar build/ y dist/ (ambas variantes)",
+      "type": "shell",
+      "command": "rm -rf app_tk/build app_tk/dist app_web/build app_web/dist",
+      "problemMatcher": []
+    }
+  ]
+}

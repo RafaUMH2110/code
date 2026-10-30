@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Notas Rápidas</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#1d1d1f; --bar:#f5f5f7; --line:#d2d2d7; --acc:#0a64d8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1e1e1e; --fg:#f2f2f2; --bar:#2a2a2c; --line:#3d3d40; --acc:#4da3ff; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; background: var(--bg); color: var(--fg);
+         font: 13px system-ui, "Ubuntu", "Cantarell", "Noto Sans", "DejaVu Sans", sans-serif;
+         -webkit-user-select: none; user-select: none; }
+  header { display: flex; gap: 6px; padding: 8px 10px; background: var(--bar);
+           border-bottom: 1px solid var(--line); }
+  button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+           border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+  button:hover { border-color: var(--acc); }
+  .sp { flex: 1; }
+  textarea { flex: 1; width: 100%; border: 0; outline: 0; resize: none; padding: 14px 18px;
+             background: var(--bg); color: var(--fg); -webkit-user-select: text; user-select: text;
+             font-family: "DejaVu Sans Mono", "Ubuntu Mono", "Liberation Mono", ui-monospace, monospace; line-height: 1.5; }
+  footer { padding: 4px 12px; background: var(--bar); border-top: 1px solid var(--line);
+           color: color-mix(in srgb, var(--fg) 65%, transparent); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <button id="bNuevo">Nuevo</button>
+  <button id="bAbrir">Abrir…</button>
+  <button id="bGuardar">Guardar</button>
+  <span class="sp"></span>
+  <button id="bMenos" title="Reducir letra">A−</button>
+  <button id="bMas" title="Aumentar letra">A+</button>
+</header>
+<textarea id="texto" spellcheck="false" placeholder="Escribe aquí…"></textarea>
+<footer id="estado"></footer>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const estado = { ruta: null, nombre: null, sucio: false, tamano: 16 };
+
+// Python consulta esto antes de cerrar la ventana
+window.hayCambios = () => estado.sucio;
+
+function refrescar() {
+  const t = $("texto").value;
+  const palabras = t.trim() ? t.trim().split(/\s+/).length : 0;
+  $("estado").textContent = `${palabras} palabras · ${t.length} caracteres`;
+  const titulo = `${estado.sucio ? "• " : ""}${estado.nombre || "Sin título"} — Notas Rápidas`;
+  document.title = titulo;
+  window.pywebview.api.poner_titulo(titulo);
+}
+
+function cargar(datos) {
+  if (!datos) return;
+  if (datos.error) { alert(datos.error); return; }
+  $("texto").value = datos.contenido ?? $("texto").value;
+  estado.ruta = datos.ruta; estado.nombre = datos.nombre; estado.sucio = false;
+  refrescar();
+}
+
+async function confirmarCambios() {
+  return !estado.sucio || confirm("Hay cambios sin guardar. ¿Descartarlos?");
+}
+
+async function nuevo() {
+  if (!(await confirmarCambios())) return;
+  $("texto").value = ""; estado.ruta = estado.nombre = null; estado.sucio = false;
+  refrescar();
+}
+
+async function abrir() {
+  if (!(await confirmarCambios())) return;
+  cargar(await window.pywebview.api.abrir());
+}
+
+async function guardar() {
+  const r = await window.pywebview.api.guardar($("texto").value, estado.ruta);
+  if (!r) return;
+  if (r.error) { alert(r.error); return; }
+  estado.ruta = r.ruta; estado.nombre = r.nombre; estado.sucio = false;
+  refrescar();
+}
+
+function zoom(d) {
+  estado.tamano = Math.max(9, Math.min(48, estado.tamano + d));
+  $("texto").style.fontSize = estado.tamano + "px";
+  window.pywebview.api.guardar_ajustes(estado.tamano);
+}
+
+// Atajos: Cmd en macOS, Ctrl en el resto
+document.addEventListener("keydown", (e) => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  const k = e.key.toLowerCase();
+  const acciones = { s: guardar, o: abrir, n: nuevo,
+                     "+": () => zoom(1), "=": () => zoom(1), "-": () => zoom(-1) };
+  if (acciones[k]) { e.preventDefault(); acciones[k](); }
+});
+
+$("bNuevo").onclick = nuevo;
+$("bAbrir").onclick = abrir;
+$("bGuardar").onclick = guardar;
+$("bMas").onclick = () => zoom(1);
+$("bMenos").onclick = () => zoom(-1);
+$("texto").addEventListener("input", () => { estado.sucio = true; refrescar(); });
+
+// El puente Python<->JS no existe hasta que se dispara este evento
+window.addEventListener("pywebviewready", async () => {
+  const datos = await window.pywebview.api.iniciar();
+  estado.tamano = datos.config.font_size;
+  $("texto").style.fontSize = estado.tamano + "px";
+  cargar(datos.archivo);
+  refrescar();
+  $("texto").focus();
+});
+</script>
+</body>
+</html>

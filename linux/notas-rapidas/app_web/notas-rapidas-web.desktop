@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notas Rápidas Web
+GenericName=Bloc de notas
+Comment=Bloc de notas con interfaz HTML
+Exec=notas-rapidas-web %F
+Icon=notas-rapidas-web
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;
+StartupNotify=true
