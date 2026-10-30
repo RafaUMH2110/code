@@ -1,77 +1,59 @@
 # code
 
-Ejemplos de aplicaciones de escritorio en Python que se ejecutan con **doble clic** sobre su icono, con guías y proyecto de VS Code para programarlas, ejecutarlas y construirlas.
+Ejemplos de código y aplicaciones en Python, organizados por sistema operativo. Cada app es un proyecto autocontenido (código, `.vscode/`, guías, manual y `.gitignore`) que se abre como carpeta raíz en VS Code.
 
 ## Organización
 
-El repositorio tiene una carpeta por sistema operativo (macOS, Windows y Linux). Dentro, **cada app es una carpeta completamente autocontenida**: lleva su propio código, su `.vscode/`, sus guías (`docs/`), su manual y su `.gitignore`. El código de apps distintas nunca se mezcla.
+En la raíz del repositorio solo hay tres carpetas, una por sistema operativo. Dentro de cada una hay **un directorio por app**, con el nombre de la app, y dentro de éste está todo el contenido generado para ella.
 
 ```
 code/
-├── macos/                              ← apps para macOS (.app con py2app)
-│   └── notas-rapidas/                  ← app «Notas Rápidas» (proyecto de VS Code completo)
-│       ├── .vscode/
-│       ├── app_tk/                     ← versión Tkinter
-│       ├── app_web/                    ← versión pywebview (HTML)
-│       ├── docs/
-│       │   ├── GUIA_APP_MACOS.md
-│       │   └── GUIA_PYWEBVIEW.md
-│       ├── .gitignore
-│       └── MANUAL_VSCODE.md
-└── windows/                            ← apps para Windows (.exe con PyInstaller)
-    └── notas-rapidas/
-        ├── .vscode/
-        ├── app_tk/
-        ├── app_web/
-        ├── docs/
-        │   ├── GUIA_APP_WINDOWS.md
-        │   └── GUIA_PYWEBVIEW_WINDOWS.md
-        ├── .gitignore
-        └── MANUAL_VSCODE_WINDOWS.md
-└── linux/                              ← apps para Debian, Ubuntu y Linux Mint (.deb)
-    └── notas-rapidas/
-        ├── .vscode/
-        ├── app_tk/
-        ├── app_web/
-        ├── docs/
-        │   ├── GUIA_APP_LINUX.md       ← incluye las diferencias Debian / Ubuntu / Mint
-        │   └── GUIA_PYWEBVIEW_LINUX.md
-        ├── .gitignore
-        └── MANUAL_VSCODE_LINUX.md
+├── macos/
+│   ├── notas-rapidas/          ← app «Notas Rápidas» (.app con py2app)
+│   └── generador-apps/         ← generador de apps web con IA
+├── windows/
+│   ├── notas-rapidas/          ← app «Notas Rápidas» (.exe con PyInstaller)
+│   └── generador-apps/
+└── linux/
+    ├── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
+    └── generador-apps/
 ```
 
-Además, `generador-apps/` agrupa herramientas de línea de comandos multiplataforma (no son apps de escritorio): el generador de apps web con IA, en dos versiones separadas. Ver [`generador-apps/README.md`](generador-apps/README.md).
+Contenido de cada app (ejemplo con `notas-rapidas`):
 
 ```
-generador-apps/
-├── python-app-api-anthropic/   ← versión base
-└── mejora-de-codigo/           ← versión mejorada (reintentos, copias .bak, errores claros)
+notas-rapidas/
+├── .vscode/            ← ejecución, depuración y tareas de VS Code
+├── app_tk/             ← versión Tkinter
+├── app_web/            ← versión pywebview (interfaz HTML)
+├── docs/               ← guías (conceptos básicos y avanzados)
+├── .gitignore
+└── MANUAL_VSCODE_<SISTEMA>.md
 ```
 
-- Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) como raíz en VS Code (*File → Open Folder…*).
-- Una app nueva se crea copiando una carpeta existente como plantilla y renombrándola (`macos/<mi-app>/`, `windows/<mi-app>/`, `linux/<mi-app>/`). Los pasos están en la sección «Convención» del manual de cada app.
-- Nombres de carpeta en minúsculas y guiones.
+### Reglas
 
-## App de ejemplo: Notas Rápidas
+- La raíz solo contiene `macos/`, `windows/` y `linux/` (más este README y `.gitattributes`).
+- Cada app va en su propio directorio dentro de cada sistema operativo. Nombres en minúsculas y guiones (`notas-rapidas`, `generador-apps`…).
+- Cada app lleva dentro todo lo suyo; no se comparten ficheros entre apps.
+- Una app multiplataforma se añade en las tres carpetas (cada una adaptada a su sistema, o idéntica si no depende de él).
+- Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) en VS Code (*File → Open Folder…*).
 
-Un bloc de notas en dos versiones:
+### Añadir una app nueva
 
-| Versión | Interfaz | Para qué sirve |
-|---|---|---|
-| `app_tk/` | Tkinter | Sin dependencias; la más sencilla de reproducir |
-| `app_web/` | HTML/CSS/JS en ventana nativa (pywebview) | Reutilizar interfaces web; aspecto moderno |
+1. Crea `macos/<mi-app>/`, `windows/<mi-app>/` y/o `linux/<mi-app>/`.
+2. Copia como plantilla la estructura de `notas-rapidas/` (o de `generador-apps/`) y sustituye el código.
+3. Ajusta `.vscode/launch.json`, `.vscode/tasks.json`, el manual y las guías.
+4. Añade la app a la tabla de abajo.
 
-## Por dónde empezar
+## Apps
 
-| Plataforma | Manual | Construir (desde la carpeta de la variante) |
-|---|---|---|
-| macOS | [`macos/notas-rapidas/MANUAL_VSCODE.md`](macos/notas-rapidas/MANUAL_VSCODE.md) | `./construir_app.sh` → `dist/Notas Rápidas.app` |
-| Windows | [`windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md`](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | `.\construir_app.ps1` → `dist\NotasRapidas\NotasRapidas.exe` |
-| Linux (Debian, Ubuntu, Mint) | [`linux/notas-rapidas/MANUAL_VSCODE_LINUX.md`](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) | `./crear_deb.sh` → `dist/notas-rapidas_1.0.0_all.deb` |
+| App | Descripción | macOS | Windows | Linux |
+|---|---|---|---|---|
+| **notas-rapidas** | Bloc de notas de escritorio en dos versiones: Tkinter (`app_tk/`) y pywebview con interfaz HTML (`app_web/`). Se ejecuta con doble clic | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
+| **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](macos/generador-apps/README.md) | [README](windows/generador-apps/README.md) | [README](linux/generador-apps/README.md) |
 
-En VS Code, `Cmd/Ctrl+Shift+B` lanza la construcción desde cualquier punto del proyecto.
-
-## Diferencias entre plataformas
+## Notas Rápidas: diferencias entre plataformas
 
 | | macOS | Windows | Linux (Debian / Ubuntu / Mint) |
 |---|---|---|---|
@@ -87,8 +69,9 @@ En Linux el mismo `.deb` sirve en Debian, Ubuntu y Linux Mint; las diferencias e
 
 ## Estado de verificación
 
-- El código Python se ha comprobado sintácticamente y la interfaz HTML se ha probado en un navegador con el puente a Python simulado.
+- El código Python se ha comprobado sintácticamente y la interfaz HTML de Notas Rápidas se ha probado en un navegador con el puente a Python simulado.
 - El empaquetado (py2app / PyInstaller / `.deb`) y la ejecución real con Tkinter y pywebview **deben probarse en cada sistema**. Si el ejecutable no encuentra algún módulo, las guías explican cómo añadirlo.
+- El generador de apps se probó solo con clientes de API simulados; pruébalo con tu clave.
 
 ## Requisitos
 

@@ -58,6 +58,6 @@ Para trabajar en VS Code, abre la carpeta de la versión elegida como raíz (*Fi
 
 ## Notas
 
-- Estas herramientas son **cross-platform** (macOS, Windows y Linux): no hay carpetas por sistema operativo como en las apps de escritorio del repositorio.
+- Estas herramientas son **cross-platform** (macOS, Windows y Linux). Para que cada carpeta de sistema operativo sea independiente, el repositorio mantiene una copia idéntica en `macos/`, `windows/` y `linux/`: si cambias una, replica el cambio en las otras. Solo cambia la activación del entorno virtual (`source .venv/bin/activate` en macOS/Linux, `.venv\Scripts\activate` en Windows).
 - Nunca subas el `.env` real: está excluido por `.gitignore`.
 - Durante el desarrollo no se hicieron llamadas reales a la API (solo pruebas con clientes simulados); prueba con tu clave antes de usarlo en producción.
