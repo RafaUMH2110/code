@@ -1,0 +1,120 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "0. Crear entorno de desarrollo (.venv)",
+      "type": "shell",
+      "command": "py -3 -m venv .venv; .\\.venv\\Scripts\\python.exe -m pip install --upgrade pip pyinstaller pywebview pillow",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+
+    {
+      "label": "Construir .exe Tkinter (carpeta)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Construir .exe pywebview (carpeta)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+
+    {
+      "label": "Construir .exe Tkinter (un solo .exe)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -UnSoloExe",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Construir .exe pywebview (un solo .exe)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1 -UnSoloExe",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Construir Tkinter con consola (depuración)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -Consola",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Construir pywebview con consola (depuración)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1 -Consola",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Abrir .exe Tkinter",
+      "type": "shell",
+      "command": "Start-Process .\\dist\\NotasRapidas\\NotasRapidas.exe",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Abrir .exe pywebview",
+      "type": "shell",
+      "command": "Start-Process .\\dist\\NotasRapidasWeb\\NotasRapidasWeb.exe",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Ejecutar .exe Tkinter con salida en terminal",
+      "type": "shell",
+      "command": ".\\dist\\NotasRapidas\\NotasRapidas.exe",
+      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Ejecutar .exe pywebview con salida en terminal",
+      "type": "shell",
+      "command": ".\\dist\\NotasRapidasWeb\\NotasRapidasWeb.exe",
+      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Ver log de la app Tkinter",
+      "type": "shell",
+      "command": "Get-Content \"$env:LOCALAPPDATA\\NotasRapidas\\Logs\\app.log\" -Tail 50 -Wait",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Ver log de la app pywebview",
+      "type": "shell",
+      "command": "Get-Content \"$env:LOCALAPPDATA\\NotasRapidasWeb\\Logs\\app.log\" -Tail 50 -Wait",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Abrir carpeta de datos de usuario (%APPDATA%)",
+      "type": "shell",
+      "command": "explorer.exe $env:APPDATA",
+      "problemMatcher": []
+    },
+
+    {
+      "label": "Limpiar build/ y dist/ (ambas apps)",
+      "type": "shell",
+      "command": "Remove-Item -Recurse -Force app_tk\\build, app_tk\\dist, app_web\\build, app_web\\dist -ErrorAction SilentlyContinue",
+      "problemMatcher": []
+    }
+  ]
+}

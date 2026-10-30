@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Tkinter: ejecutar / depurar",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app_tk/notas_app.py",
+      "cwd": "${workspaceFolder}/app_tk",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "pywebview: ejecutar / depurar (con inspector web)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app_web/notas_web.py",
+      "args": ["--debug"],
+      "cwd": "${workspaceFolder}/app_web",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "pywebview: ejecutar sin inspector",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app_web/notas_web.py",
+      "cwd": "${workspaceFolder}/app_web",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Fichero actual",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${fileDirname}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

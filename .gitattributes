@@ -1,0 +1,13 @@
+# Fines de línea: scripts de Windows en CRLF, scripts de macOS/Linux en LF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+*.md  text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+
+# Binarios
+*.png binary
+*.ico binary
+*.icns binary
