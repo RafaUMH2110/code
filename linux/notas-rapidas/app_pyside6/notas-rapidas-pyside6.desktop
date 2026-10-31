@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notas Rápidas Qt
+GenericName=Bloc de notas
+Comment=Bloc de notas con PySide6 (Qt)
+Exec=notas-rapidas-pyside6 %F
+Icon=notas-rapidas-pyside6
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;
+StartupNotify=true

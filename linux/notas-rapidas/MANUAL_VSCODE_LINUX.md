@@ -1,9 +1,16 @@
 # Manual: programar, ejecutar y empaquetar apps de Linux desde VS Code
 
-Válido para **Debian**, **Ubuntu** y **Linux Mint**. Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
+Válido para **Debian**, **Ubuntu** y **Linux Mint**. Proyecto de ejemplo con cinco versiones de la misma app («Notas Rápidas»), una por toolkit de interfaz:
 
-- **`app_tk/`**: interfaz con Tkinter.
-- **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview + GTK/WebKitGTK).
+| Carpeta | Toolkit | Empaquetado |
+|---|---|---|
+| `app_tk/` | Tkinter | `.deb` / local / PyInstaller |
+| `app_web/` | HTML en ventana nativa (pywebview) | `.deb` / local / PyInstaller |
+| `app_pyside6/` | PySide6 (Qt) | `.deb` / local / PyInstaller |
+| `app_wx/` | wxPython | `.deb` / local / PyInstaller (experimental) |
+| `app_toga/` | Toga (BeeWare) | Briefcase (`.deb`) |
+
+Qué toolkit elegir y cómo se compara cada uno: [`docs/GUIA_TOOLKITS_LINUX.md`](docs/GUIA_TOOLKITS_LINUX.md). (PyObjC solo existe en macOS.)
 
 La app es **autocontenida**: esta carpeta (`linux/notas-rapidas/`) lleva su propio `.vscode/`, sus guías, su manual y su `.gitignore`. Se abre como proyecto independiente en VS Code.
 
@@ -35,9 +42,28 @@ notas-rapidas/                     ← raíz del proyecto de VS Code (se abre es
 │   ├── instalar_local.sh
 │   ├── construir_app_web.sh       ← binario PyInstaller (experimental)
 │   └── icono.png / icono_256.png / icono_48.png
+├── app_pyside6/                   ← versión PySide6 (Qt)
+│   ├── notas_pyside6.py
+│   ├── notas-rapidas-pyside6.desktop
+│   ├── requirements.txt
+│   ├── crear_deb.sh / instalar_local.sh / construir_app.sh
+│   └── icono.png / icono_256.png / icono_48.png
+├── app_wx/                        ← versión wxPython
+│   ├── notas_wx.py
+│   ├── notas-rapidas-wx.desktop
+│   ├── requirements.txt
+│   ├── crear_deb.sh / instalar_local.sh / construir_app.sh
+│   └── icono.png / icono_256.png / icono_48.png
+├── app_toga/                      ← versión Toga (BeeWare)
+│   ├── src/notas_rapidas_toga/    ← app.py, __main__.py, resources/ (iconos)
+│   ├── pyproject.toml             ← configuración de Briefcase (backend linux system)
+│   ├── LICENSE                    ← Briefcase exige uno: sustitúyelo por el tuyo
+│   ├── requirements.txt
+│   └── construir_app.sh           ← dev | build | run | package
 ├── docs/
 │   ├── GUIA_APP_LINUX.md          ← conceptos básicos y avanzados + diferencias Debian/Ubuntu/Mint
-│   └── GUIA_PYWEBVIEW_LINUX.md    ← detalles de la variante pywebview
+│   ├── GUIA_PYWEBVIEW_LINUX.md    ← detalles de la variante pywebview
+│   └── GUIA_TOOLKITS_LINUX.md     ← PySide6, wxPython y Toga: comparación y detalles
 ├── .gitignore
 └── MANUAL_VSCODE_LINUX.md         ← este manual
 ```
@@ -91,6 +117,8 @@ sudo apt install python3-tk python3-venv python3-pip python3-gi python3-gi-cairo
 | `dpkg-dev` | Herramientas de empaquetado `.deb` |
 
 > En Ubuntu 20.04 y Mint 20 usa `gir1.2-webkit2-4.0` en lugar de `4.1`.
+>
+> Para las variantes nuevas hay tareas de apt específicas: **0c** (PySide6: `libxcb-cursor0`, `libegl1`, `libxkbcommon-x11-0`), **0d** (wxPython: `python3-wxgtk4.0`) y **0e** (Toga: compiladores y bibliotecas de desarrollo de GTK).
 > **En Debian**, si `sudo` no existe o te dice que no estás en `sudoers`, abre un terminal de root con `su -`, ejecuta `apt install sudo && usermod -aG sudo TU_USUARIO` y reinicia la sesión.
 
 ### 2.3 Instalar VS Code
@@ -152,11 +180,14 @@ pip install --upgrade pip pyinstaller pywebview
 
 Abre la vista de ejecución (`Ctrl+Shift+D`), elige una configuración y pulsa **F5**.
 
+> Para las variantes nuevas, instala antes sus dependencias en el `.venv` con las tareas **Instalar dependencias PySide6 / wxPython / Toga (.venv)** (en Linux wxPython se instala con apt; ver §2.2).
 | Configuración | Qué hace |
 |---|---|
 | **Tkinter: ejecutar / depurar** | Lanza `app_tk/notas_app.py` |
 | **pywebview: ejecutar / depurar (con inspector web)** | Lanza `app_web/notas_web.py --debug` |
 | **pywebview: ejecutar sin inspector** | Igual, sin herramientas de desarrollo |
+| **PySide6 / wxPython: ejecutar / depurar** | Lanza `app_pyside6/notas_pyside6.py` o `app_wx/notas_wx.py` |
+| **Toga: ejecutar / depurar** | Lanza el módulo `notas_rapidas_toga` desde `app_toga/src` |
 | **Fichero actual** | Ejecuta el `.py` abierto |
 
 **Atajos de depuración**
@@ -199,6 +230,9 @@ Tienes tres vías, todas disponibles como tareas (`Ctrl+Shift+P` → *Tasks: Run
 |---|---|
 | **Crear .deb Tkinter** | `app_tk/dist/notas-rapidas_1.0.0_all.deb` |
 | **Crear .deb pywebview** | `app_web/dist/notas-rapidas-web_1.0.0_all.deb` |
+| **Crear .deb PySide6** | `app_pyside6/dist/notas-rapidas-pyside6_1.0.0_all.deb` (depende de `python3-pyside6.qtwidgets`) |
+| **Crear .deb wxPython** | `app_wx/dist/notas-rapidas-wx_1.0.0_all.deb` (depende de `python3-wxgtk4.0`) |
+| **Toga: crear paquete .deb (Briefcase)** | `app_toga/dist/*.deb` (específico de la versión de tu distribución) |
 
 Instalar y quitar:
 
@@ -218,6 +252,8 @@ sudo apt remove notas-rapidas
 |---|---|
 | **Instalar en local Tkinter (sin sudo)** | App en `~/.local/share/notas-rapidas`, comando en `~/.local/bin`, entrada de menú |
 | **Instalar en local pywebview (sin sudo)** | Igual, con un venv propio |
+| **Instalar en local PySide6 (sin sudo)** | Igual, con un venv propio y `pip install PySide6-Essentials` |
+| **Instalar en local wxPython (sin sudo)** | Igual, con el Python y el wxPython de apt |
 | **Desinstalar local …** | Elimina lo instalado |
 
 Para crear además un icono en el Escritorio: `./instalar_local.sh --escritorio`.
@@ -229,6 +265,8 @@ Para crear además un icono en el Escritorio: `./instalar_local.sh --escritorio`
 | **Construir binario Tkinter (PyInstaller, carpeta)** | `app_tk/dist/notas-rapidas/notas-rapidas` |
 | **Construir binario Tkinter (PyInstaller, un solo fichero)** | `app_tk/dist/notas-rapidas` |
 | **Construir binario pywebview (PyInstaller, experimental)** | `app_web/dist/notas-rapidas-web/notas-rapidas-web` |
+| **Construir binario PySide6 (PyInstaller)** | `app_pyside6/dist/notas-rapidas-pyside6/notas-rapidas-pyside6` |
+| **Construir binario wxPython (PyInstaller, experimental)** | `app_wx/dist/notas-rapidas-wx/notas-rapidas-wx` |
 
 > **Atención:** un binario PyInstaller solo funciona en distribuciones con una `glibc` igual o más reciente que la del equipo donde se construyó. Construye en la distro más antigua que quieras soportar (Ubuntu 22.04 / Mint 21 cubre las de la tabla de la guía). El `.deb` no tiene esta limitación. La variante pywebview con PyInstaller es experimental: usa mejor el `.deb`.
 

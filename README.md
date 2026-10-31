@@ -26,7 +26,10 @@ notas-rapidas/
 ├── .vscode/            ← ejecución, depuración y tareas de VS Code
 ├── app_tk/             ← versión Tkinter
 ├── app_web/            ← versión pywebview (interfaz HTML)
-├── app_pyside6/        ← versión PySide6 (solo en macos/ por ahora; igual con app_wx, app_pyobjc, app_toga)
+├── app_pyside6/        ← versión PySide6
+├── app_wx/             ← versión wxPython
+├── app_toga/           ← versión Toga (BeeWare)
+├── …                   (app_pyobjc/, solo en macos/: PyObjC existe únicamente en macOS)
 ├── docs/               ← guías (conceptos básicos y avanzados)
 ├── .gitignore
 └── MANUAL_VSCODE_<SISTEMA>.md
@@ -51,7 +54,7 @@ notas-rapidas/
 
 | App | Descripción | macOS | Windows | Linux |
 |---|---|---|---|---|
-| **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit: Tkinter (`app_tk/`) y pywebview con interfaz HTML (`app_web/`) en macOS, Windows y Linux; además, en macOS: PySide6, wxPython, PyObjC y Toga | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
+| **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit en macOS, Windows y Linux: Tkinter (`app_tk/`), pywebview con interfaz HTML (`app_web/`), PySide6 (`app_pyside6/`), wxPython (`app_wx/`) y Toga (`app_toga/`); solo en macOS, además, PyObjC (`app_pyobjc/`) | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
 | **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](macos/generador-apps/README.md) | [README](windows/generador-apps/README.md) | [README](linux/generador-apps/README.md) |
 
 ## Notas Rápidas: diferencias entre plataformas

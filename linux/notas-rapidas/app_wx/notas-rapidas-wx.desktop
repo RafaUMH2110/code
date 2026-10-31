@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Notas Rápidas Wx
+GenericName=Bloc de notas
+Comment=Bloc de notas con wxPython
+Exec=notas-rapidas-wx %F
+Icon=notas-rapidas-wx
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/markdown;
+StartupNotify=true
+StartupWMClass=NotasRapidasWx
