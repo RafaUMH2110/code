@@ -15,7 +15,9 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/app_web/notas_web.py",
-      "args": ["--debug"],
+      "args": [
+        "--debug"
+      ],
       "cwd": "${workspaceFolder}/app_web",
       "console": "integratedTerminal",
       "justMyCode": true
@@ -27,6 +29,33 @@
       "program": "${workspaceFolder}/app_web/notas_web.py",
       "cwd": "${workspaceFolder}/app_web",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "PySide6: ejecutar / depurar",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app_pyside6/notas_pyside6.py",
+      "cwd": "${workspaceFolder}/app_pyside6",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "wxPython: ejecutar / depurar",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app_wx/notas_wx.py",
+      "cwd": "${workspaceFolder}/app_wx",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Toga: ejecutar / depurar",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "notas_rapidas_toga",
+      "cwd": "${workspaceFolder}/app_toga/src",
+      "console": "integratedTerminal",
+      "justMyCode": true
     },
     {
       "name": "Fichero actual",

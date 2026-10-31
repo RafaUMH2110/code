@@ -1,9 +1,16 @@
 # Manual: programar, ejecutar y construir apps de Windows desde VS Code
 
-Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
+Proyecto de ejemplo con cinco versiones de la misma app («Notas Rápidas»), una por toolkit de interfaz:
 
-- **`app_tk/`**: interfaz con Tkinter.
-- **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview + Edge WebView2).
+| Carpeta | Toolkit | Empaquetado |
+|---|---|---|
+| `app_tk/` | Tkinter | PyInstaller |
+| `app_web/` | HTML en ventana nativa (pywebview) | PyInstaller |
+| `app_pyside6/` | PySide6 (Qt) | PyInstaller |
+| `app_wx/` | wxPython | PyInstaller |
+| `app_toga/` | Toga (BeeWare) | Briefcase (`.msi`) |
+
+Qué toolkit elegir y cómo se compara cada uno: [`docs/GUIA_TOOLKITS_WINDOWS.md`](docs/GUIA_TOOLKITS_WINDOWS.md). (PyObjC solo existe en macOS.)
 
 La app es **autocontenida**: esta carpeta (`windows/notas-rapidas/` en el repositorio) lleva su propio `.vscode/`, sus guías, su manual y su `.gitignore`. Se abre como proyecto independiente en VS Code, sin depender de otras apps del repositorio.
 
@@ -31,9 +38,26 @@ notas-rapidas/                     ← raíz del proyecto de VS Code (se abre es
 │   ├── construir_app_web.ps1
 │   ├── construir_app_web.bat
 │   └── icono.png / icono.ico
+├── app_pyside6/                   ← versión PySide6 (Qt)
+│   ├── notas_pyside6.py
+│   ├── requirements.txt
+│   ├── construir_app.ps1 / .bat   ← PyInstaller
+│   └── icono.png / icono.ico
+├── app_wx/                        ← versión wxPython
+│   ├── notas_wx.py
+│   ├── requirements.txt
+│   ├── construir_app.ps1 / .bat   ← PyInstaller
+│   └── icono.png / icono.ico
+├── app_toga/                      ← versión Toga (BeeWare)
+│   ├── src/notas_rapidas_toga/    ← app.py, __main__.py, resources/ (iconos)
+│   ├── pyproject.toml             ← configuración de Briefcase
+│   ├── LICENSE                    ← Briefcase exige uno: sustitúyelo por el tuyo
+│   ├── requirements.txt
+│   └── construir_app.ps1 / .bat   ← dev | build | run | package
 ├── docs/
 │   ├── GUIA_APP_WINDOWS.md        ← conceptos básicos y avanzados
-│   └── GUIA_PYWEBVIEW_WINDOWS.md  ← detalles de la variante pywebview
+│   ├── GUIA_PYWEBVIEW_WINDOWS.md  ← detalles de la variante pywebview
+│   └── GUIA_TOOLKITS_WINDOWS.md   ← PySide6, wxPython y Toga: comparación y detalles
 ├── .gitignore
 └── MANUAL_VSCODE_WINDOWS.md       ← este manual
 ```
@@ -122,11 +146,14 @@ Después selecciona el intérprete: `Ctrl+Shift+P` → *Python: Select Interpret
 
 Abre la vista de ejecución (`Ctrl+Shift+D`), elige una configuración y pulsa **F5**.
 
+> Para las variantes nuevas, instala antes sus dependencias en el `.venv` con las tareas **Instalar dependencias PySide6 / wxPython / Toga (.venv)** (cada una lee su `requirements.txt`).
 | Configuración | Qué hace |
 |---|---|
 | **Tkinter: ejecutar / depurar** | Lanza `app_tk\notas_app.py` |
 | **pywebview: ejecutar / depurar (con inspector web)** | Lanza `app_web\notas_web.py --debug` |
 | **pywebview: ejecutar sin inspector** | Igual, sin herramientas de desarrollo |
+| **PySide6 / wxPython: ejecutar / depurar** | Lanza `app_pyside6\notas_pyside6.py` o `app_wx\notas_wx.py` |
+| **Toga: ejecutar / depurar** | Lanza el módulo `notas_rapidas_toga` desde `app_toga\src` |
 | **Fichero actual** | Ejecuta el `.py` abierto |
 
 **Atajos de depuración**
@@ -169,6 +196,10 @@ Para probar solo el diseño, abre `app_web\ui\index.html` en el navegador (los b
 |---|---|
 | **Construir .exe Tkinter (carpeta)** | `app_tk\dist\NotasRapidas\NotasRapidas.exe` |
 | **Construir .exe pywebview (carpeta)** | `app_web\dist\NotasRapidasWeb\NotasRapidasWeb.exe` |
+| **Construir .exe PySide6 (PyInstaller)** | `app_pyside6\dist\NotasRapidasQt\NotasRapidasQt.exe` |
+| **Construir .exe wxPython (PyInstaller)** | `app_wx\dist\NotasRapidasWx\NotasRapidasWx.exe` |
+| **Construir .exe Toga (Briefcase)** | Se ejecuta con la tarea *Toga: ejecutar la app construida* (`briefcase run windows`) |
+| **Toga: modo desarrollo / crear instalador .msi** | `briefcase dev` / `briefcase package windows` |
 | **… (un solo .exe)** | `dist\NotasRapidas.exe` / `dist\NotasRapidasWeb.exe` |
 | **… con consola (depuración)** | `.exe` que abre una consola con trazas y errores |
 | **Abrir .exe …** | Lo ejecuta como si hicieras doble clic |

@@ -6,88 +6,114 @@
       "type": "shell",
       "command": "py -3 -m venv .venv; .\\.venv\\Scripts\\python.exe -m pip install --upgrade pip pyinstaller pywebview pillow",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
-
     {
       "label": "Construir .exe Tkinter (carpeta)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1",
-      "options": { "cwd": "${workspaceFolder}/app_tk" },
-      "group": { "kind": "build", "isDefault": true },
+      "options": {
+        "cwd": "${workspaceFolder}/app_tk"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "Construir .exe pywebview (carpeta)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1",
-      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_web"
+      },
       "group": "build",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
-
     {
       "label": "Construir .exe Tkinter (un solo .exe)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -UnSoloExe",
-      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_tk"
+      },
       "problemMatcher": []
     },
     {
       "label": "Construir .exe pywebview (un solo .exe)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1 -UnSoloExe",
-      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_web"
+      },
       "problemMatcher": []
     },
-
     {
       "label": "Construir Tkinter con consola (depuración)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -Consola",
-      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_tk"
+      },
       "problemMatcher": []
     },
     {
       "label": "Construir pywebview con consola (depuración)",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app_web.ps1 -Consola",
-      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_web"
+      },
       "problemMatcher": []
     },
-
     {
       "label": "Abrir .exe Tkinter",
       "type": "shell",
       "command": "Start-Process .\\dist\\NotasRapidas\\NotasRapidas.exe",
-      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_tk"
+      },
       "problemMatcher": []
     },
     {
       "label": "Abrir .exe pywebview",
       "type": "shell",
       "command": "Start-Process .\\dist\\NotasRapidasWeb\\NotasRapidasWeb.exe",
-      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_web"
+      },
       "problemMatcher": []
     },
-
     {
       "label": "Ejecutar .exe Tkinter con salida en terminal",
       "type": "shell",
       "command": ".\\dist\\NotasRapidas\\NotasRapidas.exe",
-      "options": { "cwd": "${workspaceFolder}/app_tk" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_tk"
+      },
       "problemMatcher": []
     },
     {
       "label": "Ejecutar .exe pywebview con salida en terminal",
       "type": "shell",
       "command": ".\\dist\\NotasRapidasWeb\\NotasRapidasWeb.exe",
-      "options": { "cwd": "${workspaceFolder}/app_web" },
+      "options": {
+        "cwd": "${workspaceFolder}/app_web"
+      },
       "problemMatcher": []
     },
-
     {
       "label": "Ver log de la app Tkinter",
       "type": "shell",
@@ -102,18 +128,183 @@
       "isBackground": true,
       "problemMatcher": []
     },
-
+    {
+      "label": "Instalar dependencias PySide6 (.venv)",
+      "type": "shell",
+      "command": ".\\.venv\\Scripts\\python.exe -m pip install -r app_pyside6\\requirements.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Instalar dependencias wxPython (.venv)",
+      "type": "shell",
+      "command": ".\\.venv\\Scripts\\python.exe -m pip install -r app_wx\\requirements.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Instalar dependencias Toga (.venv)",
+      "type": "shell",
+      "command": ".\\.venv\\Scripts\\python.exe -m pip install -r app_toga\\requirements.txt",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Construir .exe PySide6 (PyInstaller)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_pyside6"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Construir .exe wxPython (PyInstaller)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_wx"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Construir .exe Toga (Briefcase)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_toga"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Toga: modo desarrollo (briefcase dev)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 dev",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_toga"
+      }
+    },
+    {
+      "label": "Toga: ejecutar la app construida",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 run",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_toga"
+      }
+    },
+    {
+      "label": "Toga: crear instalador .msi (Briefcase)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 package",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_toga"
+      }
+    },
+    {
+      "label": "Construir PySide6 con consola (depuración)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -Consola",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_pyside6"
+      }
+    },
+    {
+      "label": "Construir wxPython con consola (depuración)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\construir_app.ps1 -Consola",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_wx"
+      }
+    },
+    {
+      "label": "Abrir .exe PySide6",
+      "type": "shell",
+      "command": "Start-Process .\\dist\\NotasRapidasQt\\NotasRapidasQt.exe",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_pyside6"
+      }
+    },
+    {
+      "label": "Abrir .exe wxPython",
+      "type": "shell",
+      "command": "Start-Process .\\dist\\NotasRapidasWx\\NotasRapidasWx.exe",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_wx"
+      }
+    },
+    {
+      "label": "Ejecutar .exe PySide6 con salida en terminal",
+      "type": "shell",
+      "command": ".\\dist\\NotasRapidasQt\\NotasRapidasQt.exe",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_pyside6"
+      }
+    },
+    {
+      "label": "Ejecutar .exe wxPython con salida en terminal",
+      "type": "shell",
+      "command": ".\\dist\\NotasRapidasWx\\NotasRapidasWx.exe",
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}/app_wx"
+      }
+    },
+    {
+      "label": "Ver log de la app PySide6",
+      "type": "shell",
+      "command": "Get-Content \"$env:LOCALAPPDATA\\NotasRapidasPySide6\\Logs\\app.log\" -Tail 50 -Wait",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Ver log de la app wxPython",
+      "type": "shell",
+      "command": "Get-Content \"$env:LOCALAPPDATA\\NotasRapidasWx\\Logs\\app.log\" -Tail 50 -Wait",
+      "problemMatcher": [],
+      "isBackground": true
+    },
     {
       "label": "Abrir carpeta de datos de usuario (%APPDATA%)",
       "type": "shell",
       "command": "explorer.exe $env:APPDATA",
       "problemMatcher": []
     },
-
     {
       "label": "Limpiar build/ y dist/ (ambas apps)",
       "type": "shell",
-      "command": "Remove-Item -Recurse -Force app_tk/build, app_tk/dist, app_web/build, app_web/dist -ErrorAction SilentlyContinue",
+      "command": "Remove-Item -Recurse -Force app_tk/build, app_tk/dist, app_web/build, app_web/dist, app_pyside6/build, app_pyside6/dist, app_wx/build, app_wx/dist, app_toga/build, app_toga/dist -ErrorAction SilentlyContinue",
       "problemMatcher": []
     }
   ]
