@@ -1,0 +1,29 @@
+[build-system]
+requires = ["briefcase"]
+
+[tool.briefcase]
+project_name = "Notas Rápidas Toga"
+bundle = "com.ejemplo"                       # cámbialo por el tuyo (identificador inverso)
+version = "1.0.0"
+url = "https://example.com/notas-rapidas-toga"
+license.file = "LICENSE"
+author = "Tu nombre"
+author_email = "tu@correo.example"
+
+[tool.briefcase.app.notas-rapidas-toga]
+formal_name = "Notas Rápidas Toga"
+description = "Bloc de notas sencillo hecho con Toga (BeeWare)"
+long_description = """Ejemplo de aplicación de escritorio en Python con widgets nativos (Toga).
+"""
+icon = "src/notas_rapidas_toga/resources/notas-rapidas-toga"
+sources = ["src/notas_rapidas_toga"]
+test_sources = []
+requires = ["toga~=0.5.0"]
+test_requires = []
+
+[tool.briefcase.app.notas-rapidas-toga.macOS]
+universal_build = true
+requires = [
+    "toga-cocoa~=0.5.0",
+    "std-nslog~=1.0.3",
+]

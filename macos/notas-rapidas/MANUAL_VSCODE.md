@@ -1,9 +1,17 @@
 # Manual: programar, ejecutar y construir apps de macOS desde VS Code
 
-Proyecto de ejemplo con dos versiones de la misma app («Notas Rápidas»):
+Proyecto de ejemplo con seis versiones de la misma app («Notas Rápidas»), una por toolkit de interfaz:
 
-- **`app_tk/`**: interfaz con Tkinter.
-- **`app_web/`**: interfaz HTML dentro de una ventana nativa (pywebview).
+| Carpeta | Toolkit | Empaquetador |
+|---|---|---|
+| `app_tk/` | Tkinter | py2app |
+| `app_web/` | HTML en ventana nativa (pywebview) | py2app |
+| `app_pyside6/` | PySide6 (Qt) | PyInstaller |
+| `app_wx/` | wxPython | py2app |
+| `app_pyobjc/` | PyObjC (AppKit directo, solo macOS) | py2app |
+| `app_toga/` | Toga (BeeWare) | Briefcase |
+
+Qué toolkit elegir y cómo se compara cada uno: [`docs/GUIA_TOOLKITS_MACOS.md`](docs/GUIA_TOOLKITS_MACOS.md).
 
 La app es **autocontenida**: esta carpeta (`macos/notas-rapidas/` en el repositorio) lleva su propio `.vscode/`, sus guías, su manual y su `.gitignore`. Se abre como proyecto independiente en VS Code, sin depender de otras apps del repositorio.
 
@@ -31,9 +39,33 @@ notas-rapidas/                     ← raíz del proyecto de VS Code (se abre es
 │   ├── setup_web.py
 │   ├── construir_app_web.sh
 │   └── icono.png
+├── app_pyside6/                   ← versión PySide6 (Qt)
+│   ├── notas_pyside6.py
+│   ├── requirements.txt
+│   ├── construir_app.sh           ← PyInstaller
+│   └── icono.png / icono.icns
+├── app_wx/                        ← versión wxPython
+│   ├── notas_wx.py
+│   ├── setup.py                   ← py2app
+│   ├── requirements.txt
+│   ├── construir_app.sh
+│   └── icono.png / icono.icns
+├── app_pyobjc/                    ← versión PyObjC (AppKit)
+│   ├── notas_pyobjc.py
+│   ├── setup.py                   ← py2app
+│   ├── requirements.txt
+│   ├── construir_app.sh
+│   └── icono.png / icono.icns
+├── app_toga/                      ← versión Toga (BeeWare)
+│   ├── src/notas_rapidas_toga/    ← app.py, __main__.py, resources/ (iconos)
+│   ├── pyproject.toml             ← configuración de Briefcase
+│   ├── LICENSE                    ← Briefcase exige uno: sustitúyelo por el tuyo
+│   ├── requirements.txt
+│   └── construir_app.sh           ← dev | build | package
 ├── docs/
 │   ├── GUIA_APP_MACOS.md          ← conceptos básicos y avanzados (Tkinter, empaquetado, firma)
-│   └── GUIA_PYWEBVIEW.md          ← detalles de la variante pywebview
+│   ├── GUIA_PYWEBVIEW.md          ← detalles de la variante pywebview
+│   └── GUIA_TOOLKITS_MACOS.md     ← PySide6, wxPython, PyObjC y Toga: comparación y detalles
 ├── .gitignore
 └── MANUAL_VSCODE.md               ← este manual
 ```
@@ -115,6 +147,8 @@ Después, selecciona el intérprete: `Cmd+Shift+P` → *Python: Select Interpret
 
 ## 4. Ejecutar y depurar (sin construir el .app)
 
+> Para las variantes nuevas, instala antes sus dependencias en el `.venv` con las tareas **Instalar dependencias PySide6 / wxPython / PyObjC / Toga (.venv)** (cada una lee su `requirements.txt`).
+
 Abre la vista de ejecución (`Cmd+Shift+D`), elige una configuración en el desplegable y pulsa **F5**.
 
 | Configuración | Qué hace |
@@ -122,6 +156,8 @@ Abre la vista de ejecución (`Cmd+Shift+D`), elige una configuración en el desp
 | **Tkinter: ejecutar / depurar** | Lanza `app_tk/notas_app.py` |
 | **pywebview: ejecutar / depurar (con inspector web)** | Lanza `app_web/notas_web.py --debug` |
 | **pywebview: ejecutar sin inspector** | Igual, sin herramientas de desarrollo |
+| **PySide6 / wxPython / PyObjC: ejecutar / depurar** | Lanza `app_pyside6/notas_pyside6.py`, `app_wx/notas_wx.py` o `app_pyobjc/notas_pyobjc.py` |
+| **Toga: ejecutar / depurar** | Lanza el módulo `notas_rapidas_toga` desde `app_toga/src` |
 | **Fichero actual** | Ejecuta el `.py` abierto |
 
 **Atajos de depuración**
@@ -164,6 +200,11 @@ Para probar la interfaz sin Python, abre `app_web/ui/index.html` en el navegador
 |---|---|
 | **Construir .app Tkinter (independiente)** | `app_tk/dist/Notas Rápidas.app` |
 | **Construir .app pywebview (independiente)** | `app_web/dist/Notas Rápidas Web.app` |
+| **Construir .app PySide6 (PyInstaller)** | `app_pyside6/dist/Notas Rapidas Qt.app` |
+| **Construir .app wxPython (py2app)** | `app_wx/dist/Notas Rápidas Wx.app` |
+| **Construir .app PyObjC (py2app)** | `app_pyobjc/dist/Notas Rápidas PyObjC.app` |
+| **Construir .app Toga (Briefcase)** | `app_toga/build/notas-rapidas-toga/macos/app/Notas Rápidas Toga.app` |
+| **Toga: modo desarrollo / crear instalador .dmg** | `briefcase dev` / `briefcase package macOS --adhoc-sign` |
 | **Alias .app … (desarrollo rápido)** | `.app` ligero que apunta a tu código fuente |
 | **Abrir .app …** | Lo abre como si hicieras doble clic |
 | **Ejecutar .app … con salida en terminal** | Lo lanza desde el terminal para ver errores |
@@ -172,7 +213,9 @@ Para probar la interfaz sin Python, abre `app_web/ui/index.html` en el navegador
 
 Los scripts `construir_app*.sh` hacen, en orden: crean un `.venv` propio dentro de la carpeta de la app, instalan `py2app` (y `pywebview`), convierten `icono.png` en `icono.icns`, construyen y firman con firma *ad-hoc*.
 
-La primera vez, macOS puede pedir permiso para ejecutar el script: `chmod +x` ya está aplicado; si da *Permission denied*, ejecuta en el terminal `chmod +x app_tk/construir_app.sh app_web/construir_app_web.sh`.
+Cada variante usa su empaquetador natural: py2app (Tkinter, pywebview, wxPython, PyObjC), PyInstaller (PySide6) y Briefcase (Toga). El modo alias (`-A`) solo existe con py2app.
+
+La primera vez, macOS puede pedir permiso para ejecutar el script: `chmod +x` ya está aplicado; si da *Permission denied*, ejecuta en el terminal `chmod +x app_*/construir_app*.sh`.
 
 ### 5.2 Desde el terminal integrado
 
