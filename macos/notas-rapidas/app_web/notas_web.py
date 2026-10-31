@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import sys
+import threading
 from pathlib import Path
 
 import webview
@@ -76,6 +77,9 @@ class Api:
 
     def __init__(self) -> None:
         self._window: webview.Window | None = None
+        self._sucio = False               # ¿hay cambios sin guardar? (lo actualiza JS)
+        self._preguntando = False         # diálogo de cierre abierto
+        self._cierre_confirmado = False   # el usuario aceptó cerrar sin guardar
         self._config = dict(DEFAULT_CONFIG)
         try:
             self._config.update(json.loads(CONFIG_FILE.read_text(encoding="utf-8")))
@@ -134,23 +138,52 @@ class Api:
         self._config["last_file"] = str(ruta)
         return {"ruta": str(ruta), "nombre": ruta.name}
 
-    def _al_cerrar(self):
-        """Evento 'closing': devolver False cancela el cierre."""
+    def marcar_cambios(self, sucio: bool) -> None:
+        """JS avisa aquí cada vez que cambia el estado «hay cambios sin guardar».
+
+        El cierre de la ventana consulta este valor en lugar de llamar a evaluate_js,
+        que se bloquea si se invoca desde el evento 'closing' (sobre todo en macOS).
+        """
+        self._sucio = bool(sucio)
+
+    def _tamano(self, ancho: int, alto: int) -> None:
+        """Evento 'resized': guarda el tamaño sin consultar a la ventana al cerrar."""
+        self._config.update(width=int(ancho), height=int(alto))
+
+    def _guardar_config(self) -> None:
         try:
-            sucio = bool(self._window.evaluate_js("window.hayCambios()"))
-        except Exception:
-            sucio = False
-        if sucio and not self._window.create_confirmation_dialog(
-                APP_NAME, "Hay cambios sin guardar. ¿Cerrar igualmente?"):
-            return False
-        try:
-            self._config.update(width=self._window.width, height=self._window.height)
             SUPPORT_DIR.mkdir(parents=True, exist_ok=True)
             CONFIG_FILE.write_text(json.dumps(self._config, indent=2), encoding="utf-8")
         except OSError:
             log.exception("No se pudo guardar la configuración")
+
+    def _al_cerrar(self):
+        """Evento 'closing': devolver False cancela el cierre.
+
+        No se hacen llamadas bloqueantes aquí (evaluate_js, diálogos, width/height):
+        si hay cambios sin guardar se cancela el cierre, se pregunta desde otro hilo
+        y, si el usuario confirma, se cierra la ventana con destroy().
+        """
+        if self._sucio and not self._cierre_confirmado:
+            if not self._preguntando:
+                self._preguntando = True
+                threading.Thread(target=self._confirmar_cierre, daemon=True).start()
+            return False
+        self._guardar_config()
         log.info("Cierre normal")
         return None
+
+    def _confirmar_cierre(self) -> None:
+        try:
+            ok = self._window.create_confirmation_dialog(
+                APP_NAME, "Hay cambios sin guardar. ¿Cerrar igualmente?")
+        except Exception:  # noqa: BLE001
+            log.exception("Fallo al mostrar el diálogo de cierre")
+            ok = False
+        self._preguntando = False
+        if ok:
+            self._cierre_confirmado = True
+            self._window.destroy()
 
 
 def main() -> None:
@@ -166,6 +199,7 @@ def main() -> None:
     )
     api._window = ventana
     ventana.events.closing += api._al_cerrar
+    ventana.events.resized += api._tamano
     webview.start(debug="--debug" in sys.argv)
 
 

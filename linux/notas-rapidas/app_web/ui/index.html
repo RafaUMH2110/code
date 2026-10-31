@@ -56,6 +56,7 @@ function refrescar() {
   const titulo = `${estado.sucio ? "• " : ""}${estado.nombre || "Sin título"} — Notas Rápidas`;
   document.title = titulo;
   window.pywebview.api.poner_titulo(titulo);
+  window.pywebview.api.marcar_cambios(estado.sucio);
 }
 
 function cargar(datos) {
