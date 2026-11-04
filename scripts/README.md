@@ -30,3 +30,7 @@ chmod +x instalar_todo.sh instalar_todo_isa.sh
 ./instalar_todo.sh -h        # servidor local
 ./instalar_todo_isa.sh -h    # isa.umh.es
 ```
+
+## English version
+
+See [`en/`](en/README.md) for the English versions of all the scripts and guides.
