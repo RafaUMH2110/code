@@ -19,7 +19,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `instrucciones_instalar_todo_isa.md` | Guía de `instalar_todo_isa.sh` |
 | | `apache_docroot_htdocs.md` | Por qué `/rafa/` da 404 si Apache sirve otro DocumentRoot |
 | | `anteriores/instalar_todo_anterior.sh` | Versión previa de `instalar_todo.sh`, solo como histórico |
-| `telemet-colector/` | `telemet_colector.py` | TeleMet Colector: lee de forma continua la estación meteorológica y guarda un histórico (24 h por defecto; `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y como JSON para las apps TeleMet |
+| `telemet-colector/` | `telemet_colector.py` | TeleMet Colector: lee de forma continua la estación meteorológica y guarda un histórico (24 h por defecto; `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y como JSON para las apps TeleMet  Admite varias estaciones, cada una con su API Key (`[estacion:ID]`). |
 | | `MANUAL.md`, `README.md` | Manual detallado (instalación, configuración y funcionamiento) y guía rápida |
 | | `config.example.ini`, `telemet-colector.service` | Plantilla de configuración y servicio systemd |
 

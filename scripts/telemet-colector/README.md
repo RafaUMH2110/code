@@ -65,11 +65,31 @@ journalctl -u telemet-colector -f                        # ver el log en vivo
 Si cambias rutas o el usuario, ajusta `User`, `WorkingDirectory`, `ExecStart` y `ReadWritePaths` en el `.service`.
 Tras editar `config.ini`: `sudo systemctl restart telemet-colector`.
 
+## Varias estaciones
+
+Un solo colector puede leer **varias estaciones, cada una con su propia API Key**. Deja `[estacion]` vacía y añade una sección `[estacion:ID]` por estación:
+
+```ini
+[estacion:IELCHE12]
+api_key = CLAVE1
+
+[estacion:IALICA34]
+api_key = CLAVE2
+intervalo_s = 600        # opcional: ritmo propio
+```
+
+- Cada estación se lee en su **propio hilo** (intervalo, reintentos y fallos independientes: una clave errónea en una no afecta a las demás).
+- Cada una tiene su **propia BD** (`telemet_<ID>.sqlite`) y su **propio JSON** (`historial_<ID>.json`, con el ID en mayúsculas), en las carpetas de `ruta_bd` y `ruta_json`. También puedes usar `{station_id}` en esas rutas o fijar `ruta_bd` / `ruta_json` dentro de la sección de la estación.
+- La app TeleMet Historial lee primero `datos/historial_<SU_STATION_ID>.json` y, si no existe, `datos/historial.json`, así que **una única copia de la app sirve para todas las estaciones**.
+- Los secretos pueden ir por entorno: `TELEMET_API_KEY_<ID>` (clave de una sección sin `api_key`) o `TELEMET_ESTACIONES=ID1:CLAVE1,ID2:CLAVE2`.
+- `--probar`, `--una-vez` y `--estado` actúan sobre todas las estaciones.
+- Un `config.ini` con una sola estación en `[estacion]` sigue funcionando igual que antes (mismos nombres de BD y JSON).
+
 ## Instalar la app TeleMet Historial en el mismo servidor
 
 Copia `telemetria/telemet/historial/index.html` (y `apple-touch-icon.png`) a
-`/var/www/htdocs/rafa/telemethistorial/`. La app busca el histórico en `datos/historial.json`
-**relativo a su propia página**, es decir, en `/var/www/htdocs/rafa/telemethistorial/datos/historial.json`,
+`/var/www/htdocs/rafa/telemethistorial/`. La app busca el histórico en `datos/historial_<ID>.json` y, si no existe, en `datos/historial.json`
+**relativos a su propia página**, es decir, en `/var/www/htdocs/rafa/telemethistorial/datos/`,
 que es justo donde lo escribe el colector con la configuración por defecto. Si publicas la app en
 otra carpeta, cambia `ruta_json` en `config.ini` (o `SERVIDOR_HISTORIAL_URL` en el HTML) para que coincidan.
 
@@ -98,6 +118,7 @@ Opcional (Apache con `mod_headers`): evitar que se cachee el JSON.
 | Sección | Parámetro | Por defecto | Qué hace |
 |---|---|---|---|
 | `estacion` | `station_id`, `api_key` | — | Tu estación y clave. También por variables de entorno `TELEMET_STATION_ID` / `TELEMET_API_KEY`. |
+| `estacion:ID` | `api_key`, `intervalo_s`, `ruta_bd`, `ruta_json` | — | Una sección por estación para usar varias (ver «Varias estaciones»). |
 | `lectura` | `intervalo_s` | 300 | Segundos entre lecturas (mínimo 5). |
 | `lectura` | `timeout_s` | 15 | Tiempo máximo de cada petición. |
 | `lectura` | `backoff_base_s`, `backoff_max_s` | 2, 300 | Reintentos tras un fallo: 2, 4, 8… s hasta el tope. |
@@ -114,7 +135,7 @@ Opcional (Apache con `mod_headers`): evitar que se cachee el JSON.
 - **El ciclo sobrevive a reinicios:** en modo `reinicio`, el instante de inicio se guarda en la base de datos, de modo que reiniciar el servicio o el servidor no reinicia el ciclo.
 - **Límite de llamadas de la API:** con `intervalo_s = 300` el colector hace 288 llamadas al día (con 60 serían 1.440). Si los visitantes de la app usan la misma clave, suman las suyas. Comprueba el límite de tu clave antes de bajar el intervalo.
 - **Observaciones repetidas:** si la estación no ha publicado nada nuevo, la API devuelve la misma observación y el colector no la guarda dos veces.
-- **Cambio de estación:** si cambias `station_id`, el colector detecta que la base es de otra estación y la borra.
+- **Cambio de estación:** si cambias `station_id`, el colector detecta que la base es de otra estación y la borra (con varias estaciones, cada BD guarda la suya).
 - **Errores de clave (401/403) o estación (404):** se registran en el log y el servicio sigue reintentando cada `backoff_max_s` segundos, por si fuera un fallo pasajero.
 - El fichero `config.ini` contiene tu API Key: está en `.gitignore` y no debe subirse a GitHub.
 

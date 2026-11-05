@@ -22,9 +22,16 @@ Qué hace
    app lo lee al abrirse y rellena con él los huecos de sus gráficas de
    evolución de 12 y 24 horas.
 
+VARIAS ESTACIONES: además de la sección [estacion] (una sola estación) puede
+haber una sección [estacion:ID_ESTACION] por cada estación, cada una con su
+`api_key`. Cada estación se lee en su propio hilo (con su intervalo, sus
+reintentos y su fallo independientes) y tiene su propia base de datos y su
+propio JSON: historial_<ID>.json (ver config.example.ini y MANUAL.md).
+
 Todos los parámetros importantes están en `config.ini` (ver
-`config.example.ini`) y los dos secretos pueden darse por variables de
-entorno: TELEMET_STATION_ID y TELEMET_API_KEY.
+`config.example.ini`) y los secretos pueden darse por variables de
+entorno: TELEMET_STATION_ID y TELEMET_API_KEY (una estación), TELEMET_API_KEY_<ID>
+(clave de una sección [estacion:ID] sin api_key) o TELEMET_ESTACIONES=ID1:CLAVE1,ID2:CLAVE2.
 
 Uso
 ---
@@ -38,11 +45,13 @@ Uso
 
 import argparse
 import configparser
+import copy
 import json
 import logging
 import logging.handlers
 import math
 import os
+import re
 import signal
 import sqlite3
 import sys
@@ -53,7 +62,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-VERSION = "1.0"
+VERSION = "1.1"
 FORMATO_JSON = 1  # versión del formato del JSON exportado (la app la comprueba)
 
 log = logging.getLogger("telemet_colector")
@@ -96,6 +105,25 @@ DEFECTOS = {
 # ----------------------------------------------------------------------
 # CONFIGURACIÓN
 # ----------------------------------------------------------------------
+def _seguro(texto):
+    """Parte de un nombre de fichero / variable de entorno derivada de un Station ID."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", texto)
+
+
+def _sufijo_env(station_id):
+    return re.sub(r"[^A-Za-z0-9]", "_", station_id).upper()
+
+
+class _LogEstacion(logging.LoggerAdapter):
+    """Antepone [ID] a cada mensaje cuando hay varias estaciones (con una sola, prefijo vacío)."""
+    def __init__(self, logger, prefijo):
+        super().__init__(logger, {})
+        self.prefijo = prefijo
+
+    def process(self, msg, kwargs):
+        return self.prefijo + msg, kwargs
+
+
 class Config:
     def __init__(self, ruta_ini, horas=None):
         cp = configparser.ConfigParser(interpolation=None)
@@ -106,9 +134,38 @@ class Config:
             cp.read(ruta_ini, encoding="utf-8")
         self.base_dir = os.path.dirname(os.path.abspath(ruta_ini)) if ruta_ini else os.getcwd()
 
-        # Los secretos pueden venir del entorno (tienen prioridad sobre el .ini).
-        self.station_id = (os.environ.get("TELEMET_STATION_ID") or cp.get("estacion", "station_id")).strip()
-        self.api_key = (os.environ.get("TELEMET_API_KEY") or cp.get("estacion", "api_key")).strip()
+        # Estaciones. Los secretos pueden venir del entorno (tienen prioridad sobre el .ini
+        # en [estacion]; en [estacion:ID] el entorno solo se usa si falta api_key).
+        brutas = []
+        sid = (os.environ.get("TELEMET_STATION_ID") or cp.get("estacion", "station_id")).strip()
+        clave = (os.environ.get("TELEMET_API_KEY") or cp.get("estacion", "api_key")).strip()
+        if sid or clave:
+            brutas.append({"id": sid, "key": clave, "sec": "estacion"})
+        for sec in cp.sections():
+            if sec.lower().startswith("estacion:"):
+                sid = sec.split(":", 1)[1].strip()
+                clave = cp.get(sec, "api_key", fallback="").strip() or \
+                    os.environ.get("TELEMET_API_KEY_" + _sufijo_env(sid), "").strip()
+                brutas.append({"id": sid, "key": clave, "sec": sec})
+        for par in (os.environ.get("TELEMET_ESTACIONES") or "").replace(";", ",").split(","):
+            par = par.strip()
+            if not par:
+                continue
+            if ":" not in par:
+                raise SystemExit("TELEMET_ESTACIONES: cada elemento debe ser ID:CLAVE (falla «%s»)" % par.split(":")[0])
+            sid, clave = par.split(":", 1)
+            brutas.append({"id": sid.strip(), "key": clave.strip(), "sec": None})
+        vistos = set()
+        for b in brutas:
+            if b["id"]:
+                if b["id"].lower() in vistos:
+                    raise SystemExit("La estación %s está repetida en la configuración." % b["id"])
+                vistos.add(b["id"].lower())
+        self._brutas = brutas
+        # Compatibilidad: con una sola estación, estos atributos son los de esa estación.
+        self.station_id = brutas[0]["id"] if brutas else ""
+        self.api_key = brutas[0]["key"] if brutas else ""
+        self.prefijo_log = ""
 
         self.url_base = cp.get("lectura", "url_base").strip()
         self.intervalo_s = max(5.0, cp.getfloat("lectura", "intervalo_s"))
@@ -128,14 +185,64 @@ class Config:
         if self.modo not in ("reinicio", "deslizante"):
             raise SystemExit("[ciclo] modo debe ser 'reinicio' o 'deslizante'")
 
-        self.ruta_bd = self._ruta(cp.get("almacen", "ruta_bd"))
-        self.ruta_json = self._ruta(cp.get("salida", "ruta_json"))
+        plantilla_bd = cp.get("almacen", "ruta_bd")
+        plantilla_json = cp.get("salida", "ruta_json")
+        self.ruta_bd = self._ruta(plantilla_bd)
+        self.ruta_json = self._ruta(plantilla_json)
         self.decimales = max(0, cp.getint("salida", "decimales"))
+
+        # Una configuración por estación. Con varias estaciones, a cada una se le
+        # añade su ID al nombre de la BD y del JSON (telemet_<ID>.sqlite,
+        # historial_<ID>.json), salvo que la plantilla ya contenga {station_id}
+        # o la sección de la estación fije su propia ruta.
+        varias = len(brutas) > 1
+        self.estaciones = []
+        for b in brutas:
+            sec = b["sec"]
+            def opcion(nombre, defecto):
+                return cp.get(sec, nombre, fallback=defecto).strip() if sec and cp.has_section(sec) else defecto
+            sid_f = _seguro(b["id"].upper())
+            ruta_bd_e = self._ruta_estacion(opcion("ruta_bd", plantilla_bd), sid_f, varias)
+            ruta_json_e = self._ruta_estacion(opcion("ruta_json", plantilla_json), sid_f, varias)
+            interv = max(5.0, float(opcion("intervalo_s", str(self.intervalo_s))))
+            self.estaciones.append({"id": b["id"], "key": b["key"], "intervalo_s": interv,
+                                    "ruta_bd": ruta_bd_e, "ruta_json": ruta_json_e})
 
         self.nivel_log = cp.get("log", "nivel").strip().upper()
         self.fichero_log = cp.get("log", "fichero").strip()
         if self.fichero_log:
             self.fichero_log = self._ruta(self.fichero_log)
+
+    def _ruta_estacion(self, plantilla, sid_fichero, varias):
+        if "{station_id}" in plantilla:
+            return self._ruta(plantilla.replace("{station_id}", sid_fichero))
+        ruta = self._ruta(plantilla)
+        if not varias:
+            return ruta
+        base, ext = os.path.splitext(ruta)
+        return "%s_%s%s" % (base, sid_fichero, ext)
+
+    def exigir_credenciales(self):
+        if not self.estaciones:
+            raise SystemExit("Falta station_id y/o api_key (en config.ini o en TELEMET_STATION_ID / TELEMET_API_KEY).")
+        for e in self.estaciones:
+            if not e["id"] or not e["key"]:
+                raise SystemExit("A la estación «%s» le falta el station_id o la api_key (en config.ini, en [estacion:ID] o en "
+                                 "TELEMET_API_KEY_%s)." % (e["id"] or "?", _sufijo_env(e["id"])))
+
+    def configs_estacion(self):
+        """Una Config (copia) por estación; con ninguna configurada, la base (útil para --estado)."""
+        if not self.estaciones:
+            return [self]
+        varias = len(self.estaciones) > 1
+        res = []
+        for e in self.estaciones:
+            c = copy.copy(self)
+            c.station_id, c.api_key = e["id"], e["key"]
+            c.intervalo_s, c.ruta_bd, c.ruta_json = e["intervalo_s"], e["ruta_bd"], e["ruta_json"]
+            c.prefijo_log = "[%s] " % e["id"] if varias else ""
+            res.append(c)
+        return res
 
     def _ruta(self, ruta):
         ruta = os.path.expanduser(ruta.strip())
@@ -230,7 +337,7 @@ class Almacen:
         carpeta = os.path.dirname(ruta)
         if carpeta:
             os.makedirs(carpeta, exist_ok=True)
-        self.db = sqlite3.connect(ruta, timeout=30)
+        self.db = sqlite3.connect(ruta, timeout=30, check_same_thread=False)  # cada BD la usa un solo hilo
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("CREATE TABLE IF NOT EXISTS lecturas ("
                         "epoch_ms INTEGER PRIMARY KEY, vals TEXT NOT NULL)")
@@ -367,6 +474,7 @@ def consultar(cfg):
 class Colector:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.log = _LogEstacion(log, cfg.prefijo_log)
         self.almacen = Almacen(cfg.ruta_bd)
         self.parar = threading.Event()
         self.fallos_seguidos = 0
@@ -377,7 +485,7 @@ class Colector:
         ahora = int(time.time() * 1000)
         estacion_bd = self.almacen.meta("station_id")
         if estacion_bd is not None and estacion_bd != self.cfg.station_id:
-            log.warning("La BD era de la estación %s y ahora se usa %s: se borran los datos antiguos.",
+            self.log.warning("La BD era de la estación %s y ahora se usa %s: se borran los datos antiguos.",
                         estacion_bd, self.cfg.station_id)
             self.almacen.borrar_todo()
             self.almacen.set_meta("ciclo_inicio_ms", ahora)
@@ -397,13 +505,13 @@ class Colector:
                 self.almacen.borrar_todo()
                 self.ciclo_inicio_ms = ahora
                 self.almacen.set_meta("ciclo_inicio_ms", ahora)
-                log.info("Ciclo de %.4g h cumplido: borradas %d lecturas y comienza un ciclo nuevo.",
+                self.log.info("Ciclo de %.4g h cumplido: borradas %d lecturas y comienza un ciclo nuevo.",
                          self.cfg.duracion_h, n)
                 return True
         else:
             borradas = self.almacen.borrar_anteriores(ahora - self.cfg.duracion_ms)
             if borradas:
-                log.debug("Descartadas %d lecturas con más de %.4g h.", borradas, self.cfg.duracion_h)
+                self.log.debug("Descartadas %d lecturas con más de %.4g h.", borradas, self.cfg.duracion_h)
                 return True
         return False
 
@@ -415,26 +523,26 @@ class Colector:
             res = consultar(self.cfg)
         except ErrorFatal as e:
             self.fallos_seguidos += 1
-            log.error("%s. Se reintentará cada %.0f s; corrige config.ini si no es un fallo pasajero.",
+            self.log.error("%s. Se reintentará cada %.0f s; corrige config.ini si no es un fallo pasajero.",
                       e, self.cfg.backoff_max_s)
             self._exportar_si(cambio)
             return self.cfg.backoff_max_s
         except ErrorTemporal as e:
             self.fallos_seguidos += 1
             espera = min(self.cfg.backoff_base_s * (2 ** (self.fallos_seguidos - 1)), self.cfg.backoff_max_s)
-            log.warning("Lectura fallida (%s); reintento n.º %d en %.0f s.", e, self.fallos_seguidos, espera)
+            self.log.warning("Lectura fallida (%s); reintento n.º %d en %.0f s.", e, self.fallos_seguidos, espera)
             self._exportar_si(cambio)
             return espera
 
         self.fallos_seguidos = 0
         if res is None:
-            log.info("La API no ha devuelto observaciones nuevas.")
+            self.log.info("La API no ha devuelto observaciones nuevas.")
             self._exportar_si(cambio)
             return self.cfg.intervalo_s
         epoch_ms, vals = res
         nueva = self.almacen.anadir(epoch_ms, vals)
         t = vals.get("temp_c")
-        log.info("%s  T=%s °C  HR=%s %%  viento=%s km/h  %s",
+        self.log.info("%s  T=%s °C  HR=%s %%  viento=%s km/h  %s",
                  time.strftime("%H:%M:%S", time.localtime(epoch_ms / 1000)),
                  t, vals.get("humidity_pct"), vals.get("wind_kmh"),
                  "guardada" if nueva else "(observación repetida, no se guarda)")
@@ -447,13 +555,13 @@ class Colector:
         try:
             exportar_json(self.cfg, self.almacen, self.ciclo_inicio_ms)
         except OSError as e:
-            log.error("No se pudo escribir %s: %s (¿existe la carpeta y tiene permisos el usuario del servicio?)",
+            self.log.error("No se pudo escribir %s: %s (¿existe la carpeta y tiene permisos el usuario del servicio?)",
                       self.cfg.ruta_json, e)
 
     def ejecutar(self):
-        log.info("TeleMet Colector %s · estación %s · cada %.0f s · ciclo %.4g h (%s)",
+        self.log.info("TeleMet Colector %s · estación %s · cada %.0f s · ciclo %.4g h (%s)",
                  VERSION, self.cfg.station_id, self.cfg.intervalo_s, self.cfg.duracion_h, self.cfg.modo)
-        log.info("BD: %s · JSON: %s", self.cfg.ruta_bd, self.cfg.ruta_json)
+        self.log.info("BD: %s · JSON: %s", self.cfg.ruta_bd, self.cfg.ruta_json)
         # JSON inicial: así la app encuentra el fichero aunque la primera lectura tarde.
         self._exportar_si(True)
         while not self.parar.is_set():
@@ -461,14 +569,14 @@ class Colector:
             try:
                 espera = self.una_vuelta()
             except Exception:  # un fallo inesperado no debe tumbar el servicio
-                log.exception("Error inesperado en la vuelta de lectura")
+                self.log.exception("Error inesperado en la vuelta de lectura")
                 self.fallos_seguidos += 1
                 espera = min(self.cfg.backoff_base_s * (2 ** min(self.fallos_seguidos, 10)), self.cfg.backoff_max_s)
             # Intervalo a ritmo fijo: se descuenta lo que haya tardado la petición.
             restante = max(1.0, espera - (time.monotonic() - inicio))
             self.parar.wait(restante)
         self.almacen.cerrar()
-        log.info("Detenido.")
+        self.log.info("Detenido.")
 
 
 # ----------------------------------------------------------------------
@@ -506,48 +614,76 @@ def main(argv=None):
     cfg = Config(ruta_ini, args.horas)
     configurar_log(cfg)
 
+    cfgs = cfg.configs_estacion()
+
     if args.estado:
-        a = Almacen(cfg.ruta_bd)
-        n, mn, mx = a.resumen()
         f = lambda ms: time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms / 1000)) if ms else "—"
-        print("BD:            %s" % cfg.ruta_bd)
-        print("Estación:      %s" % a.meta("station_id", "—"))
-        print("Lecturas:      %d  (de %s a %s)" % (n, f(mn), f(mx)))
-        ini = a.meta("ciclo_inicio_ms")
-        print("Ciclo desde:   %s" % (f(int(ini)) if ini else "—"))
-        a.cerrar()
+        for n_c, c in enumerate(cfgs):
+            if n_c:
+                print()
+            a = Almacen(c.ruta_bd)
+            n, mn, mx = a.resumen()
+            print("BD:            %s" % c.ruta_bd)
+            print("Estación:      %s" % a.meta("station_id", "—"))
+            print("Lecturas:      %d  (de %s a %s)" % (n, f(mn), f(mx)))
+            ini = a.meta("ciclo_inicio_ms")
+            print("Ciclo desde:   %s" % (f(int(ini)) if ini else "—"))
+            a.cerrar()
         return 0
 
-    if not cfg.station_id or not cfg.api_key:
-        raise SystemExit("Falta station_id y/o api_key (en config.ini o en TELEMET_STATION_ID / TELEMET_API_KEY).")
+    cfg.exigir_credenciales()
 
     if args.probar:
-        try:
-            res = consultar(cfg)
-        except (ErrorFatal, ErrorTemporal) as e:
-            print("ERROR: %s" % e)
-            return 1
-        if res is None:
-            print("La API no ha devuelto observaciones.")
-            return 1
-        epoch_ms, vals = res
-        print("Observación de %s" % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(epoch_ms / 1000)))
-        print(json.dumps(vals, indent=2, ensure_ascii=False))
-        return 0
+        codigo = 0
+        for c in cfgs:
+            try:
+                res = consultar(c)
+            except (ErrorFatal, ErrorTemporal) as e:
+                print("ERROR (%s): %s" % (c.station_id, e))
+                codigo = 1
+                continue
+            if res is None:
+                print("La API no ha devuelto observaciones (%s)." % c.station_id)
+                codigo = 1
+                continue
+            epoch_ms, vals = res
+            print("Estación %s · observación de %s" % (c.station_id, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(epoch_ms / 1000))))
+            print(json.dumps(vals, indent=2, ensure_ascii=False))
+        return codigo
 
-    col = Colector(cfg)
+    cols = [Colector(c) for c in cfgs]
+    if len(cols) > 1:
+        log.info("TeleMet Colector %s · %d estaciones: %s", VERSION, len(cols), ", ".join(c.station_id for c in cfgs))
+
     if args.una_vez:
-        col.una_vuelta()
-        col._exportar_si(True)
-        col.almacen.cerrar()
+        for col in cols:
+            col.una_vuelta()
+            col._exportar_si(True)
+            col.almacen.cerrar()
         return 0
 
     def _parar(signum, _frame):
         log.info("Señal %d recibida: parando…", signum)
-        col.parar.set()
+        for col in cols:
+            col.parar.set()
     signal.signal(signal.SIGINT, _parar)
     signal.signal(signal.SIGTERM, _parar)
-    col.ejecutar()
+
+    # Un hilo por estación: cada una con su ritmo, sus reintentos y sus fallos.
+    # Los arranques se escalonan unos segundos para no lanzar todas las
+    # peticiones a la vez.
+    def _lanzar(col, retardo):
+        if retardo and col.parar.wait(retardo):
+            col.almacen.cerrar()
+            return
+        col.ejecutar()
+    hilos = [threading.Thread(target=_lanzar, args=(col, 2.0 * i), name="estacion-" + col.cfg.station_id)
+             for i, col in enumerate(cols)]
+    for h in hilos:
+        h.start()
+    while any(h.is_alive() for h in hilos):
+        for h in hilos:
+            h.join(0.5)
     return 0
 
 

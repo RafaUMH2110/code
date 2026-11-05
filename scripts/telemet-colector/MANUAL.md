@@ -4,7 +4,7 @@ Manual de instalación, uso, configuración y funcionamiento interno de **TeleMe
 
 - **Código:** `RafaUMH2110/apps` → `telemetria/telemetcolector/`
 - **App asociada:** `telemetria/telemet/historial/index.html` (TeleMet Historial)
-- **Versión del programa:** 1.0 · **Formato del JSON:** 1
+- **Versión del programa:** 1.1 · **Formato del JSON:** 1
 
 ---
 
@@ -334,7 +334,7 @@ y en la unidad, dentro de `[Service]`:
 EnvironmentFile=/etc/telemet-colector.env
 ```
 
-Las variables de entorno **tienen prioridad** sobre los valores de `config.ini`.
+Las variables de entorno **tienen prioridad** sobre los valores de `config.ini`. Con varias estaciones añade una línea `TELEMET_API_KEY_<ID>=…` por estación (ver 9.1) o `TELEMET_ESTACIONES=ID1:CLAVE1,ID2:CLAVE2`.
 
 ---
 
@@ -355,9 +355,10 @@ La app busca el histórico en una ruta **relativa a su propia página**:
 
 ```js
 const SERVIDOR_HISTORIAL_URL = 'datos/historial.json';
+// y, antes, el de su estación: 'datos/historial_<STATION_ID en mayúsculas>.json'
 ```
 
-Por tanto, si la app está en `…/telemethistorial/index.html`, el JSON debe estar en `…/telemethistorial/datos/historial.json`. Eso es exactamente lo que escribe el colector con la configuración por defecto:
+La app prueba primero `datos/historial_<SU_STATION_ID>.json` (el que escribe el colector cuando hay varias estaciones) y, si no existe, `datos/historial.json` (el de una sola estación). Por tanto, si la app está en `…/telemethistorial/index.html`, el JSON debe estar en `…/telemethistorial/datos/`. Eso es exactamente lo que escribe el colector con la configuración por defecto:
 
 ```
 ruta_json = /var/www/htdocs/rafa/telemethistorial/datos/historial.json
@@ -409,6 +410,46 @@ Formato estándar INI. Las rutas relativas se resuelven **respecto a la carpeta 
 
 Ambos pueden venir de las variables de entorno `TELEMET_STATION_ID` y `TELEMET_API_KEY`, que prevalecen sobre el `.ini`. De forma análoga, `TELEMET_HORAS` sustituye a `duracion_horas`.
 
+### 9.1.1. Varias estaciones: `[estacion:ID]`
+
+Para leer varias estaciones con un solo colector, deja `[estacion]` vacía (o bórrala) y añade **una sección por estación**, con el Station ID tras los dos puntos:
+
+```ini
+[estacion:IELCHE12]
+api_key = CLAVE_DE_ESTA_ESTACION
+
+[estacion:IALICA34]
+api_key     = OTRA_CLAVE
+intervalo_s = 600
+```
+
+| Parámetro | Defecto | Descripción |
+|---|---|---|
+| `api_key` | *(vacío)* | Clave de esa estación. Si falta, se usa la variable de entorno `TELEMET_API_KEY_<ID>` (el ID en mayúsculas y con `_` en lugar de cualquier carácter que no sea letra o cifra; p. ej. `TELEMET_API_KEY_IELCHE12`). |
+| `intervalo_s` | el de `[lectura]` | Ritmo propio de esa estación (mínimo 5). |
+| `ruta_bd` | el de `[almacen]` | BD propia de esa estación (ver abajo). |
+| `ruta_json` | el de `[salida]` | JSON propio de esa estación (ver abajo). |
+
+El resto de parámetros (`url_base`, `timeout_s`, reintentos, `duracion_horas`, `modo`, `decimales`, `[log]`) son comunes a todas.
+
+**Nombres de BD y JSON.** Con dos o más estaciones, el programa añade el Station ID (en mayúsculas) a los nombres definidos en `[almacen] ruta_bd` y `[salida] ruta_json`:
+
+| Estación | BD | JSON |
+|---|---|---|
+| `IELCHE12` | `datos/telemet_IELCHE12.sqlite` | `…/datos/historial_IELCHE12.json` |
+| `IALICA34` | `datos/telemet_IALICA34.sqlite` | `…/datos/historial_IALICA34.json` |
+
+Si la ruta contiene `{station_id}` (p. ej. `ruta_json = /var/www/…/{station_id}/historial.json`) se sustituye por el ID y no se añade nada más; si la sección de la estación fija su propia `ruta_bd` / `ruta_json`, se usa tal cual.
+
+**Otras formas de dar las estaciones** (se suman a las del `.ini`):
+
+- `TELEMET_STATION_ID` + `TELEMET_API_KEY`: una estación (la de `[estacion]`).
+- `TELEMET_ESTACIONES=ID1:CLAVE1,ID2:CLAVE2`: lista de pares `ID:CLAVE` separados por comas.
+
+**Reglas.** No puede repetirse un Station ID (sin distinguir mayúsculas), y todas deben tener Station ID y API Key: si falta algo, el programa lo indica y no arranca. Con una sola estación (en cualquiera de las formas) los nombres de BD y JSON **no** cambian, así que un `config.ini` anterior sigue funcionando igual.
+
+**Cuota de la API.** Cada estación hace sus propias llamadas con su propia clave: con `intervalo_s = 300` son 288 llamadas/día *por clave*. Si dos estaciones comparten la misma clave, las llamadas se suman contra su límite.
+
 ### 9.2. `[lectura]`
 
 | Parámetro | Defecto | Mín. | Descripción |
@@ -447,13 +488,13 @@ Los visitantes de la app que usen la misma API Key consumen llamadas adicionales
 
 | Parámetro | Defecto | Descripción |
 |---|---|---|
-| `ruta_bd` | `./datos/telemet.sqlite` | Fichero SQLite. La carpeta se crea si no existe (si el usuario tiene permiso). Se crean también `*.sqlite-wal` y `*.sqlite-shm` (modo WAL). |
+| `ruta_bd` | `./datos/telemet.sqlite` | Fichero SQLite. La carpeta se crea si no existe (si el usuario tiene permiso). Se crean también `*.sqlite-wal` y `*.sqlite-shm` (modo WAL). Con varias estaciones se le añade el Station ID (`telemet_<ID>.sqlite`) o se usa `{station_id}` (ver 9.1.1). |
 
 ### 9.5. `[salida]`
 
 | Parámetro | Defecto | Descripción |
 |---|---|---|
-| `ruta_json` | `/var/www/htdocs/rafa/telemethistorial/datos/historial.json` | Dónde se publica el histórico. La **carpeta** debe ser escribible por el usuario del servicio (la escritura atómica crea un fichero temporal en ella). |
+| `ruta_json` | `/var/www/htdocs/rafa/telemethistorial/datos/historial.json` | Dónde se publica el histórico. La **carpeta** debe ser escribible por el usuario del servicio (la escritura atómica crea un fichero temporal en ella). Con varias estaciones se le añade el Station ID (`historial_<ID>.json`) o se usa `{station_id}` (ver 9.1.1). |
 | `decimales` | `2` | Decimales de los valores numéricos exportados. La base de datos guarda el valor completo; el redondeo solo afecta al JSON. |
 
 ### 9.6. `[log]`
@@ -485,8 +526,10 @@ python3 telemet_colector.py [-c RUTA_CONFIG] [--horas H] [--una-vez | --probar |
 | `-c`, `--config RUTA` | Fichero de configuración. Si se omite, usa `config.ini` junto al script **si existe**; si no, solo valores por defecto y entorno. | — |
 | `--horas H` | Horas de histórico a conservar (admite decimales). Sustituye a `duracion_horas` del `.ini` y a `TELEMET_HORAS`. | — |
 | `--una-vez` | Una lectura; la guarda, exporta el JSON y sale. | Sí |
-| `--probar` | Una lectura; la imprime y sale. Código de salida 1 si falla. | **No** |
+| `--probar` | Una lectura; la imprime y sale. Código de salida 1 si falla (con varias estaciones, si falla alguna). | **No** |
 | `--estado` | Resumen de la BD: ruta, estación, nº de lecturas con primer/último instante, inicio del ciclo. No necesita credenciales. | No |
+
+Con varias estaciones, `--una-vez`, `--probar` y `--estado` recorren todas, una tras otra (`--estado` imprime un bloque por BD).
 
 `--una-vez`, `--probar` y `--estado` son mutuamente excluyentes.
 
@@ -518,6 +561,8 @@ arranque
 ```
 
 La espera es a **ritmo fijo**: se descuenta el tiempo de la petición, de modo que con `intervalo_s = 300` las lecturas no se van desplazando poco a poco.
+
+**Con varias estaciones** este bucle se ejecuta en un **hilo por estación**, cada uno con su BD, su JSON, su intervalo y sus reintentos: lo que le pase a una (clave errónea, caída de su estación, error de escritura) no afecta a las demás. Los arranques se escalonan 2 s para no lanzar todas las peticiones a la vez, y cada línea del log lleva el prefijo `[ID]`. Con `SIGINT`/`SIGTERM` paran todos los hilos.
 
 ### 11.2. La petición a la API
 
@@ -572,7 +617,7 @@ Si la estación deja de publicar datos, el JSON deja de cambiar; la app lo detec
 
 ### 11.7. Cambio de estación
 
-Al arrancar se compara el `station_id` guardado en la tabla `meta` con el de la configuración. Si difieren, se borran todas las lecturas y se reinicia el ciclo, de forma que nunca se mezclen datos de dos estaciones.
+Al arrancar se compara el `station_id` guardado en la tabla `meta` con el de la configuración. Si difieren, se borran todas las lecturas y se reinicia el ciclo, de forma que nunca se mezclen datos de dos estaciones. Con varias estaciones cada una tiene su BD, por lo que añadir o quitar estaciones no borra las demás.
 
 ### 11.8. Escritura atómica del JSON
 
@@ -614,7 +659,9 @@ sudo -u telemet sqlite3 /opt/telemet-colector/datos/telemet.sqlite \
 
 ## 12. Formato de los datos
 
-### 12.1. Fichero `historial.json`
+### 12.1. Fichero `historial.json` (o `historial_<ID>.json`)
+
+Cada fichero contiene **una sola estación**. Con una estación se llama `historial.json`; con varias, `historial_<ID>.json` (uno por estación). El formato es el mismo:
 
 ```json
 {
@@ -697,7 +744,7 @@ Todo está en `telemetria/telemet/historial/index.html`, en el bloque «HISTÓRI
 
 | Constante | Valor | Descripción |
 |---|---|---|
-| `SERVIDOR_HISTORIAL_URL` | `'datos/historial.json'` | Ruta del JSON, relativa a la página. |
+| `SERVIDOR_HISTORIAL_URL` | `'datos/historial.json'` | Ruta del JSON de una sola estación, relativa a la página. Antes la app prueba `datos/historial_<STATION_ID>.json` (ID en mayúsculas), que es el que escribe el colector con varias estaciones. |
 | `SERVIDOR_TIMEOUT_MS` | `15000` | Tiempo máximo de la descarga. |
 | `SERVIDOR_SYNC_CADA_MIN` | `10` | Cada cuántos minutos se vuelve a consultar con la app abierta. |
 | `SERVIDOR_MERGE_TOLERANCIA_MS` | `30000` | Una lectura del servidor a menos de 30 s de una local se considera la misma. |
@@ -746,7 +793,7 @@ En el panel «Evolución de las últimas 12 horas» (o 24):
 
 - No usa el servidor en lugar del navegador: el navegador sigue registrando sus propias lecturas cada `pollInterval` (60 s por defecto).
 - No ofrece más horas de las guardadas: el JSON solo contiene la ventana del servidor (`duracion_horas`, 24 h por defecto). Con una ventana de 24 h en la app, la primera mitad depende de lo que el navegador haya guardado si `duracion_horas` es menor de 24.
-- No soporta varias estaciones en el mismo JSON (ver FAQ).
+- Cada JSON contiene una sola estación (con varias, hay un fichero por estación; ver 9.1.1).
 
 ---
 
@@ -755,7 +802,7 @@ En el panel «Evolución de las últimas 12 horas» (o 24):
 ### 14.1. Interpretar el log
 
 ```
-2026-11-03 21:19:12 INFO TeleMet Colector 1.0 · estación ITEST1 · cada 300 s · ciclo 24 h (deslizante)
+2026-11-03 21:19:12 INFO TeleMet Colector 1.1 · estación ITEST1 · cada 300 s · ciclo 24 h (deslizante)
 2026-11-03 21:19:12 INFO BD: /opt/telemet-colector/datos/telemet.sqlite · JSON: /var/www/.../historial.json
 2026-11-03 21:19:12 INFO 21:19:12  T=18.4 °C  HR=62 %  viento=7.2 km/h  guardada
 2026-11-03 21:24:12 INFO 21:24:12  T=18.3 °C  HR=62 %  viento=6.8 km/h  guardada
@@ -852,7 +899,7 @@ No: el mínimo es 5 s, y la API no actualiza tan rápido; además consumiría la
 Solo se guarda la primera (clave primaria `epoch_ms`).
 
 **¿Se pueden monitorizar varias estaciones?**
-Cada instancia del colector atiende una estación. Para varias, crea otra carpeta con su propio `config.ini`, otra `ruta_bd`, otra `ruta_json` y otra unidad systemd (`telemet-colector-2.service`). La app, sin embargo, lee un único `datos/historial.json` relativo a su página, por lo que cada estación necesitaría su propia copia de la app en otra carpeta (o cambiar `SERVIDOR_HISTORIAL_URL`).
+Sí. Un solo colector puede atender varias estaciones, cada una con su propia API Key: añade una sección `[estacion:ID]` por estación (ver 9.1.1). Cada una se lee en su hilo y genera su propia BD y su propio `historial_<ID>.json`; la app TeleMet Historial lee el de su Station ID, así que basta **una sola copia de la app** para todas. Si prefieres aislarlas por completo, también puedes seguir lanzando una instancia (carpeta, `config.ini` y unidad systemd) por estación.
 
 **¿Por qué no un servidor HTTP propio en Python?**
 Un fichero estático servido por Apache es más simple y robusto: no hay otro proceso expuesto, ni puerto, ni problemas de contenido mixto HTTP/HTTPS, y escala sin esfuerzo.
@@ -966,6 +1013,28 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now telemet-colector
 journalctl -u telemet-colector -f
 ```
+
+### 19.6. Dos estaciones, cada una con su clave
+
+```ini
+[lectura]
+intervalo_s = 300
+
+[almacen]
+ruta_bd = ./datos/telemet.sqlite
+
+[salida]
+ruta_json = /var/www/htdocs/rafa/telemethistorial/datos/historial.json
+
+[estacion:IELCHE12]
+api_key = CLAVE1
+
+[estacion:IALICA34]
+api_key = CLAVE2
+intervalo_s = 600
+```
+
+Resultado: BD `datos/telemet_IELCHE12.sqlite` y `datos/telemet_IALICA34.sqlite`; JSON `…/datos/historial_IELCHE12.json` y `…/datos/historial_IALICA34.json`. Con `--estado` se ven las dos BD y en el log cada línea lleva `[IELCHE12]` o `[IALICA34]`.
 
 ---
 
