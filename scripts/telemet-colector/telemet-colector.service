@@ -1,0 +1,32 @@
+# Servicio systemd para TeleMet Colector.
+# Instalación (ver README.md):
+#   sudo cp telemet-colector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now telemet-colector
+#
+# Ajusta User, Group y las rutas a tu instalación.
+
+[Unit]
+Description=TeleMet Colector (histórico de la estación meteorológica)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=telemet
+Group=telemet
+WorkingDirectory=/opt/telemet-colector
+ExecStart=/usr/bin/python3 /opt/telemet-colector/telemet_colector.py -c /opt/telemet-colector/config.ini
+Restart=always
+RestartSec=10
+
+# Endurecimiento básico: el servicio solo puede escribir en su carpeta de datos
+# y en la carpeta donde publica el JSON.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/telemet-colector/datos /var/www/htdocs/rafa/telemethistorial/datos
+
+[Install]
+WantedBy=multi-user.target
