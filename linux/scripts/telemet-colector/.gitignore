@@ -1,0 +1,7 @@
+config.ini
+datos/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.log
+__pycache__/
