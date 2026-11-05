@@ -56,7 +56,6 @@ notas-rapidas/
 |---|---|---|---|---|
 | **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit en macOS, Windows y Linux: Tkinter (`app_tk/`), pywebview con interfaz HTML (`app_web/`), PySide6 (`app_pyside6/`), wxPython (`app_wx/`) y Toga (`app_toga/`); solo en macOS, además, PyObjC (`app_pyobjc/`) | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
 | **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](macos/generador-apps/README.md) | [README](windows/generador-apps/README.md) | [README](linux/generador-apps/README.md) |
-| **telemet-colector** | Programa en Python (solo biblioteca estándar) que lee de forma continua una estación meteorológica de Weather Underground, guarda un histórico de 24 h (configurable con `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y lo publica como JSON para las apps TeleMet. Servicio systemd incluido. El código de referencia y las apps TeleMet están en `RafaUMH2110/apps` → `telemetria/` | — | — | [manual](linux/scripts/telemet-colector/MANUAL.md) |
 
 ## Notas Rápidas: diferencias entre plataformas
 
