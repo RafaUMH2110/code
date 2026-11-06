@@ -276,6 +276,19 @@ fi
 mkdir -p "$SOURCE"
 LOG="$SOURCE/install_all.log"
 log()  { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
+
+# human_size BYTES -> "812 B" / "34.5 KB" / "1.2 MB"
+human_size() { awk -v b="${1:-0}" 'BEGIN{ if(b<1024) printf "%d B",b; else if(b<1048576) printf "%.1f KB",b/1024; else printf "%.1f MB",b/1048576 }'; }
+
+# list_changes ITEMIZE_FILE -> first lines of the rsync -i output (+ new, ~ modified, - deleted)
+list_changes() {
+  awk -v max=6 '
+    function emit(s, p) { if (++n <= max) print s " " p }
+    /^>f/ { p = $0; sub(/^[^ ]+ /, "", p); emit(($0 ~ /^>f\+\+\+\+\+\+\+\+\+/) ? "+" : "~", p) }
+    /^\*deleting/ { p = $0; sub(/^\*deleting +/, "", p); if (p !~ /\/$/) emit("-", p) }
+    END { if (n > max) print "… (+" n - max ")" }
+  ' "$1" | while IFS= read -r l; do log "      $l"; done
+}
 step() { echo | tee -a "$LOG"; log "=== $* ==="; }
 
 # -----------------------------------------------------------------------------
@@ -297,7 +310,8 @@ fi
 
 # -----------------------------------------------------------------------------
 step "2/6 Selection and cloning of the public repos of $GH_USER"
-created=0; updated=0; errors=0
+created=0; updated=0; errors=0; unchanged=0
+g_commits=0; g_add=0; g_mod=0; g_del=0; g_ins=0; g_rem=0; g_bytes=0
 get_repos || { log "ERROR: could not get the repo list"; exit 1; }
 
 if [ "$ALL" -eq 1 ]; then
@@ -318,7 +332,7 @@ fi
 for l in "${LINES[@]}"; do load_item "$l"; done
 
 sync_repo() {   # sync_repo repo "folders"
-  local r="$1" dirs="$2"
+  local r="$1" dirs="$2" old new kb0 kb1 dl n_commits a m d ins del nf
   if [ -d "$SOURCE/$r/.git" ]; then
     if [ -n "$dirs" ]; then
       git -C "$SOURCE/$r" sparse-checkout set --cone $dirs >/dev/null 2>&1 \
@@ -326,8 +340,28 @@ sync_repo() {   # sync_repo repo "folders"
     elif [ "$(git -C "$SOURCE/$r" config --get core.sparseCheckout 2>/dev/null || true)" = "true" ]; then
       git -C "$SOURCE/$r" sparse-checkout disable >/dev/null 2>&1 || true
     fi
+    old="$(git -C "$SOURCE/$r" rev-parse HEAD 2>/dev/null || true)"
+    kb0="$(du -sk "$SOURCE/$r/.git" 2>/dev/null | cut -f1)"
     if git -C "$SOURCE/$r" pull --ff-only --quiet; then
-      log "Updated: $r${dirs:+  [folders:$dirs]}"; updated=$((updated+1))
+      updated=$((updated+1))
+      new="$(git -C "$SOURCE/$r" rev-parse HEAD 2>/dev/null || true)"
+      if [ "$old" = "$new" ]; then
+        log "No changes: $r${dirs:+  [folders:$dirs]}"; unchanged=$((unchanged+1))
+      else
+        n_commits="$(git -C "$SOURCE/$r" rev-list --count "$old..$new" 2>/dev/null || echo 0)"
+        read -r a m d < <(git -C "$SOURCE/$r" diff --name-status "$old" "$new" ${dirs:+-- $dirs} \
+          | awk '{c=substr($1,1,1)} c=="A"{a++} c=="D"{d++} c!="A"&&c!="D"{m++} END{print a+0,m+0,d+0}')
+        read -r ins del < <(git -C "$SOURCE/$r" diff --numstat "$old" "$new" ${dirs:+-- $dirs} \
+          | awk '$1~/^[0-9]+$/{i+=$1} $2~/^[0-9]+$/{x+=$2} END{print i+0,x+0}')
+        kb1="$(du -sk "$SOURCE/$r/.git" 2>/dev/null | cut -f1)"
+        dl=$(( (${kb1:-0} - ${kb0:-0}) * 1024 )); if [ "$dl" -lt 0 ]; then dl=0; fi
+        log "Updated: $r${dirs:+  [folders:$dirs]}  ·  +$n_commits commits  ·  files: $((a+m+d)) ($a new, $m modified, $d deleted)  ·  lines +$ins/-$del  ·  download ≈ $(human_size $dl)"
+        git -C "$SOURCE/$r" diff --name-status "$old" "$new" ${dirs:+-- $dirs} \
+          | awk -v max=6 '{c=substr($1,1,1); s=(c=="A")?"+":(c=="D")?"-":"~"; if(++n<=max) print s " " $NF} END{if(n>max) print "… (+" n-max ")"}' \
+          | while IFS= read -r l; do log "      $l"; done
+        g_commits=$((g_commits+n_commits)); g_add=$((g_add+a)); g_mod=$((g_mod+m)); g_del=$((g_del+d))
+        g_ins=$((g_ins+ins)); g_rem=$((g_rem+del)); g_bytes=$((g_bytes+dl))
+      fi
     else
       log "ERROR updating: $r"; errors=$((errors+1))
     fi
@@ -335,13 +369,21 @@ sync_repo() {   # sync_repo repo "folders"
     if [ -n "$dirs" ]; then
       if git clone --quiet --filter=blob:none --sparse "https://github.com/$GH_USER/$r.git" "$SOURCE/$r" \
          && git -C "$SOURCE/$r" sparse-checkout set --cone $dirs >/dev/null 2>&1; then
-        log "Cloned (new): $r  [folders:$dirs]"; created=$((created+1))
+        created=$((created+1))
+        nf="$(find "$SOURCE/$r" -path "$SOURCE/$r/.git" -prune -o -type f -print | wc -l | tr -d ' ')"
+        dl=$(( $(du -sk "$SOURCE/$r/.git" | cut -f1) * 1024 ))
+        g_add=$((g_add+nf)); g_bytes=$((g_bytes+dl))
+        log "Cloned (new): $r  [folders:$dirs]  ·  files: $nf  ·  download ≈ $(human_size $dl)"
       else
         log "ERROR cloning: $r"; errors=$((errors+1))
       fi
     else
       if git clone --quiet "https://github.com/$GH_USER/$r.git" "$SOURCE/$r"; then
-        log "Cloned (new): $r"; created=$((created+1))
+        created=$((created+1))
+        nf="$(find "$SOURCE/$r" -path "$SOURCE/$r/.git" -prune -o -type f -print | wc -l | tr -d ' ')"
+        dl=$(( $(du -sk "$SOURCE/$r/.git" | cut -f1) * 1024 ))
+        g_add=$((g_add+nf)); g_bytes=$((g_bytes+dl))
+        log "Cloned (new): $r  ·  files: $nf  ·  download ≈ $(human_size $dl)"
       else
         log "ERROR cloning: $r"; errors=$((errors+1))
       fi
@@ -359,7 +401,8 @@ for r in "${REPO_NAMES[@]}"; do
     skipped+=("$r")
   fi
 done
-log "Repos -> new: $created | updated: $updated | errors: $errors"
+log "Repos -> new: $created | updated: $updated (with changes: $((updated-unchanged)), unchanged: $unchanged) | errors: $errors"
+log "Git summary -> commits: $g_commits | files: +$g_add ~$g_mod -$g_del | lines: +$g_ins/-$g_rem | download ≈ $(human_size $g_bytes)"
 [ "${#skipped[@]}" -gt 0 ] && log "Not selected: ${skipped[*]}"
 
 # -----------------------------------------------------------------------------
@@ -406,21 +449,33 @@ case "$MODE" in
     RSYNC_OPTS+=(--exclude='.gitignore') ;;
 esac
 
-copied=0
+copied=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$SOURCE/$r/.git" ] || [ -f "$SOURCE/$r/.git" ] || continue
   extra=()
   [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r")
-  if $SUDO rsync "${RSYNC_OPTS[@]}" "${extra[@]}" "$SOURCE/$r/" "$DEST/$r/"; then
+  rsync_out="$(mktemp)"
+  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
     copied=$((copied+1))
+    read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$rsync_out")
+    bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$rsync_out" | tr -d ',.')"; bytes="${bytes:-0}"
+    d_new=$((d_new+n)); d_mod=$((d_mod+m)); d_del=$((d_del+d)); d_bytes=$((d_bytes+bytes))
+    if [ $((n+m+d)) -eq 0 ]; then
+      log "Deployed: $r  ·  no changes"
+    else
+      log "Deployed: $r  ·  $n new  ·  $m modified  ·  $d deleted  ·  transferred $(human_size $bytes)"
+      list_changes "$rsync_out"
+    fi
   else
-    log "ERROR copiando: $r"; errors=$((errors+1))
+    log "ERROR copiando: $r"; tail -n 5 "$rsync_out" | tee -a "$LOG"; errors=$((errors+1))
   fi
+  rm -f "$rsync_out"
 done
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$DEST/$r" ] && $SUDO find "$DEST/$r" -type d -empty ! -name datos -delete 2>/dev/null
 done
 log "Repos deployed: $copied"
+log "Deployment summary -> new: $d_new | modified: $d_mod | deleted: $d_del | transferred $(human_size $d_bytes)"
 
 # Remove from the deployment the repos that are no longer selected
 for d in "$DEST"/*/; do
@@ -533,7 +588,7 @@ for repo in sorted(os.listdir(src_root)):
                          'size': os.path.getsize(full), 'updated': date_str})
 
 with open(out_path, 'w', encoding='utf-8') as fh:
-    json.dump({'generated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), 'apps': apps},
+    json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},
               fh, ensure_ascii=False, indent=1)
 print(len(apps))
 PYEOF
@@ -824,5 +879,5 @@ if [ -n "$CRON_EXPR" ]; then
 fi
 
 echo | tee -a "$LOG"
-log "DONE. Entry: http://$IP$ENTRY  |  Errors: $errors  |  Backup: $ENTRY_BACKUP"
+log "DONE. Entry: http://$IP$ENTRY  |  Errors: $errors  |  Duration: ${SECONDS}s  |  Backup: $ENTRY_BACKUP"
 [ "$errors" -eq 0 ]

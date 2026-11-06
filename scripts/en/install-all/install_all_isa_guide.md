@@ -102,7 +102,7 @@ sudo apache2ctl configtest
 sudo systemctl status telemet-colector
 ```
 
-The log of each run is in `<SOURCE>/install_all.log`.
+The log of each run is in `<SOURCE>/install_all.log`. It includes, per repo and in total, commits, new/modified/deleted files, lines, download and bytes transferred to Apache (see "Information shown on each update" in `install_all_guide.md`).
 
 ## 9. Common problems
 

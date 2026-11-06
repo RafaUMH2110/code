@@ -3,7 +3,7 @@
 Despliegue de las aplicaciones de la cuenta GitHub **RafaUMH2110** en un servidor local **Debian 13** (`192.168.0.129`) con Apache, portal de entrada y colector de telemetría opcional.
 
 Autor: Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · UMH · r.puerto@umh.es
-_Generado con IA · Revisado por el autor_ · Última modificación: 04/11/2026 01:25
+_Generado con IA · Revisado por el autor_ · Última modificación: 06/11/2026 20:45
 
 ---
 
@@ -400,10 +400,28 @@ systemctl status telemet-colector
 curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json | head -c 300
 ```
 
+### Información de cada actualización
+
+En cada ejecución el log (pantalla y `instalar_todo.log`) detalla qué ha cambiado:
+
+```
+Actualizado: apps  [carpetas: telemetria]  ·  +4 commits  ·  ficheros: 1 (0 nuevos, 1 modificados, 0 borrados)  ·  líneas +33/-12  ·  descarga ≈ 4.0 KB
+      ~ telemetria/telemet/multi/index.html
+Sin cambios: code  [carpetas: linux]
+Resumen git -> commits: 4 | ficheros: +0 ~1 -0 | líneas: +33/-12 | descarga ≈ 4.0 KB
+Desplegado: apps  ·  0 nuevos  ·  1 modificados  ·  0 borrados  ·  transferido 191.4 KB
+Resumen despliegue -> nuevos: 0 | modificados: 1 | borrados: 0 | transferido 191.4 KB
+```
+
+- **Paso 2 (git), por repo:** commits nuevos, ficheros añadidos/modificados/borrados (solo de las carpetas seleccionadas si el clon es parcial), líneas añadidas y borradas, y la descarga aproximada (crecimiento de `.git`). Un repo nuevo muestra el número de ficheros y la descarga. Si no hay nada nuevo: `Sin cambios`.
+- **Paso 3 (Apache), por repo:** ficheros nuevos, modificados y borrados en el despliegue y los bytes transferidos. Debajo se listan los primeros 6 ficheros (`+` nuevo, `~` modificado, `-` borrado) y `… (+N)` si hay más.
+- **Resúmenes:** una línea al final de cada paso con los totales, y la línea final con la duración total.
+- Los ficheros «modificados» del despliegue incluyen los que solo cambian de fecha o permisos.
+
 Al terminar, el script imprime una línea final con la entrada, el número de errores y la ruta de la copia de seguridad:
 
 ```
-FIN. Entrada: http://192.168.0.129/rafa/  |  Errores: 0  |  Copia de seguridad: /var/backups/entrada-apache-…
+FIN. Entrada: http://192.168.0.129/rafa/  |  Errores: 0  |  Duración: 12s  |  Copia de seguridad: /var/backups/entrada-apache-…
 ```
 
 El código de salida es `0` si no hubo errores.

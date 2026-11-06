@@ -276,6 +276,19 @@ fi
 mkdir -p "$ORIGEN"
 LOG="$ORIGEN/instalar_todo.log"
 log()  { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
+
+# humano BYTES -> "812 B" / "34.5 KB" / "1.2 MB"
+humano() { awk -v b="${1:-0}" 'BEGIN{ if(b<1024) printf "%d B",b; else if(b<1048576) printf "%.1f KB",b/1024; else printf "%.1f MB",b/1048576 }'; }
+
+# listar_cambios FICHERO_ITEMIZE -> primeras líneas de la salida de rsync -i (+ nuevo, ~ modificado, - borrado)
+listar_cambios() {
+  awk -v max=6 '
+    function emit(s, p) { if (++n <= max) print s " " p }
+    /^>f/ { p = $0; sub(/^[^ ]+ /, "", p); emit(($0 ~ /^>f\+\+\+\+\+\+\+\+\+/) ? "+" : "~", p) }
+    /^\*deleting/ { p = $0; sub(/^\*deleting +/, "", p); if (p !~ /\/$/) emit("-", p) }
+    END { if (n > max) print "… (+" n - max ")" }
+  ' "$1" | while IFS= read -r l; do log "      $l"; done
+}
 paso() { echo | tee -a "$LOG"; log "=== $* ==="; }
 
 # -----------------------------------------------------------------------------
@@ -297,7 +310,8 @@ fi
 
 # -----------------------------------------------------------------------------
 paso "2/6 Selección y clonado de repos públicos de $USUARIO_GH"
-nuevos=0; actualizados=0; errores=0
+nuevos=0; actualizados=0; errores=0; sin_cambios=0
+g_commits=0; g_add=0; g_mod=0; g_del=0; g_ins=0; g_rem=0; g_bytes=0
 obtener_repos || { log "ERROR: no se pudo obtener la lista de repos"; exit 1; }
 
 if [ "$TODOS" -eq 1 ]; then
@@ -318,7 +332,7 @@ fi
 for l in "${LINEAS[@]}"; do cargar_item "$l"; done
 
 sincronizar_repo() {   # sincronizar_repo repo "carpetas"
-  local r="$1" dirs="$2"
+  local r="$1" dirs="$2" old new kb0 kb1 dl n_commits a m d ins del nf
   if [ -d "$ORIGEN/$r/.git" ]; then
     if [ -n "$dirs" ]; then
       git -C "$ORIGEN/$r" sparse-checkout set --cone $dirs >/dev/null 2>&1 \
@@ -326,8 +340,28 @@ sincronizar_repo() {   # sincronizar_repo repo "carpetas"
     elif [ "$(git -C "$ORIGEN/$r" config --get core.sparseCheckout 2>/dev/null || true)" = "true" ]; then
       git -C "$ORIGEN/$r" sparse-checkout disable >/dev/null 2>&1 || true
     fi
+    old="$(git -C "$ORIGEN/$r" rev-parse HEAD 2>/dev/null || true)"
+    kb0="$(du -sk "$ORIGEN/$r/.git" 2>/dev/null | cut -f1)"
     if git -C "$ORIGEN/$r" pull --ff-only --quiet; then
-      log "Actualizado: $r${dirs:+  [carpetas:$dirs]}"; actualizados=$((actualizados+1))
+      actualizados=$((actualizados+1))
+      new="$(git -C "$ORIGEN/$r" rev-parse HEAD 2>/dev/null || true)"
+      if [ "$old" = "$new" ]; then
+        log "Sin cambios: $r${dirs:+  [carpetas:$dirs]}"; sin_cambios=$((sin_cambios+1))
+      else
+        n_commits="$(git -C "$ORIGEN/$r" rev-list --count "$old..$new" 2>/dev/null || echo 0)"
+        read -r a m d < <(git -C "$ORIGEN/$r" diff --name-status "$old" "$new" ${dirs:+-- $dirs} \
+          | awk '{c=substr($1,1,1)} c=="A"{a++} c=="D"{d++} c!="A"&&c!="D"{m++} END{print a+0,m+0,d+0}')
+        read -r ins del < <(git -C "$ORIGEN/$r" diff --numstat "$old" "$new" ${dirs:+-- $dirs} \
+          | awk '$1~/^[0-9]+$/{i+=$1} $2~/^[0-9]+$/{x+=$2} END{print i+0,x+0}')
+        kb1="$(du -sk "$ORIGEN/$r/.git" 2>/dev/null | cut -f1)"
+        dl=$(( (${kb1:-0} - ${kb0:-0}) * 1024 )); if [ "$dl" -lt 0 ]; then dl=0; fi
+        log "Actualizado: $r${dirs:+  [carpetas:$dirs]}  ·  +$n_commits commits  ·  ficheros: $((a+m+d)) ($a nuevos, $m modificados, $d borrados)  ·  líneas +$ins/-$del  ·  descarga ≈ $(humano $dl)"
+        git -C "$ORIGEN/$r" diff --name-status "$old" "$new" ${dirs:+-- $dirs} \
+          | awk -v max=6 '{c=substr($1,1,1); s=(c=="A")?"+":(c=="D")?"-":"~"; if(++n<=max) print s " " $NF} END{if(n>max) print "… (+" n-max ")"}' \
+          | while IFS= read -r l; do log "      $l"; done
+        g_commits=$((g_commits+n_commits)); g_add=$((g_add+a)); g_mod=$((g_mod+m)); g_del=$((g_del+d))
+        g_ins=$((g_ins+ins)); g_rem=$((g_rem+del)); g_bytes=$((g_bytes+dl))
+      fi
     else
       log "ERROR actualizando: $r"; errores=$((errores+1))
     fi
@@ -335,13 +369,21 @@ sincronizar_repo() {   # sincronizar_repo repo "carpetas"
     if [ -n "$dirs" ]; then
       if git clone --quiet --filter=blob:none --sparse "https://github.com/$USUARIO_GH/$r.git" "$ORIGEN/$r" \
          && git -C "$ORIGEN/$r" sparse-checkout set --cone $dirs >/dev/null 2>&1; then
-        log "Clonado (nuevo): $r  [carpetas:$dirs]"; nuevos=$((nuevos+1))
+        nuevos=$((nuevos+1))
+        nf="$(find "$ORIGEN/$r" -path "$ORIGEN/$r/.git" -prune -o -type f -print | wc -l | tr -d ' ')"
+        dl=$(( $(du -sk "$ORIGEN/$r/.git" | cut -f1) * 1024 ))
+        g_add=$((g_add+nf)); g_bytes=$((g_bytes+dl))
+        log "Clonado (nuevo): $r  [carpetas:$dirs]  ·  ficheros: $nf  ·  descarga ≈ $(humano $dl)"
       else
         log "ERROR clonando: $r"; errores=$((errores+1))
       fi
     else
       if git clone --quiet "https://github.com/$USUARIO_GH/$r.git" "$ORIGEN/$r"; then
-        log "Clonado (nuevo): $r"; nuevos=$((nuevos+1))
+        nuevos=$((nuevos+1))
+        nf="$(find "$ORIGEN/$r" -path "$ORIGEN/$r/.git" -prune -o -type f -print | wc -l | tr -d ' ')"
+        dl=$(( $(du -sk "$ORIGEN/$r/.git" | cut -f1) * 1024 ))
+        g_add=$((g_add+nf)); g_bytes=$((g_bytes+dl))
+        log "Clonado (nuevo): $r  ·  ficheros: $nf  ·  descarga ≈ $(humano $dl)"
       else
         log "ERROR clonando: $r"; errores=$((errores+1))
       fi
@@ -359,7 +401,8 @@ for r in "${REPO_NAMES[@]}"; do
     omitidos+=("$r")
   fi
 done
-log "Repos -> nuevos: $nuevos | actualizados: $actualizados | errores: $errores"
+log "Repos -> nuevos: $nuevos | actualizados: $actualizados (con cambios: $((actualizados-sin_cambios)), sin cambios: $sin_cambios) | errores: $errores"
+log "Resumen git -> commits: $g_commits | ficheros: +$g_add ~$g_mod -$g_del | líneas: +$g_ins/-$g_rem | descarga ≈ $(humano $g_bytes)"
 [ "${#omitidos[@]}" -gt 0 ] && log "No seleccionados: ${omitidos[*]}"
 
 # -----------------------------------------------------------------------------
@@ -406,21 +449,33 @@ case "$MODO" in
     RSYNC_OPTS+=(--exclude='.gitignore') ;;
 esac
 
-copiados=0
+copiados=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$ORIGEN/$r/.git" ] || [ -f "$ORIGEN/$r/.git" ] || continue
   extra=()
   [ -n "$BKP" ] && extra=(--backup --backup-dir="$BKP/$r")
-  if $SUDO rsync "${RSYNC_OPTS[@]}" "${extra[@]}" "$ORIGEN/$r/" "$DESTINO/$r/"; then
+  salida_rs="$(mktemp)"
+  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
     copiados=$((copiados+1))
+    read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$salida_rs")
+    bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$salida_rs" | tr -d ',.')"; bytes="${bytes:-0}"
+    d_new=$((d_new+n)); d_mod=$((d_mod+m)); d_del=$((d_del+d)); d_bytes=$((d_bytes+bytes))
+    if [ $((n+m+d)) -eq 0 ]; then
+      log "Desplegado: $r  ·  sin cambios"
+    else
+      log "Desplegado: $r  ·  $n nuevos  ·  $m modificados  ·  $d borrados  ·  transferido $(humano $bytes)"
+      listar_cambios "$salida_rs"
+    fi
   else
-    log "ERROR copiando: $r"; errores=$((errores+1))
+    log "ERROR copiando: $r"; tail -n 5 "$salida_rs" | tee -a "$LOG"; errores=$((errores+1))
   fi
+  rm -f "$salida_rs"
 done
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$DESTINO/$r" ] && $SUDO find "$DESTINO/$r" -type d -empty ! -name datos -delete 2>/dev/null
 done
 log "Repos desplegados: $copiados"
+log "Resumen despliegue -> nuevos: $d_new | modificados: $d_mod | borrados: $d_del | transferido $(humano $d_bytes)"
 
 # Retirar del despliegue los repos que ya no están seleccionados
 for d in "$DESTINO"/*/; do
@@ -824,5 +879,5 @@ if [ -n "$CRON_EXPR" ]; then
 fi
 
 echo | tee -a "$LOG"
-log "FIN. Entrada: http://$IP$ENTRADA  |  Errores: $errores  |  Copia de seguridad: $COPIA"
+log "FIN. Entrada: http://$IP$ENTRADA  |  Errores: $errores  |  Duración: ${SECONDS}s  |  Copia de seguridad: $COPIA"
 [ "$errores" -eq 0 ]

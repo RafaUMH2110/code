@@ -3,7 +3,7 @@
 Deployment of the applications of the GitHub account **RafaUMH2110** on a local **Debian 13** server (`192.168.0.129`) with Apache, an entry portal and an optional telemetry collector.
 
 Author: Rafael Puerto · Department of Systems Engineering and Automation · UMH · r.puerto@umh.es
-_Generated with AI · Reviewed by the author_ · Last modified: 2026-11-04 02:40
+_Generated with AI · Reviewed by the author_ · Last modified: 2026-11-06 20:45
 
 ---
 
@@ -402,10 +402,28 @@ systemctl status telemet-colector
 curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json | head -c 300
 ```
 
+### Information shown on each update
+
+On every run the log (screen and `install_all.log`) details what changed:
+
+```
+Updated: apps  [folders: telemetria]  ·  +4 commits  ·  files: 1 (0 new, 1 modified, 0 deleted)  ·  lines +33/-12  ·  download ≈ 4.0 KB
+      ~ telemetria/telemet/multi/index.html
+No changes: code  [folders: linux]
+Git summary -> commits: 4 | files: +0 ~1 -0 | lines: +33/-12 | download ≈ 4.0 KB
+Deployed: apps  ·  0 new  ·  1 modified  ·  0 deleted  ·  transferred 191.4 KB
+Deployment summary -> new: 0 | modified: 1 | deleted: 0 | transferred 191.4 KB
+```
+
+- **Step 2 (git), per repo:** new commits, files added/modified/deleted (only in the selected folders if the clone is partial), lines added and removed, and the approximate download (growth of `.git`). A new repo shows its number of files and the download. If there is nothing new: `No changes`.
+- **Step 3 (Apache), per repo:** new, modified and deleted files in the deployment and the bytes transferred. The first 6 files are listed below (`+` new, `~` modified, `-` deleted), and `… (+N)` if there are more.
+- **Summaries:** one line at the end of each step with the totals, and the final line with the total duration.
+- "Modified" files in the deployment include those that only change date or permissions.
+
 When it finishes, the script prints a final line with the entry, the number of errors and the backup path:
 
 ```
-DONE. Entry: http://192.168.0.129/rafa/  |  Errors: 0  |  Backup: /var/backups/apache-entry-…
+DONE. Entry: http://192.168.0.129/rafa/  |  Errors: 0  |  Duration: 12s  |  Backup: /var/backups/apache-entry-…
 ```
 
 The exit code is `0` if there were no errors.

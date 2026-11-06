@@ -102,7 +102,7 @@ sudo apache2ctl configtest
 sudo systemctl status telemet-colector
 ```
 
-El log de cada ejecución queda en `<ORIGEN>/instalar_todo.log`.
+El log de cada ejecución queda en `<ORIGEN>/instalar_todo.log`. Incluye, por repo y en total, commits, ficheros nuevos/modificados/borrados, líneas, descarga y bytes transferidos a Apache (ver «Información de cada actualización» en `instrucciones_instalar_todo.md`).
 
 ## 9. Problemas frecuentes
 
