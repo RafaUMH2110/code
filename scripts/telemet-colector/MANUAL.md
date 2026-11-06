@@ -3,7 +3,7 @@
 Manual de instalación, uso, configuración y funcionamiento interno de **TeleMet Colector**, el programa en Python que mantiene en el servidor Linux un histórico de las últimas 24 horas (configurable) de la estación meteorológica y lo pone a disposición de la app **TeleMet Historial**.
 
 - **Código:** `RafaUMH2110/apps` → `telemetria/telemetcolector/`
-- **App asociada:** `telemetria/telemet/historial/index.html` (TeleMet Historial)
+- **Apps asociadas:** `telemetria/telemet/historial/index.html` (TeleMet Historial, una estación) y `telemetria/telemet/multi/index.html` (TeleMet Multi, varias estaciones)
 - **Versión del programa:** 1.1 · **Formato del JSON:** 1
 
 ---
@@ -45,6 +45,8 @@ TeleMet Colector resuelve eso con un proceso que **no se detiene nunca** en el s
 5. La app, al abrirse, lee ese JSON y **añade a su base local las lecturas que le faltan**, de forma que las gráficas de 12 y de 24 horas no pierden información.
 
 Todo es configurable desde un único fichero `config.ini`.
+
+**Una o varias estaciones.** Con una estación todo funciona como se describe arriba (`historial.json`). Con varias, el mismo programa lanza un hilo por estación, cada una con su propia API Key, su propia base de datos y su propio `historial_<ID>.json` (ver [9.1.1](#911-varias-estaciones-estacionid) y [19.6](#196-dos-estaciones-cada-una-con-su-clave)). **TeleMet Historial** lee el JSON de su estación y **TeleMet Multi** el de todas a la vez. En los pasos de este manual, donde la instalación o la prueba cambian con varias estaciones, se indica con el rótulo **«Varias estaciones»**.
 
 ---
 
@@ -114,11 +116,15 @@ telemetria/telemetcolector/
 └── .gitignore                   ← evita subir config.ini, datos/ y logs a GitHub
 ```
 
-Además, la app que consume los datos:
+Además, las apps que consumen los datos:
 
 ```
 telemetria/telemet/historial/
-├── index.html                   ← TeleMet Historial (ya incluye la lectura del JSON)
+├── index.html                   ← TeleMet Historial, una estación (ya incluye la lectura del JSON)
+└── apple-touch-icon.png
+telemetria/telemet/multi/
+├── index.html                   ← TeleMet Multi, varias estaciones (lee un JSON por estación)
+├── README.md
 └── apple-touch-icon.png
 ```
 
@@ -182,6 +188,19 @@ Y revisa `ruta_json` en la sección `[salida]` (debe apuntar a la carpeta del pa
 
 > Alternativa para no dejar secretos en el `.ini`: usa variables de entorno `TELEMET_STATION_ID` y `TELEMET_API_KEY` (ver [sección 15](#15-seguridad)).
 
+**Varias estaciones.** Deja `[estacion]` vacía (o bórrala) y añade una sección por estación, cada una con su clave:
+
+```ini
+[estacion:IELCHE12]
+api_key = CLAVE_DE_IELCHE12
+
+[estacion:IALICA34]
+api_key = CLAVE_DE_IALICA34
+intervalo_s = 600          # opcional: ritmo propio de esta estación
+```
+
+`ruta_json` y `ruta_bd` se dejan como para una sola estación: el programa añade el Station ID al nombre (`historial_IELCHE12.json`, `telemet_IELCHE12.sqlite`…). Todas las estaciones escriben en la misma carpeta `datos/`, así que **solo hay que crear y dar permisos a una carpeta** (pasos 5.2 y 5.3) y **un único servicio** systemd (sección 7). Reglas y alternativas (claves por entorno, rutas propias) en [9.1.1](#911-varias-estaciones-estacionid).
+
 ---
 
 ## 6. Primera puesta en marcha y pruebas
@@ -221,6 +240,8 @@ Observación de 2026-11-03 21:19:12
 
 Si da `ERROR: HTTP 401…` la clave es incorrecta; si da `HTTP 404…`, el Station ID no existe (ver [sección 16](#16-resolución-de-problemas)).
 
+**Varias estaciones.** `--probar` recorre todas, una tras otra, y imprime un bloque por estación que empieza por `Estación IELCHE12 · observación de …`. Si una falla (`ERROR (IELCHE12): …`), las demás se prueban igualmente y el código de salida es 1; así sabes exactamente qué clave o qué Station ID hay que corregir.
+
 ### 6.2. Hacer una lectura real y publicar el JSON
 
 ```bash
@@ -231,6 +252,8 @@ sudo -u telemet python3 telemet_colector.py --estado
 
 Debes ver `historial.json` con permisos `-rw-r--r--` y, en `--estado`, una lectura guardada.
 
+**Varias estaciones.** Verás un `historial_<ID>.json` por estación (por ejemplo `historial_IELCHE12.json` y `historial_IALICA34.json`) y `--estado` imprimirá un bloque por cada base de datos (`telemet_IELCHE12.sqlite`, `telemet_IALICA34.sqlite`).
+
 ### 6.3. Comprobar que Apache lo sirve
 
 Desde cualquier equipo:
@@ -239,7 +262,7 @@ Desde cualquier equipo:
 curl -s https://TU-SERVIDOR/RUTA/telemethistorial/datos/historial.json | head -c 400
 ```
 
-(o ábrelo en el navegador). Si da 404, la ruta publicada no coincide con la de `ruta_json` (ver [sección 8](#8-instalar-y-conectar-la-app-telemet-historial)).
+(o ábrelo en el navegador; con varias estaciones, `historial_<ID>.json` de cada una). Si da 404, la ruta publicada no coincide con la de `ruta_json` (ver [sección 8](#8-instalar-y-conectar-la-app-telemet-historial)).
 
 ### 6.4. Ejecución en primer plano (opcional)
 
@@ -338,7 +361,7 @@ Las variables de entorno **tienen prioridad** sobre los valores de `config.ini`.
 
 ---
 
-## 8. Instalar y conectar la app TeleMet Historial
+## 8. Instalar y conectar la app TeleMet Historial (y TeleMet Multi)
 
 ### 8.1. Copiar la app
 
@@ -391,7 +414,19 @@ Activar la compresión del JSON (`mod_deflate`, tipo `application/json`) reduce 
 - **Abrir `index.html` directamente desde el disco (`file://`):** el navegador bloquea la lectura del JSON; la app lo ignora y funciona solo con su base local.
 - **SELinux (RHEL/Rocky/Alma):** si Apache no puede leer el JSON, etiqueta la carpeta, p. ej. `sudo chcon -R -t httpd_sys_content_t /var/www/.../datos`.
 
-### 8.5. Verificar que la app lo usa
+### 8.5. TeleMet Multi (varias estaciones)
+
+TeleMet Multi sigue el mismo mecanismo, pero para todas las estaciones a la vez: por cada estación dada de alta lee `<carpeta>/historial_<ID>.json` (o `history_<ID>.json`) y, si no existe, `historial.json` / `history.json` cuando su `stationId` coincide. Añade solo las lecturas que faltan; nunca borra lo local.
+
+1. Copia la app: `sudo mkdir -p /var/www/htdocs/rafa/telemetmulti && sudo cp telemetria/telemet/multi/{index.html,apple-touch-icon.png} /var/www/htdocs/rafa/telemetmulti/`.
+2. Indica a la app dónde están los JSON. Tienes dos opciones:
+   - **Opción A (la más sencilla, una sola carpeta de datos):** deja el colector escribiendo en `/var/www/htdocs/rafa/telemethistorial/datos/` y, en la app, sección **«07 · Datos y servidor»**, pon como carpeta `../telemethistorial/datos/`.
+   - **Opción B:** pon `ruta_json` en `…/telemetmulti/datos/historial.json` (el colector añade el ID a cada nombre) y deja la carpeta por defecto (`datos/`).
+3. En la app, da de alta cada estación con su Station ID (la API Key es la que usa el navegador para la lectura en vivo; el colector usa la suya) y pulsa **«Sincronizar ahora»**. La tabla de sincronización muestra, por estación, `sincronizado` (con lecturas recibidas y añadidas) o `sin archivo`.
+
+Con TeleMet Historial, una única copia de la app sirve para todas las estaciones (lee el JSON de su Station ID); TeleMet Multi las muestra juntas en gráficas, tabla comparativa y mapa.
+
+### 8.6. Verificar que la app lo usa
 
 Abre la app, introduce (o deja guardado) el Station ID y despliega el panel **«Evolución de las últimas 12 horas»** (o 24, según el selector 12 h / 24 h del panel). Debajo de la nota verás una de estas líneas (ver [sección 13.4](#134-mensajes-que-muestra-la-app)).
 
@@ -820,6 +855,15 @@ sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py -c /opt/teleme
 ls -l --time-style=full-iso /var/www/htdocs/rafa/telemethistorial/datos/historial.json   # fecha reciente
 ```
 
+**Varias estaciones.** Mira todos los JSON de golpe (cada uno debe tener fecha reciente) y filtra el log por estación, ya que cada línea lleva `[ID]`:
+
+```bash
+ls -l --time-style=full-iso /var/www/htdocs/rafa/telemethistorial/datos/historial_*.json
+journalctl -u telemet-colector -n 50 --no-pager | grep "\[IELCHE12\]"
+```
+
+Si una estación falla, el log lo indica con su `[ID]` y las demás siguen funcionando.
+
 ### 14.3. Copias de seguridad
 
 No son necesarias: son datos de unas horas, reconstruibles y efímeros. Solo conviene guardar `config.ini` (por la clave) en un sitio seguro.
@@ -1032,6 +1076,16 @@ api_key = CLAVE1
 [estacion:IALICA34]
 api_key = CLAVE2
 intervalo_s = 600
+```
+
+Pasos completos con estas dos estaciones:
+
+```bash
+sudo -u telemet nano /opt/telemet-colector/config.ini      # pegar el bloque anterior
+sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py --probar    # prueba las dos claves
+sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py --una-vez   # crea BD y JSON de cada una
+ls /var/www/htdocs/rafa/telemethistorial/datos/                                # historial_IELCHE12.json  historial_IALICA34.json
+sudo systemctl restart telemet-colector                                      # un solo servicio para las dos
 ```
 
 Resultado: BD `datos/telemet_IELCHE12.sqlite` y `datos/telemet_IALICA34.sqlite`; JSON `…/datos/historial_IELCHE12.json` y `…/datos/historial_IALICA34.json`. Con `--estado` se ven las dos BD y en el log cada línea lleva `[IELCHE12]` o `[IALICA34]`.
