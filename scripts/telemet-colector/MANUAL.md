@@ -17,7 +17,7 @@ Manual de instalación, uso, configuración y funcionamiento interno de **TeleMe
 5. [Instalación paso a paso](#5-instalación-paso-a-paso)
 6. [Primera puesta en marcha y pruebas](#6-primera-puesta-en-marcha-y-pruebas)
 7. [Ejecución como servicio (systemd)](#7-ejecución-como-servicio-systemd)
-8. [Instalar y conectar la app TeleMet Historial](#8-instalar-y-conectar-la-app-telemet-historial)
+8. [Instalar y conectar la app TeleMet Historial (y TeleMet Multi)](#8-instalar-y-conectar-la-app-telemet-historial-y-telemet-multi)
 9. [Referencia de configuración (`config.ini`)](#9-referencia-de-configuración-configini)
 10. [Referencia de línea de órdenes](#10-referencia-de-línea-de-órdenes)
 11. [Cómo funciona por dentro](#11-cómo-funciona-por-dentro)
@@ -262,7 +262,7 @@ Desde cualquier equipo:
 curl -s https://TU-SERVIDOR/RUTA/telemethistorial/datos/historial.json | head -c 400
 ```
 
-(o ábrelo en el navegador; con varias estaciones, `historial_<ID>.json` de cada una). Si da 404, la ruta publicada no coincide con la de `ruta_json` (ver [sección 8](#8-instalar-y-conectar-la-app-telemet-historial)).
+(o ábrelo en el navegador; con varias estaciones, `historial_<ID>.json` de cada una). Si da 404, la ruta publicada no coincide con la de `ruta_json` (ver [sección 8](#8-instalar-y-conectar-la-app-telemet-historial-y-telemet-multi)).
 
 ### 6.4. Ejecución en primer plano (opcional)
 
