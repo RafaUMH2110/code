@@ -5,7 +5,7 @@
 
 Guía para llevar el contenido de un repositorio a una **subcarpeta de otro**, **conservando el historial de commits**, y retirar después el repositorio de origen sin perder nada.
 
-Ejemplo real de esta guía: **`RafaUMH2110/telemetria` → `RafaUMH2110/code`** (carpeta `scripts/telemetria/`), porque todo el contenido es código Python. Cambia los nombres por los tuyos en otros casos.
+Ejemplo real de esta guía: **`RafaUMH2110/telemetria` → `RafaUMH2110/code`** (carpeta `telemetria/`), porque todo el contenido es código Python. Cambia los nombres por los tuyos en otros casos.
 
 ---
 
@@ -50,7 +50,7 @@ gh auth status                      # opcional: comprueba la sesión de GitHub
 |---|---|---|
 | Repo de origen | `RafaUMH2110/telemetria` | El que se va a mover |
 | Repo de destino | `RafaUMH2110/code` | Debe existir ya |
-| Subcarpeta destino | `scripts/telemetria` | Sin barra inicial ni final. Elige una ruta que no exista aún en el destino |
+| Subcarpeta destino | `telemetria` | Sin barra inicial ni final. Elige una ruta que no exista aún en el destino |
 | Rama del origen | `main` | Compruébala: `git -C telemetria branch -a` (puede ser `master`) |
 | ¿Conservar historial? | Sí | Si no importa, usa la variante sin historial (sección 9) |
 
@@ -84,28 +84,28 @@ cd ~/code
 git checkout main
 git pull --rebase origin main        # parte de lo último que hay en GitHub
 git status                           # debe estar limpio
-ls scripts/telemetria 2>/dev/null    # no debe existir ya (si existe, elige otra ruta)
+ls telemetria 2>/dev/null    # no debe existir ya (si existe, elige otra ruta)
 ```
 
 ### 4.3. Traer el repo de origen como subcarpeta
 
 ```bash
 cd ~/code
-git subtree add --prefix=scripts/telemetria ~/telemetria main
+git subtree add --prefix=telemetria ~/telemetria main
 ```
 
 - `--prefix` es la subcarpeta de destino.
 - El segundo argumento es el repositorio de origen (ruta local o URL) y el tercero, su rama.
 - **No** uses `--squash` si quieres conservar los commits uno a uno.
 
-Resultado: un commit de fusión `Add 'scripts/telemetria/' from commit '…'` y la carpeta `scripts/telemetria/` con todos los ficheros. El historial original queda enlazado, así que `git log -- scripts/telemetria` muestra los commits antiguos.
+Resultado: un commit de fusión `Add 'telemetria/' from commit '…'` y la carpeta `telemetria/` con todos los ficheros. El historial original queda enlazado, así que `git log -- telemetria` muestra los commits antiguos.
 
 ### 4.4. Revisar antes de subir
 
 ```bash
 git log --oneline -5
-ls scripts/telemetria
-git log --oneline -- scripts/telemetria | head     # historial del origen
+ls telemetria
+git log --oneline -- telemetria | head     # historial del origen
 git diff --stat HEAD~1 HEAD | tail -3
 ```
 
@@ -136,16 +136,16 @@ Qué suele haber que tocar:
 
 | Dónde | Qué cambiar |
 |---|---|
-| README de `code` / `apps` | Enlaces `github.com/RafaUMH2110/telemetria` → `github.com/RafaUMH2110/code/tree/main/scripts/telemetria` |
+| README de `code` / `apps` | Enlaces `github.com/RafaUMH2110/telemetria` → `github.com/RafaUMH2110/code/tree/main/telemetria` |
 | Guías de los scripts `instalar_todo*.sh` | Ejemplos con `--repos "…,telemetria"` → `…,code/telemetria`; quitar el repo de los menús de ejemplo |
 | Portales / índices | Las entradas que apunten al repo viejo |
-| Documentos que citen la ruta de los ficheros | La ruta nueva es `scripts/telemetria/<fichero>` |
+| Documentos que citen la ruta de los ficheros | La ruta nueva es `telemetria/<fichero>` |
 
 Cada cambio se sube con su commit habitual:
 
 ```bash
 git add -A
-git commit -m "Actualiza referencias tras mover telemetria a scripts/telemetria"
+git commit -m "Actualiza referencias tras mover telemetria a telemetria"
 git pull --rebase origin main && git push origin main
 ```
 
@@ -167,8 +167,8 @@ cat > README.md <<'EOF'
 # telemetria — MOVIDO
 
 Este repositorio se ha integrado en
-**[RafaUMH2110/code](https://github.com/RafaUMH2110/code/tree/main/scripts/telemetria)**
-(carpeta `scripts/telemetria/`). Este repo queda archivado solo como referencia.
+**[RafaUMH2110/code](https://github.com/RafaUMH2110/code/tree/main/telemetria)**
+(carpeta `telemetria/`). Este repo queda archivado solo como referencia.
 EOF
 git add README.md && git commit -m "Aviso: repositorio movido a RafaUMH2110/code" && git push origin main
 ```
@@ -198,10 +198,10 @@ gh repo archive RafaUMH2110/telemetria --yes
 cd ~/code && git status                     # limpio
 git log --oneline -3                        # tu último commit está arriba
 git ls-remote origin main                   # el hash coincide con el local
-git log --oneline -- scripts/telemetria | wc -l   # nº de commits del historial conservado
+git log --oneline -- telemetria | wc -l   # nº de commits del historial conservado
 ```
 
-Y en la web: abre `https://github.com/RafaUMH2110/code/tree/main/scripts/telemetria` y comprueba que está todo.
+Y en la web: abre `https://github.com/RafaUMH2110/code/tree/main/telemetria` y comprueba que está todo.
 
 Si el repo de origen tenía **GitHub Pages**, **Actions**, **Issues**, **releases** o **webhooks**, esas cosas **no** se mueven con el código: revísalas en *Settings* del repo viejo antes de archivarlo.
 
@@ -213,7 +213,7 @@ Si el repo de origen tenía **GitHub Pages**, **Actions**, **Issues**, **release
 |---|---|---|
 | `git: 'subtree' is not a git command` | Instalación sin `git subtree` | Instala el paquete completo (`apt install git`) o usa la variante sin historial (sección 9) |
 | `Working tree has modifications. Cannot add.` | Cambios sin confirmar en el destino | `git status`; haz commit o `git stash` y repite |
-| `prefix 'scripts/telemetria' already exists.` | La carpeta destino ya existe | Elige otro `--prefix` o bórrala si estaba vacía |
+| `prefix 'telemetria' already exists.` | La carpeta destino ya existe | Elige otro `--prefix` o bórrala si estaba vacía |
 | `fatal: couldn't find remote ref main` | La rama del origen no se llama `main` | Mira `git -C ~/telemetria branch -a` y usa su nombre (p. ej. `master`) |
 | Solo aparecen 1 o 2 commits | El origen se clonó con `--depth` | Clona de nuevo sin `--depth` (o `git fetch --unshallow`) |
 | `git push` rechazado (non-fast-forward) | Cambios nuevos en el destino | `git pull --rebase origin main` y vuelve a subir |
@@ -227,9 +227,9 @@ Si el historial no importa:
 
 ```bash
 cd ~/code
-mkdir -p scripts/telemetria
-rsync -a --exclude='.git' ~/telemetria/ scripts/telemetria/
-git add scripts/telemetria
+mkdir -p telemetria
+rsync -a --exclude='.git' ~/telemetria/ telemetria/
+git add telemetria
 git commit -m "Añade telemetria (movido desde RafaUMH2110/telemetria)"
 git push origin main
 ```
@@ -244,7 +244,7 @@ Si prefieres no clonar el origen antes:
 
 ```bash
 cd ~/code
-git subtree add --prefix=scripts/telemetria https://github.com/RafaUMH2110/telemetria.git main
+git subtree add --prefix=telemetria https://github.com/RafaUMH2110/telemetria.git main
 ```
 
 Trae el historial directamente desde GitHub (necesita conexión y permiso de lectura).
@@ -258,7 +258,7 @@ Sustituye los cuatro valores y ejecuta:
 ```bash
 ORIGEN=RafaUMH2110/telemetria      # usuario/repo a mover
 DESTINO=RafaUMH2110/code           # usuario/repo que lo recibe
-CARPETA=scripts/telemetria         # subcarpeta dentro del destino
+CARPETA=telemetria         # subcarpeta dentro del destino
 RAMA=main                          # rama del origen
 
 git clone "https://github.com/$ORIGEN.git" /tmp/origen

@@ -37,7 +37,7 @@ notas-rapidas/
 
 ### Reglas
 
-- La raíz solo contiene `macos/`, `windows/` y `linux/` (más este README y `.gitattributes`).
+- La raíz contiene `macos/`, `windows/` y `linux/` (las apps por sistema operativo) y, aparte, `scripts/` (scripts de instalación y colector) y `telemetria/` (scripts Python de telemetría de la estación meteorológica), además de este README y `.gitattributes`.
 - Cada app va en su propio directorio dentro de cada sistema operativo. Nombres en minúsculas y guiones (`notas-rapidas`, `generador-apps`…).
 - Cada app lleva dentro todo lo suyo; no se comparten ficheros entre apps.
 - Una app multiplataforma se añade en las tres carpetas (cada una adaptada a su sistema, o idéntica si no depende de él).
@@ -56,6 +56,13 @@ notas-rapidas/
 |---|---|---|---|---|
 | **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit en macOS, Windows y Linux: Tkinter (`app_tk/`), pywebview con interfaz HTML (`app_web/`), PySide6 (`app_pyside6/`), wxPython (`app_wx/`) y Toga (`app_toga/`); solo en macOS, además, PyObjC (`app_pyobjc/`) | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
 | **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](macos/generador-apps/README.md) | [README](windows/generador-apps/README.md) | [README](linux/generador-apps/README.md) |
+
+## Otras carpetas
+
+| Carpeta | Contenido |
+|---|---|
+| [`telemetria/`](telemetria/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): consulta simple, clientes síncronos, monitor asíncrono, GUIs Tkinter y puente MQTT. Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/README.md). |
+| [`scripts/`](scripts/) | Scripts para clonar repos, desplegar apps en Apache, el colector TeleMet y la guía para mover repos. Ver su [README](scripts/README.md). |
 
 ## Notas Rápidas: diferencias entre plataformas
 
