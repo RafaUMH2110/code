@@ -22,6 +22,8 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | `telemet-colector/` | `telemet_colector.py` | TeleMet Colector: lee de forma continua la estación meteorológica y guarda un histórico (24 h por defecto; `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y como JSON para las apps TeleMet. Admite varias estaciones, cada una con su API Key (`[estacion:ID]`). |
 | | `MANUAL.md`, `README.md` | Manual detallado (instalación, configuración y funcionamiento) y guía rápida |
 | | `config.example.ini`, `telemet-colector.service` | Plantilla de configuración y servicio systemd |
+| `telemetria/` | `wu_telemetria_*.py`, `README.md` | Scripts de telemetría de la estación Vevor YT60234 (consulta simple, clientes síncronos, monitor asíncrono, GUIs Tkinter y puente MQTT). Antes era el repo `RafaUMH2110/telemetria` |
+| `mover-repo/` | `instrucciones_mover_repo.md` | Guía para mover un repo de GitHub a una subcarpeta de otro conservando el historial |
 
 Los scripts `instalar_todo*.sh` sustituyen a los de `clonar-actualizar/`.
 

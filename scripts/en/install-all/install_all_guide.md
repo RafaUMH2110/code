@@ -132,7 +132,6 @@ Public repositories of RafaUMH2110:
    3) Artifacts          HTML, 817 KB
    4) code               Python, 309 KB
    5) IAC                HTML, 256 KB
-   6) telemetria         Python, 21 KB
 Choose (numbers or ranges like 1-3 separated by spaces; Enter = all; n = none):
 ```
 
@@ -145,7 +144,7 @@ Choose (numbers or ranges like 1-3 separated by spaces; Enter = all; n = none):
 
 ```bash
 # Only these folders and repos
-./install_all.sh --repos "apps/telemetria,apps/moda,code/linux,telemetria"
+./install_all.sh --repos "apps/telemetria,apps/moda,code/linux,code/telemetria"
 
 # Everything except some repos
 ./install_all.sh --exclude "apps-pro,Artifacts"
@@ -353,7 +352,7 @@ If you change the destination (`-d /var/www/html/apps`), the entry becomes `/app
 
 ```
 ~/RafaUMH2110/                        ← SOURCE (clones)
-├── apps/  code/  telemetria/ …       ← one directory per selected repo
+├── apps/  code/ …       ← one directory per selected repo
 ├── .selection                        ← saved selection
 └── install_all.log                   ← log of all the runs
 
