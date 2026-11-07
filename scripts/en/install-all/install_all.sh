@@ -666,11 +666,14 @@ step "4/6 Telemetry collector"
 HEADERS_CONF=0
 
 ini_set() {   # ini_set key value file  (the value travels in the environment, not on the command line)
-  local k="$1" v="$2" f="$3" tmp
+  local k="$1" v="$2" f="$3" tmp act
   tmp="$(mktemp)"
-  $SUDO cat "$f" | K="$k" V="$v" awk '
-    BEGIN { k = ENVIRON["K"]; v = ENVIRON["V"] }
-    { if (match($0, "^[;# \t]*" k "[ \t]*=")) print k " = " v; else print }' > "$tmp"
+  # Si la clave ya está activa se sustituye esa línea; solo si no lo está se usa la
+  # primera línea comentada (así no se tocan los ejemplos de la plantilla)
+  act=0; $SUDO grep -qE "^[[:space:]]*$k[[:space:]]*=" "$f" && act=1
+  $SUDO cat "$f" | K="$k" V="$v" ACT="$act" awk '
+    BEGIN { k = ENVIRON["K"]; v = ENVIRON["V"]; pre = (ENVIRON["ACT"] == "1") ? "^[ \t]*" : "^[;# \t]*"; done = 0 }
+    { if (!done && match($0, pre k "[ \t]*=")) { print k " = " v; done = 1 } else print }' > "$tmp"
   $SUDO install -m 600 "$tmp" "$f"
   rm -f "$tmp"
 }
