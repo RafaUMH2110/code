@@ -1,0 +1,49 @@
+{
+  // Copia este fichero a .vscode/launch.json de tu espacio de trabajo (ajusta la ruta del script).
+  // Se ejecuta con F5 o desde "Ejecución y depuración". "console": "integratedTerminal" es
+  // IMPRESCINDIBLE: así ssh y getpass pueden pedirte la contraseña en el terminal.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TeleMet Collector · servidor remoto (pregunta todo)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": []
+    },
+    {
+      "name": "TeleMet Collector · rafa@servidor (clave RSA)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": ["rafa@192.168.0.129", "-i", "~/.ssh/id_rsa", "--accept-new-host-key", "--ask-sudo-password"]
+    },
+    {
+      "name": "TeleMet Collector · rafa@servidor (contraseña)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": ["rafa@192.168.0.129", "--ask-password", "--accept-new-host-key"]
+    },
+    {
+      "name": "TeleMet Collector · servidor de la lista (pide el destino)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": ["${input:servidor}", "--ask-password"]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "servidor",
+      "type": "pickString",
+      "description": "Servidor",
+      "options": ["rafa@192.168.0.129", "rafa@isa.umh.es"],
+      "default": "rafa@192.168.0.129"
+    }
+  ]
+}

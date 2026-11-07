@@ -1,0 +1,54 @@
+{
+  // Copia este fichero a .vscode/tasks.json. Se lanza con Terminal > Ejecutar tarea…
+  // Las tareas se ejecutan en un terminal real: ssh y getpass te piden las contraseñas allí.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "TeleMet Collector: parámetros del servidor",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+        "${input:destino}",
+        "--ask-password",
+        "--accept-new-host-key"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "TeleMet Collector: comprobar conexión",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+        "${input:destino}",
+        "--check",
+        "--ask-password"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "TeleMet Collector: parámetros (clave RSA, JSON)",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+        "${input:destino}",
+        "-i", "~/.ssh/id_rsa",
+        "--json"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "destino",
+      "type": "promptString",
+      "description": "Servidor: [usuario@]host[:puerto] o alias de ~/.ssh/config",
+      "default": "rafa@192.168.0.129"
+    }
+  ]
+}

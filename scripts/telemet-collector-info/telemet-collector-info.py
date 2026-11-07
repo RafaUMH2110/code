@@ -408,10 +408,11 @@ def main(argv=None):
     ap.add_argument("--no-service", action="store_true", help="do not query systemd")
     ap.add_argument("--json", action="store_true", help="JSON output")
     ap.add_argument("--no-color", action="store_true")
+    ap.add_argument("--color", action="store_true", help="force colors even if the output is not a terminal (used by the SSH version)")
     ap.add_argument("--lang", choices=("es", "en"), default=default_lang())
     a = ap.parse_args(argv)
     t = T[a.lang]
-    o = Out(sys.stdout.isatty() and not a.no_color and not a.json)
+    o = Out((sys.stdout.isatty() or a.color) and not a.no_color and not a.json)
 
     path = a.config
     if not path:

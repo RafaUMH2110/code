@@ -25,8 +25,9 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | `telemet-colector/` | `telemet_colector.py` | TeleMet Colector: lee de forma continua la estación meteorológica y guarda un histórico (24 h por defecto; `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y como JSON para las apps TeleMet. Admite varias estaciones, cada una con su API Key (`[estacion:ID]`). |
 | | `MANUAL.md`, `README.md` | Manual detallado (instalación, configuración y funcionamiento) y guía rápida |
 | | `config.example.ini`, `telemet-colector.service` | Plantilla de configuración y servicio systemd |
-| `telemet-collector-info/` | `telemet-collector-info.py` | Muestra todos los parámetros de TeleMet Collector (estaciones, API Key enmascarada, rutas, estado de BD y JSON, servicio systemd y diagnóstico). Independiente y de solo lectura |
-| | `README.md` | Guía del script |
+| `telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` (en el servidor): muestra todos los parámetros de TeleMet Collector (estaciones, API Key enmascarada, rutas, estado de BD y JSON, servicio systemd y diagnóstico). Independiente y de solo lectura |
+| | `telemet-collector-info-ssh.py` | Versión para ejecutar en tu ordenador (CLI o VS Code): se conecta por SSH (contraseña o clave RSA) y muestra el informe de uno o varios servidores sin instalar nada en ellos |
+| | `MANUAL.md`, `README.md`, `vscode-ejemplo/` | Manual detallado, resumen y ejemplos de `launch.json` / `tasks.json` |
 | `mover-repo/` | `instrucciones_mover_repo.md` | Guía para mover un repo de GitHub a una subcarpeta de otro conservando el historial |
 
 Los scripts `instalar_todo*.sh` sustituyen a los de `clonar-actualizar/`.

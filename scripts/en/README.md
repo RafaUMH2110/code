@@ -24,6 +24,7 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 | | `index.html` | `index.html` | Entry portal; must sit next to the script |
 | | `install-all-guide.md` | `instrucciones-instalar-todo.md` | Guide for `install-all.sh` |
 | `../telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` | Shows all the TeleMet Collector parameters (bilingual output, `--lang en`). Standalone, read-only |
+| | `telemet-collector-info-ssh.py` | `telemet-collector-info-ssh.py` | Runs on your computer (CLI or VS Code): connects by SSH (password or RSA key) and shows the report of one or several servers. Manual in Spanish: `MANUAL.md` |
 
 `install-all*.sh` supersede the scripts in `clone-update/`.
 

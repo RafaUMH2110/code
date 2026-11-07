@@ -1,9 +1,16 @@
-# telemet-collector-info.py
+# telemet-collector-info (local y remoto por SSH)
 
 **Autor:** Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es
 *Generado con IA · Revisado por el autor*
 
-Script **independiente** (solo biblioteca estándar de Python 3, no necesita el colector) que **lee y muestra todos los parámetros** de TeleMet Collector. Solo lee: no modifica nada ni consulta la API de Weather Underground.
+Scripts **independientes** (solo biblioteca estándar de Python 3, no necesitan el colector) que **leen y muestran todos los parámetros** de TeleMet Collector. Solo leen: no modifican nada ni consultan la API de Weather Underground.
+
+| Script | Se ejecuta | Para qué |
+|---|---|---|
+| `telemet-collector-info.py` | En el servidor | Informe local |
+| `telemet-collector-info-ssh.py` | En tu ordenador (CLI o VS Code) | Se conecta por SSH (contraseña o clave RSA) y muestra el informe del servidor sin instalar nada allí; admite varios servidores |
+
+**Manual detallado: [`MANUAL.md`](MANUAL.md)** (autenticación, sudo, VS Code, automatización, solución de problemas). Ejemplos para VS Code en `vscode-ejemplo/`.
 
 ## Qué muestra
 
@@ -18,7 +25,7 @@ Script **independiente** (solo biblioteca estándar de Python 3, no necesita el 
 
 Los valores se calculan con las mismas reglas que `telemet_collector.py` (rutas relativas respecto a `config.ini`, sufijo `_<ID>` con varias estaciones, `[station:ID]`, `TELEMET_*`…).
 
-## Uso
+## Uso local (en el servidor)
 
 ```bash
 sudo python3 telemet-collector-info.py                      # /opt/telemet-collector/config.ini
@@ -29,5 +36,17 @@ python3 telemet-collector-info.py --lang en                 # inglés (por defec
 ```
 
 `config.ini` suele ser 600 y de `telemet`, por eso hay que usar `sudo`. Otras opciones: `--service NOMBRE`, `--no-service`, `--use-shell-env`, `--no-color`. Código de salida: 0 sin errores, 1 si hay algún error de diagnóstico, 2 si no se puede leer la configuración.
+
+## Uso remoto (desde tu ordenador)
+
+```bash
+python3 telemet-collector-info-ssh.py rafa@192.168.0.129                 # clave o contraseña (la pide ssh)
+python3 telemet-collector-info-ssh.py rafa@servidor -i ~/.ssh/id_rsa      # clave RSA
+python3 telemet-collector-info-ssh.py rafa@servidor --ask-password       # contraseña pedida por el script
+python3 telemet-collector-info-ssh.py srv1 srv2 --json                   # varios servidores
+python3 telemet-collector-info-ssh.py rafa@servidor --check              # solo probar la conexión
+```
+
+Los dos `.py` deben estar en la misma carpeta. Necesita `ssh` en tu ordenador y `python3` (y `sudo` si no eres root) en el servidor.
 
 La API Key se enmascara salvo con `--show-key`; no la pegues en chats ni en incidencias.
