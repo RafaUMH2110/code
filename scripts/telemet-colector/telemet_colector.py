@@ -131,7 +131,7 @@ class Config:
         if ruta_ini:
             if not os.path.isfile(ruta_ini):
                 raise SystemExit("No existe el fichero de configuración: %s" % ruta_ini)
-            cp.read(ruta_ini, encoding="utf-8")
+            cp.read(ruta_ini, encoding="utf-8-sig")
         self.base_dir = os.path.dirname(os.path.abspath(ruta_ini)) if ruta_ini else os.getcwd()
 
         # Estaciones. Los secretos pueden venir del entorno (tienen prioridad sobre el .ini

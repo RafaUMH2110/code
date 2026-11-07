@@ -682,8 +682,9 @@ ini_set() {   # ini_set clave valor fichero  (el valor viaja por entorno, no por
   tmp="$(mktemp)"
   # Si la clave ya está activa se sustituye esa línea; solo si no lo está se usa la
   # primera línea comentada (así no se tocan los ejemplos de la plantilla)
+  # (también se elimina un BOM UTF-8 inicial, que rompe configparser)
   act=0; $SUDO grep -qE "^[[:space:]]*$k[[:space:]]*=" "$f" && act=1
-  $SUDO cat "$f" | K="$k" V="$v" ACT="$act" awk '
+  $SUDO cat "$f" | sed '1s/^\xEF\xBB\xBF//' | K="$k" V="$v" ACT="$act" awk '
     BEGIN { k = ENVIRON["K"]; v = ENVIRON["V"]; pre = (ENVIRON["ACT"] == "1") ? "^[ \t]*" : "^[;# \t]*"; done = 0 }
     { if (!done && match($0, pre k "[ \t]*=")) { print k " = " v; done = 1 } else print }' > "$tmp"
   $SUDO install -m 600 "$tmp" "$f"

@@ -682,8 +682,9 @@ ini_set() {   # ini_set key value file  (the value travels in the environment, n
   tmp="$(mktemp)"
   # If the key is already active, that line is replaced; only if it is not, the first
   # commented line is used (so the template's examples are left alone)
+  # (a leading UTF-8 BOM, which breaks configparser, is also removed)
   act=0; $SUDO grep -qE "^[[:space:]]*$k[[:space:]]*=" "$f" && act=1
-  $SUDO cat "$f" | K="$k" V="$v" ACT="$act" awk '
+  $SUDO cat "$f" | sed '1s/^\xEF\xBB\xBF//' | K="$k" V="$v" ACT="$act" awk '
     BEGIN { k = ENVIRON["K"]; v = ENVIRON["V"]; pre = (ENVIRON["ACT"] == "1") ? "^[ \t]*" : "^[;# \t]*"; done = 0 }
     { if (!done && match($0, pre k "[ \t]*=")) { print k " = " v; done = 1 } else print }' > "$tmp"
   $SUDO install -m 600 "$tmp" "$f"
