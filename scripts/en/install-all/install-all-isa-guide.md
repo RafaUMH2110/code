@@ -1,4 +1,4 @@
-# Deployment on https://isa.umh.es with `install_all_isa.sh`
+# Deployment on https://isa.umh.es with `install-all-isa.sh`
 
 **Author:** Rafa · Department of Systems Engineering and Automation · Miguel Hernández University of Elche · r.puerto@umh.es
 **Date:** 2026-11-04
@@ -8,7 +8,7 @@
 
 ## 1. What it is
 
-A variant of the `install_all.sh` installer for the production server **https://isa.umh.es** (Debian 13), whose Apache DocumentRoot is `/var/www/htdocs`. The content is published in `/var/www/htdocs/rafa` and the portal ends up at **https://isa.umh.es/rafa/**.
+A variant of the `install-all.sh` installer for the production server **https://isa.umh.es** (Debian 13), whose Apache DocumentRoot is `/var/www/htdocs`. The content is published in `/var/www/htdocs/rafa` and the portal ends up at **https://isa.umh.es/rafa/**.
 
 The core difference: the server already has its own configuration (`<Directory /var/www/htdocs/rafa>`, `Alias "/moda"`, `.htaccess` in `rafa/` and `rafa/moda/`). This variant **does not modify it**.
 
@@ -37,19 +37,19 @@ The script installs `git`, `curl`, `jq`, `rsync` and `python3` itself if they ar
 ## 4. Usage
 
 ```bash
-chmod +x install_all_isa.sh
+chmod +x install-all-isa.sh
 
 # Choose what to clone and deploy
-./install_all_isa.sh --repos "apps/telemetria,apps/moda,code/linux"
+./install-all-isa.sh --repos "apps/telemetria,apps/moda,code/linux"
 
 # Interactive menu
-./install_all_isa.sh -i
+./install-all-isa.sh -i
 
 # Everything + telemetry collector
-./install_all_isa.sh --all --collector
+./install-all-isa.sh --all --collector
 
 # See the available repos and folders
-./install_all_isa.sh --list
+./install-all-isa.sh --list
 ```
 
 ### Options specific to this variant
@@ -59,35 +59,35 @@ chmod +x install_all_isa.sh
 | `--url URL` | Public URL (def.: `https://isa.umh.es`) |
 | `--docroot DIR` | DocumentRoot (def.: `/var/www/htdocs`) |
 | `--root-entry` | Also, `/` redirects to `/rafa/` (changes the front page) |
-| `--json-dir DIR` | Folder where the collector publishes `historial.json` |
+| `--json-dir DIR` | Folder where the collector publishes `history.json` |
 
-The remaining options (`-u`, `-o`, `-d`, `--mode`, `--repos`, `--exclude`, `--all`, `--list`, `--no-index`, `--collector`, `--cron`, `--force`) work as in the local version; see `install_all_guide.md`.
+The remaining options (`-u`, `-o`, `-d`, `--mode`, `--repos`, `--exclude`, `--all`, `--list`, `--no-index`, `--collector`, `--cron`, `--force`) work as in the local version; see `install-all-guide.md`.
 
 ## 5. First run on isa.umh.es
 
-`/var/www/htdocs/rafa` already has content (`.htaccess`, `moda/`, `telemethistorial/`…), so the script:
+`/var/www/htdocs/rafa` already has content (`.htaccess`, `moda/`, `telemethistory/`…), so the script:
 
 1. Lists what is there and **asks for confirmation** (`--force` skips it).
 2. Makes a copy in `/var/backups/install-all-<date>/` of whatever it replaces or deletes.
 3. Replaces `rafa/index.html` and `rafa/apps.json`.
 4. Mirrors each selected repo **only inside `rafa/<repo>/`**.
 
-Not modified: `rafa/.htaccess`, `rafa/moda/`, `rafa/telemethistorial/datos/` or `/var/www/htdocs/index.html`.
+Not modified: `rafa/.htaccess`, `rafa/moda/`, `rafa/telemethistory/data/` or `/var/www/htdocs/index.html`.
 
 > **Warning:** if a repo has the same name as a folder of yours (for example, a repo called `moda`), its mirror would delete whatever is not in the repository. Review the warning list before confirming.
 
 ## 6. Telemetry collector (`--collector`)
 
-- **If** `/opt/telemet-colector/config.ini` **already exists**: `station_id`, `api_key` and `ruta_json` are kept.
-- **If the program differs:** `telemet_colector.py.bak-<date>` is saved and the program is updated.
-- **If** `/etc/systemd/system/telemet-colector.service` **already exists**: it is left as is.
-- **If it is a new installation:** it creates the `telemet` user, the systemd unit and the JSON folder (`rafa/telemethistorial/datos` unless `--json-dir` is given). Credentials are taken from `TELEMET_STATION_ID` and `TELEMET_API_KEY`, or asked on the terminal.
-- It adds `conf-available/telemet-historial.conf` (`Cache-Control: no-store` header for the JSON).
+- **If** `/opt/telemet-collector/config.ini` **already exists**: `station_id`, `api_key` and `json_path` are kept.
+- **If the program differs:** `telemet_collector.py.bak-<date>` is saved and the program is updated.
+- **If** `/etc/systemd/system/telemet-collector.service` **already exists**: it is left as is.
+- **If it is a new installation:** it creates the `telemet` user, the systemd unit and the JSON folder (`rafa/telemethistory/data` unless `--json-dir` is given). Credentials are taken from `TELEMET_STATION_ID` and `TELEMET_API_KEY`, or asked on the terminal.
+- It adds `conf-available/telemet-history.conf` (`Cache-Control: no-store` header for the JSON).
 
 ## 7. Periodic updates
 
 ```bash
-./install_all_isa.sh --cron "0 3 * * *" --collector
+./install-all-isa.sh --cron "0 3 * * *" --collector
 ```
 
 The cron entry includes `--docroot` and `--url`, and reuses the selection saved in `<SOURCE>/.selection`.
@@ -99,10 +99,10 @@ curl -I https://isa.umh.es/rafa/
 curl -I https://isa.umh.es/rafa/apps.json
 curl -I https://isa.umh.es/moda/          # must remain as before
 sudo apache2ctl configtest
-sudo systemctl status telemet-colector
+sudo systemctl status telemet-collector
 ```
 
-The log of each run is in `<SOURCE>/install_all.log`. It includes, per repo and in total, commits, new/modified/deleted files, lines, download and bytes transferred to Apache (see "Information shown on each update" in `install_all_guide.md`).
+The log of each run is in `<SOURCE>/install-all.log`. It includes, per repo and in total, commits, new/modified/deleted files, lines, download and bytes transferred to Apache (see "Information shown on each update" in `install-all-guide.md`).
 
 ## 9. Common problems
 
@@ -112,7 +112,7 @@ The log of each run is in `<SOURCE>/install_all.log`. It includes, per repo and 
 | 404 on `/rafa/` | Apache does not serve `/var/www/htdocs`. Check `DocumentRoot` with `apache2ctl -S`. |
 | `moda` stopped working | It should not happen. Restore what applies from `/var/backups/install-all-<date>/`. |
 | Check reports "via http://localhost" | Port 443 or the certificate do not answer from the server itself; it does not imply a failure from outside. |
-| Collector not starting | `station_id` and `api_key` are missing: edit `/opt/telemet-colector/config.ini` and run `sudo systemctl enable --now telemet-colector`. |
+| Collector not starting | `station_id` and `api_key` are missing: edit `/opt/telemet-collector/config.ini` and run `sudo systemctl enable --now telemet-collector`. |
 | Error in `configtest` | The script disables what it added (`a2disconf`) and stops. Check `sudo apache2ctl configtest`. |
 
 ## 10. Restoring
@@ -125,7 +125,7 @@ sudo cp -a /var/backups/install-all-<date>/index.html /var/www/htdocs/rafa/index
 To remove the configuration added by the script:
 
 ```bash
-sudo a2disconf telemet-historial rafa-entry
+sudo a2disconf telemet-history rafa-entry
 sudo systemctl reload apache2
 ```
 

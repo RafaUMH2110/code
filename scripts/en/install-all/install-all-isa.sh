@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  install_all.sh  ·  All-in-one installer for a local Debian 13 server
+#  install-all-isa.sh  ·  All-in-one installer for https://isa.umh.es (Debian 13)
+#  Apache DocumentRoot: /var/www/htdocs  ·  content in /var/www/htdocs/rafa
 #
-#   1. Installs dependencies (apache2, git, curl, jq, rsync, python3)
-#   2. Chooses which repos/apps to clone (all, a list, interactive menu) and
-#      clones or updates them; a repo can be cloned partially (some folders)
-#   3. Deploys to Apache only what is served over the web (HTML, CSS, JS,
-#      images…), generates apps.json and installs the index.html portal
-#   4. (Optional) Installs the telemetry collector as a systemd service
-#   5. Sets the server entry point to  http://<IP>/rafa/
-#   6. Checks the result (and optionally schedules the task in cron)
+#  Production variant of the installer: it does NOT modify apache2.conf, does NOT
+#  touch the /moda alias or existing rules, does NOT change the server front page
+#  unless --root-entry is given and respects an already installed telemetry collector.
 #
-# Full help:  ./install_all.sh -h
+#  Steps: 1 dependencies · 2 selection and cloning · 3 deployment to Apache ·
+#         4 collector (optional) · 5 Apache (only if needed) · 6 check
+#
+# Full help:  ./install-all-isa.sh -h
 # It is idempotent: running it again updates everything.
 # =============================================================================
 set -euo pipefail
@@ -19,7 +18,10 @@ set -euo pipefail
 GH_USER="RafaUMH2110"
 SOURCE="$HOME/RafaUMH2110"
 DEST=""
-DOCROOT="/var/www/html"
+DOCROOT="/var/www/htdocs"
+URL_BASE="https://isa.umh.es"
+ROOT_ENTRY=0
+JSON_DIR_CLI=""
 FORCE=0
 WEB_USER="www-data"
 MODE="web"
@@ -34,13 +36,14 @@ COLLECTOR=0
 
 usage() {
 cat <<'EOF'
-Usage: ./install_all.sh [options]
+Usage: ./install-all-isa.sh [options]
 
 Source and destination
   -u USER          GitHub account                       (def.: RafaUMH2110)
   -o SOURCE        Where the repos are cloned           (def.: ~/RafaUMH2110)
   -d DEST          Apache directory for the apps        (def.: <docroot>/rafa)
-  --docroot DIR    Apache DocumentRoot                  (def.: /var/www/html)
+  --docroot DIR    Apache DocumentRoot                  (def.: /var/www/htdocs)
+  --url URL        Public URL of the server             (def.: https://isa.umh.es)
   --force          Do not ask for confirmation if DEST already has foreign content
 
 What to clone (the selection is saved in SOURCE/.selection and reused,
@@ -59,12 +62,17 @@ What is published to Apache
   --mode html         Only *.html / *.htm      (alias: --html-only)
   --mode all          Whole repo content (except .git, .github and secrets)
   --no-index          Do not install the index.html portal (apps.json is always generated)
+  --root-entry        Also make the server root redirect to /rafa/.
+                      NOT done by default: it changes the isa.umh.es front page.
 
 Telemetry
-  --collector         Installs the collector (telemetcolector) as a systemd service.
+  --collector         Installs the collector (telemetcollector) as a systemd service.
                       Credentials: variables TELEMET_STATION_ID and TELEMET_API_KEY,
                       or asked on the terminal. Without them the service is left
-                      ready but not started.
+                      ready but not started. If a collector is already installed,
+                      its config.ini, its service and its JSON path are kept.
+  --json-dir DIR      Folder where the collector publishes history.json (default:
+                      the one in its current config.ini or <dest>/telemethistory/data)
 
 Other
   --cron "EXPR"       Schedule the task in cron, e.g. --cron "0 3 * * *"
@@ -78,6 +86,9 @@ while [ $# -gt 0 ]; do
     -o) SOURCE="$2"; shift 2 ;;
     -d) DEST="$2"; shift 2 ;;
     --docroot) DOCROOT="${2%/}"; shift 2 ;;
+    --url) URL_BASE="${2%/}"; shift 2 ;;
+    --entrada-root_dir) ROOT_ENTRY=1; shift ;;
+    --json-dir) JSON_DIR_CLI="${2%/}"; shift 2 ;;
     --force) FORCE=1; shift ;;
     --mode) MODE="$2"; shift 2 ;;
     --html-only) MODE="html"; shift ;;
@@ -106,6 +117,7 @@ case "$DEST" in
   *) echo "The destination must be inside $DOCROOT (use --docroot if your Apache serves another folder)." >&2; exit 1 ;;
 esac
 ENTRY="${ENTRY//\/\//\/}"
+WEB_HOST="${URL_BASE#*://}"; WEB_HOST="${WEB_HOST%%/*}"
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -274,7 +286,7 @@ if [ "$LIST" -eq 1 ]; then
 fi
 
 mkdir -p "$SOURCE"
-LOG="$SOURCE/install_all.log"
+LOG="$SOURCE/install-all.log"
 log()  { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
 # human_size BYTES -> "812 B" / "34.5 KB" / "1.2 MB"
@@ -407,9 +419,9 @@ log "Git summary -> commits: $g_commits | files: +$g_add ~$g_mod -$g_del | lines
 
 # -----------------------------------------------------------------------------
 step "3/6 Deploy to Apache ($DEST) · mode $MODE"
-MARKER="$DEST/.install_all"
+MARKER="$DEST/.install-all"
 FIRST_RUN=0; BACKUP_DIR=""
-if $SUDO test -d "$DEST" && ! $SUDO test -f "$MARKER" && [ -n "$($SUDO ls -A "$DEST" 2>/dev/null)" ]; then
+if $SUDO test -d "$DEST" && ! $SUDO test -f "$MARKER" && ! $SUDO test -f "$DEST/.install_all" && [ -n "$($SUDO ls -A "$DEST" 2>/dev/null)" ]; then
   FIRST_RUN=1
   echo
   echo "WARNING: $DEST already has content that was not created by this script:"
@@ -436,8 +448,8 @@ $SUDO mkdir -p "$DEST"
 
 WEB_EXT=(html htm css js mjs json webmanifest svg png jpg jpeg gif webp avif ico bmp woff woff2 ttf otf eot mp3 mp4 webm ogg wav pdf xml csv)
 SECRETS=(--exclude='.env*' --exclude='*.key' --exclude='*.pem' --exclude='*secret*' --exclude='*credential*' --exclude='config.ini')
-# 'datos/' is protected: the telemetry collector writes there (historial.json)
-RSYNC_OPTS=(-a --delete --delete-excluded --filter='P datos/' --exclude='.git/' --exclude='.github/' "${SECRETS[@]}")
+# 'datos/' and 'data/' are protected: the telemetry collectors write there (historial.json / history.json)
+RSYNC_OPTS=(-a --delete --delete-excluded --filter='P datos/' --filter='P data/' --exclude='.git/' --exclude='.github/' "${SECRETS[@]}")
 case "$MODE" in
   web)
     RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
@@ -472,7 +484,7 @@ for r in "${SEL_REPOS[@]}"; do
   rm -f "$rsync_out"
 done
 for r in "${SEL_REPOS[@]}"; do
-  [ -d "$DEST/$r" ] && $SUDO find "$DEST/$r" -type d -empty ! -name datos -delete 2>/dev/null
+  [ -d "$DEST/$r" ] && $SUDO find "$DEST/$r" -type d -empty ! -name datos ! -name data -delete 2>/dev/null
 done
 log "Repos deployed: $copied"
 log "Deployment summary -> new: $d_new | modified: $d_mod | deleted: $d_del | transferred $(human_size $d_bytes)"
@@ -645,16 +657,16 @@ done
 $SUDO touch "$MARKER"
 
 # The folder where the collector writes the JSON must remain its own
-COLLECTOR_DIR="/opt/telemet-colector"
+COLLECTOR_DIR="/opt/telemet-collector"
 fix_collector_dir() {
   local cfg="$COLLECTOR_DIR/config.ini" path
   id telemet >/dev/null 2>&1 || return 0
   $SUDO test -f "$cfg" || return 0
-  path="$($SUDO sed -nE 's/^[[:space:]]*ruta_json[[:space:]]*=[[:space:]]*([^[:space:]]+).*/\1/p' "$cfg" | head -1)"
+  path="$($SUDO sed -nE 's/^[[:space:]]*json_path[[:space:]]*=[[:space:]]*([^[:space:]]+).*/\1/p' "$cfg" | head -1)"
   [ -n "$path" ] || return 0
   case "$path" in "$DEST"/*) ;; *) return 0 ;; esac
   # If the folder does not exist (config.ini with the default path, e.g.), there is nothing to adjust
-  $SUDO test -d "$(dirname "$path")" || { log "WARNING: the collector JSON folder does not exist: $(dirname "$path") (ignored; check ruta_json in $cfg)"; return 0; }
+  $SUDO test -d "$(dirname "$path")" || { log "WARNING: the collector JSON folder does not exist: $(dirname "$path") (ignored; check json_path in $cfg)"; return 0; }
   $SUDO chown -R telemet:telemet "$(dirname "$path")" || log "WARNING: could not set the owner of $(dirname "$path")"
   return 0
 }
@@ -668,8 +680,8 @@ HEADERS_CONF=0
 ini_set() {   # ini_set key value file  (the value travels in the environment, not on the command line)
   local k="$1" v="$2" f="$3" tmp act
   tmp="$(mktemp)"
-  # Si la clave ya está activa se sustituye esa línea; solo si no lo está se usa la
-  # primera línea comentada (así no se tocan los ejemplos de la plantilla)
+  # If the key is already active, that line is replaced; only if it is not, the first
+  # commented line is used (so the template's examples are left alone)
   act=0; $SUDO grep -qE "^[[:space:]]*$k[[:space:]]*=" "$f" && act=1
   $SUDO cat "$f" | K="$k" V="$v" ACT="$act" awk '
     BEGIN { k = ENVIRON["K"]; v = ENVIRON["V"]; pre = (ENVIRON["ACT"] == "1") ? "^[ \t]*" : "^[;# \t]*"; done = 0 }
@@ -679,34 +691,47 @@ ini_set() {   # ini_set key value file  (the value travels in the environment, n
 }
 
 install_collector() {
-  local src src_dir historial json_dir unit tmp station key resp pending=0
-  src="$(find "$SOURCE" -type f -path '*/telemetcolector/telemet_colector.py' 2>/dev/null | head -1)"
+  local src src_dir json_dir unit tmp station key resp pending=0 bak
+  src="$(find "$SOURCE" -type f -path '*/telemetcollector/telemet_collector.py' 2>/dev/null | head -1)"
   if [ -z "$src" ]; then
-    log "WARNING: telemetcolector not found in the cloned repos (is apps/telemetria selected?)"
+    log "WARNING: telemetcollector not found in the cloned repos (is apps/telemetria selected?)"
     return 0
   fi
   src_dir="$(dirname "$src")"
+  if [ -f "/etc/systemd/system/telemet-colector.service" ]; then
+    log "WARNING: the service telemet-colector.service (the Spanish collector) is also installed; if it reads the same station, keep only one"
+  fi
 
-  # Where the JSON is published: next to the deployed TeleMet Historial app
-  historial="$(find "$DEST" -type f -path '*/telemet/historial/index.html' 2>/dev/null | head -1)"
-  if [ -n "$historial" ]; then json_dir="$(dirname "$historial")/datos"; else json_dir="$DEST/telemethistorial/datos"; fi
+  # Where the JSON is published: --json-dir, or the one in its current config.ini, or the README's
+  local cfg_path="" json_new=1
+  if $SUDO test -f "$COLLECTOR_DIR/config.ini"; then
+    cfg_path="$($SUDO sed -nE 's/^[[:space:]]*json_path[[:space:]]*=[[:space:]]*([^[:space:]]+).*/\1/p' "$COLLECTOR_DIR/config.ini" | head -1)"
+  fi
+  if [ -n "$JSON_DIR_CLI" ]; then json_dir="$JSON_DIR_CLI"
+  elif [ -n "$cfg_path" ] && [ "$cfg_path" != "/path/history.json" ]; then json_dir="$(dirname "$cfg_path")"; json_new=0
+  else json_dir="$DEST/telemethistory/data"; fi
 
   id telemet >/dev/null 2>&1 || {
     $SUDO useradd --system --home-dir "$COLLECTOR_DIR" --shell /usr/sbin/nologin telemet
     log "Service user 'telemet' created"
   }
-  $SUDO mkdir -p "$COLLECTOR_DIR/datos"
-  $SUDO install -m 644 "$src_dir/telemet_colector.py" "$COLLECTOR_DIR/telemet_colector.py"
+  $SUDO mkdir -p "$COLLECTOR_DIR/data"
+  if $SUDO test -f "$COLLECTOR_DIR/telemet_collector.py" && ! $SUDO cmp -s "$src_dir/telemet_collector.py" "$COLLECTOR_DIR/telemet_collector.py"; then
+    bak="$COLLECTOR_DIR/telemet_collector.py.bak-$(date +%Y%m%d-%H%M%S)"
+    $SUDO cp -a "$COLLECTOR_DIR/telemet_collector.py" "$bak"; log "Previous program saved in $bak"
+  fi
+  $SUDO install -m 644 "$src_dir/telemet_collector.py" "$COLLECTOR_DIR/telemet_collector.py"
   $SUDO install -m 644 "$src_dir/config.example.ini" "$COLLECTOR_DIR/config.example.ini"
   if ! $SUDO test -f "$COLLECTOR_DIR/config.ini"; then
     $SUDO install -m 600 "$src_dir/config.example.ini" "$COLLECTOR_DIR/config.ini"
     log "Created $COLLECTOR_DIR/config.ini from the template"
   fi
   $SUDO install -d -o telemet -g telemet -m 755 "$json_dir"
-  ini_set ruta_json "$json_dir/historial.json" "$COLLECTOR_DIR/config.ini"
+  if [ "$json_new" -eq 1 ]; then ini_set json_path "$json_dir/history.json" "$COLLECTOR_DIR/config.ini"; fi
+  log "The collector publishes the JSON in $json_dir/history.json"
 
   # Credentials (only if they are still the template placeholders)
-  if $SUDO grep -qE '^[[:space:]]*(station_id|api_key)[[:space:]]*=[[:space:]]*(TU_STATION_ID|TU_API_KEY)' "$COLLECTOR_DIR/config.ini"; then
+  if $SUDO grep -qE '^[[:space:]]*(station_id|api_key)[[:space:]]*=[[:space:]]*(YOUR_STATION_ID|YOUR_API_KEY)' "$COLLECTOR_DIR/config.ini"; then
     station="${TELEMET_STATION_ID:-}"; key="${TELEMET_API_KEY:-}"
     if [ -z "$station$key" ] && [ -t 0 ]; then
       read -r -p "Weather Underground Station ID (Enter = configure later): " station </dev/tty || station=""
@@ -718,20 +743,24 @@ install_collector() {
       log "Credentials saved in $COLLECTOR_DIR/config.ini (permissions 600)"
     fi
   fi
-  $SUDO grep -qE '^[[:space:]]*(station_id|api_key)[[:space:]]*=[[:space:]]*(TU_STATION_ID|TU_API_KEY)' "$COLLECTOR_DIR/config.ini" && pending=1
+  $SUDO grep -qE '^[[:space:]]*(station_id|api_key)[[:space:]]*=[[:space:]]*(YOUR_STATION_ID|YOUR_API_KEY)' "$COLLECTOR_DIR/config.ini" && pending=1
 
   $SUDO chown -R telemet:telemet "$COLLECTOR_DIR"
   $SUDO chmod 600 "$COLLECTOR_DIR/config.ini"
   $SUDO chown -R telemet:telemet "$json_dir"
 
+  # systemd service: if it already exists it is left as is (it may have its own settings)
+  if $SUDO test -f /etc/systemd/system/telemet-collector.service; then
+    log "Service already installed: /etc/systemd/system/telemet-collector.service is kept"
+  else
   # systemd service: the repo's one, with the JSON folder adapted
   tmp="$(mktemp)"
-  if [ -f "$src_dir/telemet-colector.service" ]; then
-    sed "s|/var/www/htdocs/rafa/telemethistorial/datos|$json_dir|g" "$src_dir/telemet-colector.service" > "$tmp"
+  if [ -f "$src_dir/telemet-collector.service" ]; then
+    sed "s|/var/www/htdocs/rafa/telemethistory/data|$json_dir|g" "$src_dir/telemet-collector.service" > "$tmp"
   else
     cat > "$tmp" <<UNIT
 [Unit]
-Description=TeleMet Colector
+Description=TeleMet Collector
 After=network-online.target
 Wants=network-online.target
 
@@ -740,49 +769,50 @@ Type=simple
 User=telemet
 Group=telemet
 WorkingDirectory=$COLLECTOR_DIR
-ExecStart=/usr/bin/python3 $COLLECTOR_DIR/telemet_colector.py -c $COLLECTOR_DIR/config.ini
+ExecStart=/usr/bin/python3 $COLLECTOR_DIR/telemet_collector.py -c $COLLECTOR_DIR/config.ini
 Restart=always
 RestartSec=10
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=$COLLECTOR_DIR/datos $json_dir
+ReadWritePaths=$COLLECTOR_DIR/data $json_dir
 
 [Install]
 WantedBy=multi-user.target
 UNIT
   fi
   grep -qF "$json_dir" "$tmp" || sed -i "/^ReadWritePaths=/a ReadWritePaths=$json_dir" "$tmp"
-  $SUDO install -m 644 "$tmp" /etc/systemd/system/telemet-colector.service
+  $SUDO install -m 644 "$tmp" /etc/systemd/system/telemet-collector.service
   rm -f "$tmp"
-  log "Service installed: /etc/systemd/system/telemet-colector.service (JSON in $json_dir/historial.json)"
+  log "Service installed: /etc/systemd/system/telemet-collector.service (JSON in $json_dir/history.json)"
+  fi
 
   # Apache: make the browser not cache the JSON
   $SUDO a2enmod headers >/dev/null 2>&1 || true
-  $SUDO tee /etc/apache2/conf-available/telemet-historial.conf >/dev/null <<EOF
+  $SUDO tee /etc/apache2/conf-available/telemet-history.conf >/dev/null <<EOF
 <Directory "$json_dir">
     <FilesMatch "\.json\$">
         Header set Cache-Control "no-store"
     </FilesMatch>
 </Directory>
 EOF
-  $SUDO a2enconf telemet-historial >/dev/null
+  $SUDO a2enconf telemet-history >/dev/null
   HEADERS_CONF=1
 
   if [ "$pending" -eq 1 ]; then
     log "WARNING: station_id and api_key are missing. To finish:"
     log "   sudo nano $COLLECTOR_DIR/config.ini"
-    log "   sudo -u telemet python3 $COLLECTOR_DIR/telemet_colector.py -c $COLLECTOR_DIR/config.ini --probar"
-    log "   sudo systemctl enable --now telemet-colector"
+    log "   sudo -u telemet python3 $COLLECTOR_DIR/telemet_collector.py -c $COLLECTOR_DIR/config.ini --test"
+    log "   sudo systemctl enable --now telemet-collector"
   fi
   if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
     $SUDO systemctl daemon-reload
     if [ "$pending" -eq 0 ]; then
-      $SUDO systemctl enable telemet-colector >/dev/null 2>&1
-      $SUDO systemctl restart telemet-colector
+      $SUDO systemctl enable telemet-collector >/dev/null 2>&1
+      $SUDO systemctl restart telemet-collector
       sleep 2
-      log "Service telemet-colector: $($SUDO systemctl is-active telemet-colector || true)"
+      log "Service telemet-collector: $($SUDO systemctl is-active telemet-collector || true)"
     fi
   else
     log "WARNING: systemd is not active on this system; the service is installed but not started"
@@ -796,91 +826,79 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-step "5/6 Set the entry point to $ENTRY"
-TS="$(date +%Y%m%d-%H%M%S)"
-ENTRY_BACKUP="/var/backups/apache-entry-$TS"
-$SUDO mkdir -p "$ENTRY_BACKUP"
-changes=()
-
-# 5a) Disable Redirect/Rewrite rules to /moda/ and DocumentRoot pointing to .../moda
-mapfile -t CANDIDATES < <($SUDO grep -rliE "^[[:space:]]*(Redirect|RedirectMatch|RedirectPermanent|RewriteRule|DocumentRoot).*moda" \
-    /etc/apache2/sites-available /etc/apache2/conf-available /etc/apache2/apache2.conf \
-    "$DOCROOT/.htaccess" 2>/dev/null || true)
-for f in "${CANDIDATES[@]}"; do
-  [ -n "$f" ] || continue
-  $SUDO cp -a --parents "$f" "$ENTRY_BACKUP"
-  $SUDO sed -i --follow-symlinks -E \
-    -e "s|^([[:space:]]*)(Redirect[A-Za-z]*[[:space:]].*[Mm][Oo][Dd][Aa].*)$|\1# [disabled $TS] \2|" \
-    -e "s|^([[:space:]]*)(RewriteRule[[:space:]].*[Mm][Oo][Dd][Aa].*)$|\1# [disabled $TS] \2|" \
-    -e "s|^([[:space:]]*)DocumentRoot[[:space:]]+\"?[^[:space:]\"]*[Mm][Oo][Dd][Aa]/?\"?[[:space:]]*$|\1DocumentRoot $DOCROOT|" \
-    "$f"
-  changes+=("$f")
-  log "Rules pointing to /moda/ disabled in: $f"
-done
-
-# 5b) A root index.html that points to /moda/ -> replace it with a redirect
-if [ -f "$DOCROOT/index.html" ] && $SUDO grep -qiE "moda" "$DOCROOT/index.html"; then
-  $SUDO cp -a --parents "$DOCROOT/index.html" "$ENTRY_BACKUP"
-  changes+=("$DOCROOT/index.html")
-  log "Replaced $DOCROOT/index.html (it pointed to /moda/)"
-  printf '%s\n' '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' \
-    "<meta http-equiv=\"refresh\" content=\"0; url=$ENTRY\"><title>Redirecting…</title></head>" \
-    "<body><a href=\"$ENTRY\">Go to $ENTRY</a></body></html>" \
-    | $SUDO tee "$DOCROOT/index.html" >/dev/null
+step "5/6 Apache"
+NEW_CONFS=()
+if grep -rqE "<Directory[[:space:]]+\"?$DEST/?\"?[[:space:]]*>" /etc/apache2/ 2>/dev/null; then
+  log "Apache: a <Directory $DEST> block already exists in /etc/apache2 (left untouched)"
+else
+  log "WARNING: no <Directory $DEST> block in /etc/apache2; if you get a 403, add 'Require all granted' for that folder"
 fi
+[ "$HEADERS_CONF" -eq 1 ] && NEW_CONFS+=(telemet-history)
 
-# 5c) Entry rule: the root redirects to /rafa/ (relative: works with localhost, IP or name)
-$SUDO a2enmod alias >/dev/null 2>&1 || true
-$SUDO tee /etc/apache2/conf-available/rafa-entry.conf >/dev/null <<EOF
-# Default entry of the server: the root redirects to $ENTRY
+if [ "$ROOT_ENTRY" -eq 1 ]; then
+  $SUDO a2enmod alias >/dev/null 2>&1 || true
+  $SUDO tee /etc/apache2/conf-available/rafa-entry.conf >/dev/null <<EOF
+# Server entry: the root redirects to $ENTRY
 RedirectMatch ^/\$ $ENTRY
 EOF
-$SUDO a2enconf rafa-entry >/dev/null
-
-if $SUDO apache2ctl configtest >>"$LOG" 2>&1; then
-  if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-    $SUDO systemctl reload apache2
-  else
-    $SUDO apache2ctl graceful || $SUDO apache2ctl start
-  fi
-  log "Apache reloaded with the entry $ENTRY"
+  $SUDO a2enconf rafa-entry >/dev/null
+  NEW_CONFS+=(rafa-entry)
+  log "Redirect from / to $ENTRY enabled (conf rafa-entry)"
 else
-  log "ERROR in the Apache configuration: restoring backup"
-  $SUDO a2disconf rafa-entry >/dev/null 2>&1 || true
-  [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-historial >/dev/null 2>&1 || true
-  for f in "${changes[@]}"; do $SUDO cp -a "$ENTRY_BACKUP$f" "$f"; done
-  log "Restored from $ENTRY_BACKUP. Check: sudo apache2ctl configtest"
-  exit 1
+  log "Server front page not changed (use --root-entry to make / redirect to $ENTRY)"
 fi
 
-# 5d) Warnings: mentions of /moda/ that could not be disabled automatically
-LEFTOVERS=$($SUDO grep -rniE "(Redirect|RewriteRule|DocumentRoot|DirectoryIndex|Alias).*moda" /etc/apache2 2>/dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
-if [ -n "$LEFTOVERS" ]; then
-  log "WARNING: references to 'moda' remain in the configuration; review them:"
-  echo "$LEFTOVERS" | tee -a "$LOG"
+if [ "${#NEW_CONFS[@]}" -gt 0 ]; then
+  if $SUDO apache2ctl configtest >>"$LOG" 2>&1; then
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+      $SUDO systemctl reload apache2
+    else
+      $SUDO apache2ctl graceful || $SUDO apache2ctl start
+    fi
+    log "Apache reloaded (new configuration: ${NEW_CONFS[*]})"
+  else
+    log "ERROR in the Apache configuration: disabling what was added (${NEW_CONFS[*]})"
+    for c in "${NEW_CONFS[@]}"; do $SUDO a2disconf "$c" >/dev/null 2>&1 || true; done
+    log "Check: sudo apache2ctl configtest"
+    exit 1
+  fi
+else
+  log "No configuration changes: Apache does not need a reload"
 fi
 
 # -----------------------------------------------------------------------------
 step "6/6 Check"
-IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; IP="${IP:-localhost}"
-root_code=$(curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}' "http://localhost/" || echo "no response")
-rafa_code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$ENTRY" || echo "no response")
-log "http://localhost/        : $root_code"
-log "http://localhost$ENTRY : $rafa_code"
+check() {   # check PATH -> HTTP code (resolves the host to this very server)
+  local path="$1" code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --resolve "$WEB_HOST:443:127.0.0.1" "$URL_BASE$path" 2>/dev/null || true)"
+  if [ -z "$code" ] || [ "$code" = "000" ]; then
+    code="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$WEB_HOST:443:127.0.0.1" "$URL_BASE$path" 2>/dev/null || true)"
+    if [ -n "$code" ] && [ "$code" != "000" ]; then code="$code (certificate not verified)"; fi
+  fi
+  if [ -z "$code" ] || [ "$code" = "000" ]; then
+    code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $WEB_HOST" "http://localhost$path" 2>/dev/null || true) (via http://localhost)"
+  fi
+  echo "$code"
+}
+log "$URL_BASE$ENTRY : $(check "$ENTRY")"
+log "$URL_BASE${ENTRY}apps.json : $(check "${ENTRY}apps.json")"
+if [ "$ROOT_ENTRY" -eq 1 ]; then log "$URL_BASE/ : $(check /)"; fi
 if [ "$COLLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-  log "telemet-colector         : $(systemctl is-active telemet-colector 2>/dev/null || true)"
+  log "telemet-collector : $(systemctl is-active telemet-collector 2>/dev/null || true)"
 fi
 
 if [ -n "$CRON_EXPR" ]; then
-  cron_line="$CRON_EXPR $SCRIPT_ABS -u $GH_USER -o $SOURCE -d $DEST"
+  cron_line="$CRON_EXPR $SCRIPT_ABS -u $GH_USER -o $SOURCE -d $DEST --docroot $DOCROOT --url $URL_BASE"
   [ "$MODE" != "web" ] && cron_line="$cron_line --mode $MODE"
   [ "$INDEX" -eq 0 ]  && cron_line="$cron_line --no-index"
   [ "$COLLECTOR" -eq 1 ] && cron_line="$cron_line --collector"
+  [ "$ROOT_ENTRY" -eq 1 ] && cron_line="$cron_line --root-entry"
+  [ -n "$JSON_DIR_CLI" ] && cron_line="$cron_line --json-dir $JSON_DIR_CLI"
   cron_line="$cron_line >/dev/null 2>&1"
   ( crontab -l 2>/dev/null | grep -vF "$SCRIPT_ABS" ; echo "$cron_line" ) | crontab -
   log "Cron scheduled: $CRON_EXPR (uses the selection saved in $SEL_FILE)"
 fi
 
 echo | tee -a "$LOG"
-log "DONE. Entry: http://$IP$ENTRY  |  Errors: $errors  |  Duration: ${SECONDS}s  |  Backup: $ENTRY_BACKUP"
+log "DONE. Portal: $URL_BASE$ENTRY  |  Errors: $errors  |  Duration: ${SECONDS}s${BACKUP_DIR:+  |  Backup: $BACKUP_DIR}"
 [ "$errors" -eq 0 ]

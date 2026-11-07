@@ -1,6 +1,6 @@
 # Apache on Debian 13: publishing from `/var/www/html` or `/var/www/htdocs`
 
-Guide for the local server `192.168.0.129` and the `install_all.sh` script.
+Guide for the local server `192.168.0.129` and the `install-all.sh` script.
 
 Author: Rafael Puerto · Department of Systems Engineering and Automation · UMH · r.puerto@umh.es
 _Generated with AI · Reviewed by the author_ · Last modified: 2026-11-04 02:38
@@ -38,7 +38,7 @@ curl -sI http://localhost/rafa/ | head -1
 Nothing needs to be configured in Apache. It is the script's default:
 
 ```bash
-./install_all.sh -d /var/www/html/rafa
+./install-all.sh -d /var/www/html/rafa
 ```
 
 If the previous destination (`/var/www/htdocs/rafa`) is no longer used, you can review it and delete it whenever you want. Apache does not serve it.
@@ -50,12 +50,12 @@ Use it if you need `/var/www/htdocs` to be the root of this server.
 ```bash
 sudo sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/htdocs|' /etc/apache2/sites-available/000-default.conf
 sudo apache2ctl configtest && sudo systemctl reload apache2
-./install_all.sh --docroot /var/www/htdocs
+./install-all.sh --docroot /var/www/htdocs
 ```
 
 - `/etc/apache2/apache2.conf` already grants access to all of `/var/www/`, so no `<Directory>` block is needed.
 - The server root becomes `/var/www/htdocs`. `/var/www/html` is no longer served.
-- If you already had content in `/var/www/htdocs/rafa`, the script will list it and ask for confirmation (see the `install_all.sh` guide).
+- If you already had content in `/var/www/htdocs/rafa`, the script will list it and ask for confirmation (see the `install-all.sh` guide).
 
 ### Option B: keep `/var/www/html` as the root and publish only `/rafa` from htdocs
 
@@ -68,7 +68,7 @@ Alias /rafa /var/www/htdocs/rafa
 EOF
 sudo a2enconf rafa-alias
 sudo apache2ctl configtest && sudo systemctl reload apache2
-./install_all.sh --docroot /var/www/htdocs
+./install-all.sh --docroot /var/www/htdocs
 ```
 
 - `http://192.168.0.129/rafa/` is served from `/var/www/htdocs/rafa` without changing the server root.

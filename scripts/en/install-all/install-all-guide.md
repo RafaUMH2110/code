@@ -1,4 +1,4 @@
-# How to use `install_all.sh`
+# How to use `install-all.sh`
 
 Deployment of the applications of the GitHub account **RafaUMH2110** on a local **Debian 13** server (`192.168.0.129`) with Apache, an entry portal and an optional telemetry collector.
 
@@ -48,7 +48,7 @@ Only the **public** repos of the account are cloned; no token is needed.
 
 | File | Purpose |
 |---|---|
-| `install_all.sh` | The script. |
+| `install-all.sh` | The script. |
 | `index.html` | Template of the portal published at `/rafa/`. If missing, the script generates a simple index as a fallback. |
 
 Server requirements:
@@ -61,11 +61,11 @@ Server requirements:
 
 ```bash
 # 1. Copy to the server (from your computer)
-scp install_all.sh index.html user@192.168.0.129:~/
+scp install-all.sh index.html user@192.168.0.129:~/
 
 # 2. On the server
-chmod +x install_all.sh
-./install_all.sh
+chmod +x install-all.sh
+./install-all.sh
 ```
 
 This clones all public repos, deploys them to `/var/www/html/rafa/` and leaves the entry at `http://192.168.0.129/rafa/`.
@@ -73,11 +73,11 @@ This clones all public repos, deploys them to `/var/www/html/rafa/` and leaves t
 Common combinations:
 
 ```bash
-./install_all.sh -i                            # choose what to clone with a menu
-./install_all.sh -i --collector                # choose, and also install the collector
-./install_all.sh --repos "apps/telemetria"     # telemetry only
-./install_all.sh --collector --cron "0 3 * * *"    # update every day at 3:00
-./install_all.sh --list                        # see what exists and what is selected
+./install-all.sh -i                            # choose what to clone with a menu
+./install-all.sh -i --collector                # choose, and also install the collector
+./install-all.sh --repos "apps/telemetria"     # telemetry only
+./install-all.sh --collector --cron "0 3 * * *"    # update every day at 3:00
+./install-all.sh --list                        # see what exists and what is selected
 ```
 
 ## 4. Options reference
@@ -144,13 +144,13 @@ Choose (numbers or ranges like 1-3 separated by spaces; Enter = all; n = none):
 
 ```bash
 # Only these folders and repos
-./install_all.sh --repos "apps/telemetria,apps/moda,code/linux,code/telemetria"
+./install-all.sh --repos "apps/telemetria,apps/moda,code/linux,code/telemetria"
 
 # Everything except some repos
-./install_all.sh --exclude "apps-pro,Artifacts"
+./install-all.sh --exclude "apps-pro,Artifacts"
 
 # Back to everything
-./install_all.sh --all
+./install-all.sh --all
 ```
 
 Repo names are case-insensitive. A name that does not exist in the account is ignored with a warning.
@@ -219,14 +219,14 @@ If the destination folder **already exists and has files not created by this scr
 
 1. Lists what is there and **asks for confirmation** (`Continue? [y/N]`). Without a terminal, as in cron, it **stops** unless you use `--force`.
 2. Saves in `/var/backups/install-all-<date>/` a copy of whatever it replaces or deletes: the previous `index.html` and `apps.json` and any file that a repo mirror replaces or removes.
-3. Marks the folder with the hidden file `.install_all`; from then on it does not ask again.
+3. Marks the folder with the hidden file `.install-all`; from then on it does not ask again.
 
 Only `index.html`, `apps.json` and the folders named after a selected repo are touched. Any other folder or file in `DEST` (for example, `GenImOd/` or `empty/`) is left as it is. If you already had a folder with the same name as a repo (for example, `apps/`), its content is replaced by the repo's: review the list before accepting.
 
 ### Notes
 
 - The deployment is a **mirror**: what you delete or change in the repo is reflected in Apache, and any file you add by hand inside `/var/www/html/rafa/<repo>/` is deleted on the next run.
-- There is one exception: folders named **`datos/`** are protected, because the telemetry collector writes there.
+- There is one exception: folders named **`datos/`** and **`data/`** are protected, because the telemetry collector writes there.
 - The final permissions are owner `www-data`, 755 on folders and 644 on files, only on what the script manages.
 
 ## 7. The entry portal
@@ -249,41 +249,41 @@ The descriptions of the known apps (GenImOd, GenOutFit, GenPatMod…) are in the
 
 ## 8. Telemetry collector
 
-The `apps` repo contains in `telemetria/telemetcolector/` a Python program that reads your weather station (Weather Underground) every 5 minutes, keeps the last 12 hours in SQLite and exports a `historial.json` used by the **TeleMet Historial** app. **It is not a web page**: it is a service that has to be running on the server. It only uses the Python standard library.
+The `apps` repo contains in `telemetria/telemetcollector/` a Python program that reads your weather station (Weather Underground) every 5 minutes, keeps the last 24 hours (configurable) in SQLite and exports a `history.json` used by the **TeleMet History** app. **It is not a web page**: it is a service that has to be running on the server. It only uses the Python standard library.
 
 ### 8.1 Installation
 
 ```bash
 # With the credentials prompt (asks for Station ID and API Key)
-./install_all.sh --repos "apps/telemetria" --collector
+./install-all.sh --repos "apps/telemetria" --collector
 
 # Without being asked (environment variables)
 read -rp "Station ID: " TELEMET_STATION_ID
 read -rsp "API Key: " TELEMET_API_KEY; echo
 export TELEMET_STATION_ID TELEMET_API_KEY
-./install_all.sh --repos "apps/telemetria" --collector
+./install-all.sh --repos "apps/telemetria" --collector
 ```
 
-Requirement: the `apps` repo with the `telemetria` folder must be in the selection (otherwise the script warns that it cannot find `telemetcolector`).
+Requirement: the `apps` repo with the `telemetria` folder must be in the selection (otherwise the script warns that it cannot find `telemetcollector`).
 
-> Typing the key on the command line (`TELEMET_API_KEY=xxx ./install_all.sh …`) leaves it in the shell history. The format above, or letting the script ask for it, is preferable.
+> Typing the key on the command line (`TELEMET_API_KEY=xxx ./install-all.sh …`) leaves it in the shell history. The format above, or letting the script ask for it, is preferable.
 
 ### 8.2 What the script does with `--collector`
 
 | Item | Location |
 |---|---|
 | Service user (no shell) | `telemet` |
-| Program and configuration | `/opt/telemet-colector/` (`telemet_colector.py`, `config.ini`, `config.example.ini`) |
-| Database | `/opt/telemet-colector/datos/telemet.sqlite` |
-| systemd service | `/etc/systemd/system/telemet-colector.service` |
-| Published JSON | next to the Historial app: `/var/www/html/rafa/apps/telemetria/telemet/historial/datos/historial.json` |
-| Anti-cache header for the JSON | `/etc/apache2/conf-available/telemet-historial.conf` |
+| Program and configuration | `/opt/telemet-collector/` (`telemet_collector.py`, `config.ini`, `config.example.ini`) |
+| Database | `/opt/telemet-collector/data/telemet.sqlite` |
+| systemd service | `/etc/systemd/system/telemet-collector.service` |
+| Published JSON | next to the History app: `/var/www/html/rafa/apps/telemetria/telemet/history/data/history.json` |
+| Anti-cache header for the JSON | `/etc/apache2/conf-available/telemet-history.conf` |
 
 - The service is generated from the repo's `.service`, with the JSON folder adapted to this server.
-- `config.ini` is created from the template **only if it does not exist**: running the script again does not overwrite your credentials. The `telemet_colector.py` program is always updated.
+- `config.ini` is created from the template **only if it does not exist**: running the script again does not overwrite your credentials. The `telemet_collector.py` program is always updated.
 - `config.ini` ends up with `600` permissions and owned by `telemet`.
-- The `datos/` folder where the JSON is written keeps the `telemet` owner even if it is deployed again.
-- The JSON can be seen at `http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json`.
+- The `data/` folder where the JSON is written keeps the `telemet` owner even if it is deployed again.
+- The JSON can be seen at `http://192.168.0.129/rafa/apps/telemetria/telemet/history/data/history.json`.
 
 ### 8.3 With and without credentials
 
@@ -291,34 +291,34 @@ Requirement: the `apps` repo with the `telemetria` folder must be in the selecti
 - **Without credentials**: the service is installed but **not started**, and the script shows what to do:
 
 ```bash
-sudo nano /opt/telemet-colector/config.ini        # edit station_id and api_key
-sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py \
-     -c /opt/telemet-colector/config.ini --probar # one test reading, nothing saved
-sudo systemctl enable --now telemet-colector
+sudo nano /opt/telemet-collector/config.ini        # edit station_id and api_key
+sudo -u telemet python3 /opt/telemet-collector/telemet_collector.py \
+     -c /opt/telemet-collector/config.ini --test # one test reading, nothing saved
+sudo systemctl enable --now telemet-collector
 ```
 
 ### 8.4 Managing the service
 
 ```bash
-systemctl status telemet-colector                 # status
-journalctl -u telemet-colector -f                 # live log
-sudo systemctl restart telemet-colector           # after editing config.ini
+systemctl status telemet-collector                 # status
+journalctl -u telemet-collector -f                 # live log
+sudo systemctl restart telemet-collector           # after editing config.ini
 
 # Program utilities
-sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py -c /opt/telemet-colector/config.ini --estado
-sudo -u telemet python3 /opt/telemet-colector/telemet_colector.py -c /opt/telemet-colector/config.ini --una-vez
+sudo -u telemet python3 /opt/telemet-collector/telemet_collector.py -c /opt/telemet-collector/config.ini --estado
+sudo -u telemet python3 /opt/telemet-collector/telemet_collector.py -c /opt/telemet-collector/config.ini --una-vez
 ```
 
 Useful `config.ini` parameters: `intervalo_s` (default 300; with 288 calls per day, lowering it uses more of your API Key quota), `duracion_horas` (12) and `modo` (`deslizante` or `reinicio`).
 
-> The collector's own command-line flags (`--probar`, `--estado`, `--una-vez`) and `config.ini` keys are those of the `telemetcolector` program in the repo, so they keep their original names.
+> The collector's own command-line flags (`--test`, `--estado`, `--una-vez`) and `config.ini` keys are those of the `telemetcollector` program in the repo, so they keep their original names.
 
 ### 8.5 Things to keep in mind
 
-- The TeleMet Historial app only uses the JSON if its **Station ID** matches the collector's (case-insensitive).
+- The TeleMet History app only uses the JSON if its **Station ID** matches the collector's (case-insensitive).
 - If there is no JSON yet, the app works the same, without the server history.
 - The app warns if the last server reading is more than 15 minutes old.
-- If the Historial app is not deployed, the JSON is published in `/var/www/html/rafa/telemethistorial/datos/`.
+- If the History app is not deployed, the JSON is published in `/var/www/html/rafa/telemethistory/data/`.
 - On a system without active systemd (containers) the service is installed but does not start.
 
 ## 9. Server entry point (`/rafa/`)
@@ -336,15 +336,15 @@ If you change the destination (`-d /var/www/html/apps`), the entry becomes `/app
 ## 10. Automatic updates with cron
 
 ```bash
-./install_all.sh --cron "0 3 * * *"                   # daily, at 3:00
-./install_all.sh --collector --cron "30 2 * * 1"      # weekly, Mondays at 2:30
+./install-all.sh --cron "0 3 * * *"                   # daily, at 3:00
+./install-all.sh --collector --cron "30 2 * * 1"      # weekly, Mondays at 2:30
 ```
 
 - The script adds a line to your `crontab` and replaces the previous one of the same script (no duplicates).
 - Cron uses the **saved selection** and repeats the options `-o`, `-d`, `--mode`, `--no-index` and `--collector`.
 - Cron has no terminal: credentials are not asked for (those in `config.ini` are kept) and `-i` cannot be used.
 - To review or remove it: `crontab -l` and `crontab -e`.
-- To see what happened: `tail -n 40 ~/RafaUMH2110/install_all.log`.
+- To see what happened: `tail -n 40 ~/RafaUMH2110/install-all.log`.
 
 > `crontab` must be that of the same user who runs the script; the steps that need privileges use `sudo`, which in cron requires `NOPASSWD` or running as root (`sudo crontab -e`).
 
@@ -354,19 +354,19 @@ If you change the destination (`-d /var/www/html/apps`), the entry becomes `/app
 ~/RafaUMH2110/                        ← SOURCE (clones)
 ├── apps/  code/ …       ← one directory per selected repo
 ├── .selection                        ← saved selection
-└── install_all.log                   ← log of all the runs
+└── install-all.log                   ← log of all the runs
 
 /var/www/html/                        ← Apache DocumentRoot
 └── rafa/                             ← DEST
     ├── index.html                    ← portal
     ├── apps.json                     ← catalog read by the portal
     ├── apps/moda/…  apps/telemetria/…  ← one folder per repo, original structure
-    └── apps/telemetria/telemet/historial/datos/historial.json   ← written by the collector
+    └── apps/telemetria/telemet/history/data/history.json   ← written by the collector
 
-/opt/telemet-colector/                ← collector (if --collector was used)
-/etc/systemd/system/telemet-colector.service
+/opt/telemet-collector/                ← collector (if --collector was used)
+/etc/systemd/system/telemet-collector.service
 /etc/apache2/conf-available/rafa-entry.conf
-/etc/apache2/conf-available/telemet-historial.conf
+/etc/apache2/conf-available/telemet-history.conf
 /var/backups/apache-entry-<date>/     ← backup made before touching Apache
 ```
 
@@ -390,7 +390,7 @@ jq '.apps | length' /var/www/html/rafa/apps.json
 jq -r '.apps[].path' /var/www/html/rafa/apps.json | cut -d/ -f1 | sort | uniq -c
 
 # Selection and state
-./install_all.sh --list
+./install-all.sh --list
 cat ~/RafaUMH2110/.selection
 
 # Apache
@@ -398,13 +398,13 @@ sudo apache2ctl configtest
 systemctl status apache2
 
 # Collector
-systemctl status telemet-colector
-curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json | head -c 300
+systemctl status telemet-collector
+curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/history/data/history.json | head -c 300
 ```
 
 ### Information shown on each update
 
-On every run the log (screen and `install_all.log`) details what changed:
+On every run the log (screen and `install-all.log`) details what changed:
 
 ```
 Updated: apps  [folders: telemetria]  ·  +4 commits  ·  files: 1 (0 new, 1 modified, 0 deleted)  ·  lines +33/-12  ·  download ≈ 4.0 KB
@@ -433,7 +433,7 @@ The exit code is `0` if there were no errors.
 | Symptom | Likely cause | Solution |
 |---|---|---|
 | `ERROR: … has foreign content and there is no terminal to confirm` | `DEST` already had content and the script ran without a terminal (cron, pipe). | Review it and run once by hand (or with `--force`). |
-| `WARNING: the collector JSON folder does not exist` | `ruta_json` in `/opt/telemet-colector/config.ini` points to a folder that does not exist (e.g. the default path). | It is only a warning. Fix `ruta_json` in `config.ini`, or run with `--collector` so it adjusts to the deployed Historial app. |
+| `WARNING: the collector JSON folder does not exist` | `json_path` in `/opt/telemet-collector/config.ini` points to a folder that does not exist (e.g. the default path). | It is only a warning. Fix `json_path` in `config.ini`, or run with `--collector` so it adjusts to the deployed History app. |
 | `The destination must be inside /var/www/html` | Your Apache serves another folder. | Use `--docroot` (e.g. `--docroot /var/www/htdocs`). |
 | `ERROR: GitHub API query failed` | 60 requests/hour limit or no network. | Wait an hour; check `curl -I https://api.github.com`. |
 | `ERROR updating: <repo>` | Local changes or rewritten history on the remote (`pull --ff-only` fails). | `git -C ~/RafaUMH2110/<repo> status`; if there is nothing to keep: `git -C … fetch && git -C … reset --hard origin/main`. |
@@ -441,15 +441,15 @@ The exit code is `0` if there were no errors.
 | `ERROR configuring folders of <repo>` | The folder does not exist in the repo. | Check the name with `--list` or `-i`. |
 | The portal shows "The catalog could not be loaded" | `apps.json` is missing or the HTML was opened from disk. | Run the script and open `http://IP/rafa/`. |
 | An app does not show or lacks images/files | `web` or `html` mode excludes that file type. | Use `--mode all`. |
-| `ERROR in the Apache configuration: restoring backup` | `configtest` failed after the changes. | It restores itself; see the details in `install_all.log` and run `sudo apache2ctl configtest`. |
+| `ERROR in the Apache configuration: restoring backup` | `configtest` failed after the changes. | It restores itself; see the details in `install-all.log` and run `sudo apache2ctl configtest`. |
 | `/` does not redirect to `/rafa/` | Another earlier rule (`.htaccess`, `DirectoryIndex`, another VirtualHost). | Review the final warnings; `sudo grep -rni "moda" /etc/apache2 /var/www/html/.htaccess`. |
 | Warning "references to 'moda' remain" | An `Alias` or `<Directory>` that the script does not touch. | Edit that line by hand. |
-| `telemet-colector` does not start | Missing credentials or the JSON folder is not writable. | `journalctl -u telemet-colector -e`; check `config.ini` and that `datos/` belongs to `telemet`. |
-| `HTTP 401` in the collector log | Wrong or expired API Key. | Fix it in `config.ini` and `sudo systemctl restart telemet-colector`. |
-| The Historial app says the history is from another station | The app's Station ID does not match the collector's. | Make them equal. |
-| The JSON gives 404 | The Historial app is not deployed at the expected path. | Check `ruta_json` in `/opt/telemet-colector/config.ini` and that it points next to the app. |
-| `Permission denied` when running | Missing `sudo` or execute permission. | `chmod +x install_all.sh`; use a user with `sudo`. |
-| Cron does nothing | Relative path, `sudo` with password or another user's `crontab`. | Use absolute paths, `NOPASSWD` or `sudo crontab -e`; check `install_all.log`. |
+| `telemet-collector` does not start | Missing credentials or the JSON folder is not writable. | `journalctl -u telemet-collector -e`; check `config.ini` and that `data/` belongs to `telemet`. |
+| `HTTP 401` in the collector log | Wrong or expired API Key. | Fix it in `config.ini` and `sudo systemctl restart telemet-collector`. |
+| The History app says the history is from another station | The app's Station ID does not match the collector's. | Make them equal. |
+| The JSON gives 404 | The History app is not deployed at the expected path. | Check `json_path` in `/opt/telemet-collector/config.ini` and that it points next to the app. |
+| `Permission denied` when running | Missing `sudo` or execute permission. | `chmod +x install-all.sh`; use a user with `sudo`. |
+| Cron does nothing | Relative path, `sudo` with password or another user's `crontab`. | Use absolute paths, `NOPASSWD` or `sudo crontab -e`; check `install-all.log`. |
 
 ## 14. Reverting and uninstalling
 
@@ -469,14 +469,14 @@ sudo rm -rf /var/www/html/rafa
 **Remove the collector**
 
 ```bash
-sudo systemctl disable --now telemet-colector
-sudo rm /etc/systemd/system/telemet-colector.service && sudo systemctl daemon-reload
-sudo a2disconf telemet-historial && sudo systemctl reload apache2
-sudo rm -rf /opt/telemet-colector          # also deletes the SQLite database and config.ini
+sudo systemctl disable --now telemet-collector
+sudo rm /etc/systemd/system/telemet-collector.service && sudo systemctl daemon-reload
+sudo a2disconf telemet-history && sudo systemctl reload apache2
+sudo rm -rf /opt/telemet-collector          # also deletes the SQLite database and config.ini
 sudo userdel telemet
 ```
 
-**Remove the cron job**: `crontab -e` and delete the `install_all.sh` line.
+**Remove the cron job**: `crontab -e` and delete the `install-all.sh` line.
 
 **Delete the clones**: `rm -rf ~/RafaUMH2110`.
 
