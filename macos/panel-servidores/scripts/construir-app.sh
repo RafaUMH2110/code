@@ -8,8 +8,11 @@ cd "$(dirname "$0")/.."
 [ "$(uname)" = "Darwin" ] || { echo "Este script solo funciona en macOS." >&2; exit 1; }
 NOMBRE="Panel de Servidores"
 
+# shellcheck source=_python.sh
+source scripts/_python.sh
 if [ ! -x .venv-build/bin/python ]; then
-  python3 -m venv .venv-build
+  rm -rf .venv-build
+  "$PYTHON_BASE" -m venv .venv-build
   .venv-build/bin/python -m pip install --upgrade pip >/dev/null
   .venv-build/bin/python -m pip install -r requirements-dev.txt
 fi
