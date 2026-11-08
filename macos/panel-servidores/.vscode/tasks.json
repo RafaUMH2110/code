@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Crear entorno e instalar dependencias", "type": "shell",
+      "command": "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-dev.txt", "problemMatcher": [] },
+    { "label": "Ejecutar aplicación", "type": "shell", "command": "./scripts/ejecutar.sh", "problemMatcher": [] },
+    { "label": "Pruebas", "type": "shell", "command": "./scripts/ejecutar.sh --pruebas", "group": "test", "problemMatcher": [] },
+    { "label": "Sincronizar scripts del repo", "type": "shell", "command": "./scripts/sincronizar-recursos.sh", "problemMatcher": [] },
+    { "label": "Construir .app", "type": "shell", "command": "./scripts/construir-app.sh", "group": "build", "problemMatcher": [] },
+    { "label": "Construir .app + .dmg", "type": "shell", "command": "./scripts/construir-app.sh --dmg", "group": "build", "problemMatcher": [] }
+  ]
+}
