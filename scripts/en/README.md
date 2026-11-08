@@ -11,9 +11,6 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 
 | Folder | File | Spanish original | Purpose |
 |---|---|---|---|
-| `clone-update/` | `update-repos.sh` | `actualizar-repos.sh` | Clones or updates the public repos (first version) |
-| | `deploy-apache.sh` | `desplegar-apache.sh` | Copies the HTML apps to the Apache directory (first version) |
-| | `clone-update-repos.md` | `clonar-actualizar-repos.md` | Guide for the two above |
 | `install-all/` | `install-all.sh` | `instalar-todo.sh` | All-in-one for the local server (repo selection, deployment, collector, `/rafa/` entry) |
 | | `install-all-isa.sh` | `instalar-todo-isa.sh` | Variant for https://isa.umh.es (DocumentRoot `/var/www/htdocs`; leaves the existing configuration alone) |
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | same | Entry portal and its favicon; must be next to the scripts |
@@ -26,7 +23,9 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 | `../telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` | Shows all the TeleMet Collector parameters (bilingual output, `--lang en`). Standalone, read-only |
 | | `telemet-collector-info-ssh.py` | `telemet-collector-info-ssh.py` | Runs on your computer (CLI or VS Code): connects by SSH (password or RSA key) and shows the report of one or several servers. `--check-key` / `--install-key` / `--generate-key` validate or install `authorized_keys` login. Manual in Spanish: `MANUAL.md` |
 
-`install-all*.sh` supersede the scripts in `clone-update/`.
+`install-all*.sh` superseded the scripts of the old `clone-update/` folder, which no longer exists (they remain in the Git history).
+
+The collector program itself is not in this repository any more: its single source is [`RafaUMH2110/apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/telemetcollector) (`telemetria/telemetcollector/`), from which `install-all*.sh` install it.
 
 ## Option names (Spanish → English)
 

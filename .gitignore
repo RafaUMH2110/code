@@ -1,2 +1,24 @@
+# Python
 *.pyc
 __pycache__/
+.venv/
+venv/
+*.egg-info/
+
+# Sistema y editores (los .vscode/ de cada app SÍ se versionan)
+.DS_Store
+Thumbs.db
+.idea/
+
+# Claves y configuración local: nunca se versionan
+.env
+.env.*
+!.env.example
+*_K.txt
+api*.txt
+config.ini
+
+# Datos y registros generados
+*.log
+*.db
+*.sqlite3

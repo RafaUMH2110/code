@@ -136,6 +136,7 @@ Public repositories of RafaUMH2110:
 Choose (numbers or ranges like 1-3 separated by spaces; Enter = all; n = none):
 ```
 
+- **Archived** repos are not listed (they are skipped when querying the GitHub API).
 - Type numbers separated by spaces (`1 4`), ranges (`1-3`) or a mix (`1 3-5`).
 - **Enter** chooses all; **n** chooses none.
 - For each chosen repo that has folders, it asks `all content (A) or choose folders (c)? [A/c]`. With `c` a second menu appears with the first-level folders (in `apps`: `moda`, `telemetria`, `consultar`…; in `code`: `linux`, `macos`, `windows`).
