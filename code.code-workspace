@@ -1,0 +1,23 @@
+{
+  // Workspace multi-raíz del repo «code»: cada app es una carpeta raíz, así que
+  // su propio .vscode/ (intérprete, depuración, tareas) se aplica con ${workspaceFolder}.
+  "folders": [
+    { "name": "code (raíz: README, CLAUDE.md)", "path": "." },
+    { "name": "macOS · Panel de Servidores",     "path": "macos/panel-servidores" },
+    { "name": "macOS · Notas rápidas",           "path": "macos/notas-rapidas" },
+    { "name": "Windows · Notas rápidas",         "path": "windows/notas-rapidas" },
+    { "name": "Linux · Notas rápidas",           "path": "linux/notas-rapidas" },
+    { "name": "Generador · Mejora de código",    "path": "generador-apps/mejora-de-codigo" },
+    { "name": "Generador · App con API Anthropic","path": "generador-apps/python-app-api-anthropic" },
+    { "name": "Scripts",                         "path": "scripts" },
+    { "name": "Telemetría",                      "path": "telemetria" }
+  ],
+  "settings": {
+    "files.exclude": { "**/.DS_Store": true, "**/__pycache__": true },
+    "search.exclude": { "**/.venv*": true, "**/build": true, "**/dist": true },
+    "files.watcherExclude": { "**/.venv*/**": true, "**/build/**": true, "**/dist/**": true }
+  },
+  "extensions": {
+    "recommendations": ["ms-python.python", "ms-python.debugpy", "ms-python.vscode-pylance", "charliermarsh.ruff"]
+  }
+}
