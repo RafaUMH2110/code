@@ -11,9 +11,9 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 
 | Folder | File | Spanish original | Purpose |
 |---|---|---|---|
-| `clone-update/` | `update_repos.sh` | `actualizar_repos.sh` | Clones or updates the public repos (first version) |
-| | `deploy_apache.sh` | `desplegar_apache.sh` | Copies the HTML apps to the Apache directory (first version) |
-| | `clone_update_repos.md` | `clonar_actualizar_repos.md` | Guide for the two above |
+| `clone-update/` | `update-repos.sh` | `actualizar_repos.sh` | Clones or updates the public repos (first version) |
+| | `deploy-apache.sh` | `desplegar_apache.sh` | Copies the HTML apps to the Apache directory (first version) |
+| | `clone-update-repos.md` | `clonar_actualizar_repos.md` | Guide for the two above |
 | `install-all/` | `install-all.sh` | `instalar_todo.sh` | All-in-one for the local server (repo selection, deployment, collector, `/rafa/` entry) |
 | | `install-all-isa.sh` | `instalar_todo_isa.sh` | Variant for https://isa.umh.es (DocumentRoot `/var/www/htdocs`; leaves the existing configuration alone) |
 | | `index.html` | `index.html` | Entry portal; must be next to the scripts |

@@ -5,7 +5,7 @@
 # Result:   <DEST>/<repo>/<original repo structure>
 #           <DEST>/index.html   (index with links to all the HTML apps)
 #
-# Usage: ./deploy_apache.sh [-o SOURCE] [-d DEST] [--html-only] [--no-index] [-n]
+# Usage: ./deploy-apache.sh [-o SOURCE] [-d DEST] [--html-only] [--no-index] [-n]
 #   -o SOURCE       Directory with the cloned repos     (def.: ~/RafaUMH2110)
 #   -d DEST         Apache directory                    (def.: /var/www/html/rafa)
 #   --html-only     Copy only *.html/*.htm (by default the whole repo content is copied)

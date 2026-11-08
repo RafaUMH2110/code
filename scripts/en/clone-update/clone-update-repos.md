@@ -45,21 +45,21 @@ done
 
 Result: one directory per repository inside `~/RafaUMH2110/`.
 
-## 3. Update script (`update_repos.sh`)
+## 3. Update script (`update-repos.sh`)
 
-It runs `git pull --ff-only` on the repos already cloned, clones the new public ones, copies the `.html` files to Apache and writes a log in `update.log`. The full script is in this folder: [`update_repos.sh`](update_repos.sh).
+It runs `git pull --ff-only` on the repos already cloned, clones the new public ones, copies the `.html` files to Apache and writes a log in `update.log`. The full script is in this folder: [`update-repos.sh`](update-repos.sh).
 
 ```bash
-chmod +x update_repos.sh
+chmod +x update-repos.sh
 
-./update_repos.sh                                   # defaults: ~/RafaUMH2110 and /var/www/html/rafa
-./update_repos.sh /srv/repos /var/www/html/rafa     # custom directories
+./update-repos.sh                                   # defaults: ~/RafaUMH2110 and /var/www/html/rafa
+./update-repos.sh /srv/repos /var/www/html/rafa     # custom directories
 ```
 
-The deployment to Apache can also be done on its own with [`deploy_apache.sh`](deploy_apache.sh):
+The deployment to Apache can also be done on its own with [`deploy-apache.sh`](deploy-apache.sh):
 
 ```bash
-./deploy_apache.sh -o ~/RafaUMH2110 -d /var/www/html/rafa [--html-only] [--no-index] [-n]
+./deploy-apache.sh -o ~/RafaUMH2110 -d /var/www/html/rafa [--html-only] [--no-index] [-n]
 ```
 
 | Option | Meaning |
@@ -81,7 +81,7 @@ crontab -e
 Add (daily run at 3:00):
 
 ```
-0 3 * * * /home/user/update_repos.sh >/dev/null 2>&1
+0 3 * * * /home/user/update-repos.sh >/dev/null 2>&1
 ```
 
 Replace `user` with the real user of the server. Check the result in `~/RafaUMH2110/update.log`.
