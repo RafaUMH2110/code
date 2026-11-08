@@ -4,22 +4,22 @@ Ejemplos de código y aplicaciones en Python, organizados por sistema operativo.
 
 ## Organización
 
-En la raíz del repositorio solo hay tres carpetas, una por sistema operativo. Dentro de cada una hay **un directorio por app**, con el nombre de la app, y dentro de éste está todo el contenido generado para ella.
+En la raíz hay tres carpetas por sistema operativo (las apps de escritorio), una carpeta para lo que es idéntico en los tres (`generador-apps/`) y las carpetas de herramientas (`scripts/`, `telemetria/`).
 
 ```
 code/
 ├── macos/
-│   ├── notas-rapidas/          ← app «Notas Rápidas» (.app con py2app)
-│   └── generador-apps/         ← generador de apps web con IA
+│   └── notas-rapidas/          ← app «Notas Rápidas» (.app con py2app)
 ├── windows/
-│   ├── notas-rapidas/          ← app «Notas Rápidas» (.exe con PyInstaller)
-│   └── generador-apps/
-└── linux/
-    ├── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
-    └── generador-apps/
+│   └── notas-rapidas/          ← app «Notas Rápidas» (.exe con PyInstaller)
+├── linux/
+│   └── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
+├── generador-apps/             ← generador de apps web con IA (el mismo en los tres sistemas)
+├── scripts/                    ← instaladores, informes del colector, mantenimiento de repos
+└── telemetria/                 ← scripts Python de la estación meteorológica
 ```
 
-Contenido de cada app (ejemplo con `notas-rapidas`):
+Contenido de cada app de escritorio (ejemplo con `notas-rapidas`):
 
 ```
 notas-rapidas/
@@ -37,15 +37,16 @@ notas-rapidas/
 
 ### Reglas
 
-- La raíz contiene `macos/`, `windows/` y `linux/` (las apps por sistema operativo) y, aparte, `scripts/` (scripts de instalación y colector) y `telemetria/` (scripts Python de telemetría de la estación meteorológica), además de este README y `.gitattributes`.
-- Cada app va en su propio directorio dentro de cada sistema operativo. Nombres en minúsculas y guiones (`notas-rapidas`, `generador-apps`…).
+- Una app que **cambia según el sistema operativo** va en `macos/`, `windows/` y `linux/`, cada una adaptada, en su propio directorio y autocontenida (con `.vscode/`, guías, manual y `.gitignore`).
+- Una app que es **idéntica en los tres sistemas** va una sola vez en la raíz (como `generador-apps/`), también autocontenida. Si más adelante necesita diferir por sistema, se separa en las tres carpetas.
+- Nombres de directorio en minúsculas y con guiones (`notas-rapidas`, `generador-apps`…). Los módulos y ficheros del programa Python conservan `_` (`generar_app.py`); `macos/`, `windows/` y `linux/` no se renombran.
 - Cada app lleva dentro todo lo suyo; no se comparten ficheros entre apps.
-- Una app multiplataforma se añade en las tres carpetas (cada una adaptada a su sistema, o idéntica si no depende de él).
+- **El colector TeleMet no está aquí**: su única fuente es el repositorio [`apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria) (`telemetria/telemetcolector` y `telemetcollector`).
 - Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) en VS Code (*File → Open Folder…*).
 
 ### Añadir una app nueva
 
-1. Crea `macos/<mi-app>/`, `windows/<mi-app>/` y/o `linux/<mi-app>/`.
+1. Crea `macos/<mi-app>/`, `windows/<mi-app>/` y/o `linux/<mi-app>/` (o `<mi-app>/` en la raíz si es idéntica en los tres).
 2. Copia como plantilla la estructura de `notas-rapidas/` (o de `generador-apps/`) y sustituye el código.
 3. Ajusta `.vscode/launch.json`, `.vscode/tasks.json`, el manual y las guías.
 4. Añade la app a la tabla de abajo.
@@ -55,14 +56,14 @@ notas-rapidas/
 | App | Descripción | macOS | Windows | Linux |
 |---|---|---|---|---|
 | **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit en macOS, Windows y Linux: Tkinter (`app_tk/`), pywebview con interfaz HTML (`app_web/`), PySide6 (`app_pyside6/`), wxPython (`app_wx/`) y Toga (`app_toga/`); solo en macOS, además, PyObjC (`app_pyobjc/`) | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
-| **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](macos/generador-apps/README.md) | [README](windows/generador-apps/README.md) | [README](linux/generador-apps/README.md) |
+| **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](generador-apps/README.md) (igual en los tres sistemas) | ← | ← |
 
 ## Otras carpetas
 
 | Carpeta | Contenido |
 |---|---|
 | [`telemetria/`](telemetria/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): consulta simple, clientes síncronos, monitor asíncrono, GUIs Tkinter y puente MQTT. Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/README.md). |
-| [`scripts/`](scripts/) | Scripts para clonar repos, desplegar apps en Apache, el colector TeleMet y la guía para mover repos. Ver su [README](scripts/README.md). |
+| [`scripts/`](scripts/) | Instaladores para clonar los repos y desplegar las apps en Apache (con opción de instalar el colector TeleMet), informes del colector por SSH, auditoría de los repos de `RafaUMH2110` y la guía para mover repos. Ver su [README](scripts/README.md). |
 
 ## Notas Rápidas: diferencias entre plataformas
 

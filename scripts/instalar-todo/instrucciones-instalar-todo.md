@@ -136,6 +136,7 @@ Repositorios públicos de RafaUMH2110:
 Elige (números o rangos 1-3 separados por espacios; Enter = todos; n = ninguno):
 ```
 
+- Los repos **archivados** no aparecen en la lista (se omiten al consultar la API de GitHub).
 - Escribe números separados por espacios (`1 4`), rangos (`1-3`) o una mezcla (`1 3-5`).
 - **Enter** elige todos; **n** no elige ninguno.
 - Para cada repo elegido que tenga carpetas, pregunta `¿todo el contenido (T) o elegir carpetas (c)? [T/c]`. Con `c` aparece un segundo menú con las carpetas de primer nivel (en `apps`: `moda`, `telemetria`, `consultar`…; en `code`: `linux`, `macos`, `windows`).

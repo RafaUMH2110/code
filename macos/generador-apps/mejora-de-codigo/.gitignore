@@ -1,8 +1,0 @@
-.env
-.venv/
-__pycache__/
-*.pyc
-.DS_Store
-*.bak
-# Apps generadas durante las pruebas (guarda aquí solo las que quieras conservar)
-salida*.html

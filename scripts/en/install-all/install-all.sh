@@ -120,14 +120,15 @@ SEL_FILE="$SOURCE/.selection"
 REPO_NAMES=(); declare -A REPO_INFO=() REAL=()
 
 get_repos() {
-  local page=1 resp out_lines name lang size
+  local page=1 resp out_lines name lang size n
   REPO_NAMES=(); REPO_INFO=(); REAL=()
   while :; do
     resp=$(curl -sf --retry 3 "https://api.github.com/users/$GH_USER/repos?type=public&per_page=100&page=$page") \
       || { echo "ERROR: GitHub API query failed (60 requests/hour limit or no network?)" >&2; return 1; }
-    out_lines=$(echo "$resp" | jq -r '.[] | [.name, (.language // "-"), (.size|tostring)] | @tsv') \
+    n=$(echo "$resp" | jq 'length' 2>/dev/null || echo -1); [ "$n" = "0" ] && break
+    out_lines=$(echo "$resp" | jq -r '.[] | select(.archived | not) | [.name, (.language // "-"), (.size|tostring)] | @tsv') \
       || { echo "ERROR: unexpected response from the GitHub API" >&2; return 1; }
-    [ -z "$out_lines" ] && break
+    [ -z "$out_lines" ] && { page=$((page+1)); continue; }   # page with no active repos (all archived): go on to the next one
     while IFS=$'\t' read -r name lang size; do
       REPO_NAMES+=("$name"); REPO_INFO[$name]="$lang, $size KB"; REAL[${name,,}]="$name"
     done <<< "$out_lines"
