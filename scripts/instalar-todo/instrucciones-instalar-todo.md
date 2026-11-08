@@ -1,4 +1,4 @@
-# Instrucciones de uso de `instalar_todo.sh`
+# Instrucciones de uso de `instalar-todo.sh`
 
 Despliegue de las aplicaciones de la cuenta GitHub **RafaUMH2110** en un servidor local **Debian 13** (`192.168.0.129`) con Apache, portal de entrada y colector de telemetría opcional.
 
@@ -48,7 +48,7 @@ Hacen falta **dos ficheros en la misma carpeta**:
 
 | Fichero | Para qué sirve |
 |---|---|
-| `instalar_todo.sh` | El script. |
+| `instalar-todo.sh` | El script. |
 | `index.html` | Plantilla del portal que se publica en `/rafa/`. Si falta, el script genera un índice simple como alternativa. |
 
 Requisitos del servidor:
@@ -61,11 +61,11 @@ Requisitos del servidor:
 
 ```bash
 # 1. Copiar al servidor (desde tu equipo)
-scp instalar_todo.sh index.html usuario@192.168.0.129:~/
+scp instalar-todo.sh index.html usuario@192.168.0.129:~/
 
 # 2. En el servidor
-chmod +x instalar_todo.sh
-./instalar_todo.sh
+chmod +x instalar-todo.sh
+./instalar-todo.sh
 ```
 
 Con eso se clonan todos los repos públicos, se despliegan en `/var/www/html/rafa/` y la entrada queda en `http://192.168.0.129/rafa/`.
@@ -73,11 +73,11 @@ Con eso se clonan todos los repos públicos, se despliegan en `/var/www/html/raf
 Combinaciones habituales:
 
 ```bash
-./instalar_todo.sh -i                          # elegir con menú qué clonar
-./instalar_todo.sh -i --colector               # elegir y, además, instalar el colector
-./instalar_todo.sh --repos "apps/telemetria"   # solo la telemetría
-./instalar_todo.sh --colector --cron "0 3 * * *"   # actualizar cada día a las 3:00
-./instalar_todo.sh --listar                    # ver qué hay y qué está seleccionado
+./instalar-todo.sh -i                          # elegir con menú qué clonar
+./instalar-todo.sh -i --colector               # elegir y, además, instalar el colector
+./instalar-todo.sh --repos "apps/telemetria"   # solo la telemetría
+./instalar-todo.sh --colector --cron "0 3 * * *"   # actualizar cada día a las 3:00
+./instalar-todo.sh --listar                    # ver qué hay y qué está seleccionado
 ```
 
 ## 4. Referencia de opciones
@@ -144,13 +144,13 @@ Elige (números o rangos 1-3 separados por espacios; Enter = todos; n = ninguno)
 
 ```bash
 # Solo estas carpetas y repos
-./instalar_todo.sh --repos "apps/telemetria,apps/moda,code/linux,code/telemetria"
+./instalar-todo.sh --repos "apps/telemetria,apps/moda,code/linux,code/telemetria"
 
 # Todo menos algunos repos
-./instalar_todo.sh --excluir "apps-pro,Artifacts"
+./instalar-todo.sh --excluir "apps-pro,Artifacts"
 
 # Volver a todos
-./instalar_todo.sh --todos
+./instalar-todo.sh --todos
 ```
 
 Los nombres de repo no distinguen mayúsculas de minúsculas. Un nombre que no exista en la cuenta se ignora con un aviso.
@@ -219,7 +219,7 @@ Si la carpeta de destino **ya existe y tiene ficheros que no creó este script**
 
 1. Lista lo que hay y **pide confirmación** (`¿Continuar? [s/N]`). Sin terminal, como en cron, **se detiene** salvo que uses `--forzar`.
 2. Guarda en `/var/backups/instalar-todo-<fecha>/` una copia de lo que sustituya o borre: el `index.html` y `apps.json` anteriores y cualquier fichero que el espejo de un repo reemplace o elimine.
-3. Marca la carpeta con el fichero oculto `.instalar_todo`; desde entonces no vuelve a preguntar.
+3. Marca la carpeta con el fichero oculto `.instalar-todo`; desde entonces no vuelve a preguntar.
 
 Solo se tocan `index.html`, `apps.json` y las carpetas con nombre de repo seleccionado. Cualquier otra carpeta o fichero de `DESTINO` (por ejemplo, `GenImOd/` o `vacio/`) se deja como está. Si ya tenías una carpeta con el mismo nombre que un repo (por ejemplo, `apps/`), su contenido se sustituye por el del repo: revisa la lista antes de aceptar.
 
@@ -255,18 +255,18 @@ El repo `apps` contiene en `telemetria/telemetcolector/` un programa en Python q
 
 ```bash
 # Con menú de credenciales (te pide Station ID y API Key)
-./instalar_todo.sh --repos "apps/telemetria" --colector
+./instalar-todo.sh --repos "apps/telemetria" --colector
 
 # Sin que las pida (variables de entorno)
 read -rp "Station ID: " TELEMET_STATION_ID
 read -rsp "API Key: " TELEMET_API_KEY; echo
 export TELEMET_STATION_ID TELEMET_API_KEY
-./instalar_todo.sh --repos "apps/telemetria" --colector
+./instalar-todo.sh --repos "apps/telemetria" --colector
 ```
 
 Requisito: el repo `apps` con la carpeta `telemetria` debe estar en la selección (si no, el script avisa de que no encuentra `telemetcolector`).
 
-> Escribir la clave en la línea de comandos (`TELEMET_API_KEY=xxx ./instalar_todo.sh …`) la deja en el historial del shell. Es preferible el formato anterior o dejar que el script la pida.
+> Escribir la clave en la línea de comandos (`TELEMET_API_KEY=xxx ./instalar-todo.sh …`) la deja en el historial del shell. Es preferible el formato anterior o dejar que el script la pida.
 
 ### 8.2 Qué hace el script con `--colector`
 
@@ -334,15 +334,15 @@ Si cambias el destino (`-d /var/www/html/apps`), la entrada pasa a ser `/apps/`.
 ## 10. Actualización automática con cron
 
 ```bash
-./instalar_todo.sh --cron "0 3 * * *"                 # diaria, a las 3:00
-./instalar_todo.sh --colector --cron "30 2 * * 1"     # semanal, lunes a las 2:30
+./instalar-todo.sh --cron "0 3 * * *"                 # diaria, a las 3:00
+./instalar-todo.sh --colector --cron "30 2 * * 1"     # semanal, lunes a las 2:30
 ```
 
 - El script añade una línea a tu `crontab` y sustituye la anterior del mismo script (no se duplican).
 - Cron usa la **selección guardada** y repite las opciones `-o`, `-d`, `--modo`, `--sin-indice` y `--colector`.
 - En cron no hay terminal: no se piden credenciales (se conservan las del `config.ini`) y no puede usarse `-i`.
 - Para revisarlo o quitarlo: `crontab -l` y `crontab -e`.
-- Para ver qué pasó: `tail -n 40 ~/RafaUMH2110/instalar_todo.log`.
+- Para ver qué pasó: `tail -n 40 ~/RafaUMH2110/instalar-todo.log`.
 
 > `crontab` debe ser el del mismo usuario que ejecuta el script; los pasos que necesitan privilegios usan `sudo`, que en cron requiere `NOPASSWD` o ejecutar como root (`sudo crontab -e`).
 
@@ -352,7 +352,7 @@ Si cambias el destino (`-d /var/www/html/apps`), la entrada pasa a ser `/apps/`.
 ~/RafaUMH2110/                        ← ORIGEN (clones)
 ├── apps/  code/ …       ← un directorio por repo seleccionado
 ├── .seleccion                        ← selección guardada
-└── instalar_todo.log                 ← registro de todas las ejecuciones
+└── instalar-todo.log                 ← registro de todas las ejecuciones
 
 /var/www/html/                        ← DocumentRoot de Apache
 └── rafa/                             ← DESTINO
@@ -388,7 +388,7 @@ jq '.apps | length' /var/www/html/rafa/apps.json
 jq -r '.apps[].path' /var/www/html/rafa/apps.json | cut -d/ -f1 | sort | uniq -c
 
 # Selección y estado
-./instalar_todo.sh --listar
+./instalar-todo.sh --listar
 cat ~/RafaUMH2110/.seleccion
 
 # Apache
@@ -402,7 +402,7 @@ curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/histor
 
 ### Información de cada actualización
 
-En cada ejecución el log (pantalla y `instalar_todo.log`) detalla qué ha cambiado:
+En cada ejecución el log (pantalla y `instalar-todo.log`) detalla qué ha cambiado:
 
 ```
 Actualizado: apps  [carpetas: telemetria]  ·  +4 commits  ·  ficheros: 1 (0 nuevos, 1 modificados, 0 borrados)  ·  líneas +33/-12  ·  descarga ≈ 4.0 KB
@@ -439,15 +439,15 @@ El código de salida es `0` si no hubo errores.
 | `ERROR configurando carpetas de <repo>` | La carpeta no existe en el repo. | Comprobar el nombre con `--listar` o `-i`. |
 | El portal muestra «No se pudo cargar el catálogo» | Falta `apps.json` o se abrió el HTML desde el disco. | Ejecutar el script y abrir `http://IP/rafa/`. |
 | Una app no se ve o le faltan imágenes/ficheros | El modo `web` o `html` excluye ese tipo de fichero. | Usar `--modo todo`. |
-| `ERROR en la configuración de Apache: restaurando…` | Fallo de `configtest` tras los cambios. | Se restaura solo; mira el detalle en `instalar_todo.log` y ejecuta `sudo apache2ctl configtest`. |
+| `ERROR en la configuración de Apache: restaurando…` | Fallo de `configtest` tras los cambios. | Se restaura solo; mira el detalle en `instalar-todo.log` y ejecuta `sudo apache2ctl configtest`. |
 | `/` no redirige a `/rafa/` | Otra regla anterior (`.htaccess`, `DirectoryIndex`, otro VirtualHost). | Revisar los avisos finales; `sudo grep -rni "moda" /etc/apache2 /var/www/html/.htaccess`. |
 | Aviso «quedan referencias a 'moda'» | Un `Alias` o `<Directory>` que el script no toca. | Editar a mano esa línea. |
 | `telemet-colector` no arranca | Faltan credenciales o la carpeta del JSON no es escribible. | `journalctl -u telemet-colector -e`; revisar `config.ini` y que `datos/` sea de `telemet`. |
 | `HTTP 401` en el log del colector | API Key incorrecta o caducada. | Corregirla en `config.ini` y `sudo systemctl restart telemet-colector`. |
 | La app Historial dice que el histórico es de otra estación | El Station ID de la app no coincide con el del colector. | Igualarlos. |
 | El JSON da 404 | La app Historial no está desplegada en la ruta esperada. | Comprobar la ruta `ruta_json` en `/opt/telemet-colector/config.ini` y que apunte junto a la app. |
-| `Permission denied` al ejecutar | Falta `sudo` o permisos de ejecución. | `chmod +x instalar_todo.sh`; usar un usuario con `sudo`. |
-| Cron no hace nada | Ruta relativa, `sudo` con contraseña o `crontab` de otro usuario. | Usar rutas absolutas, `NOPASSWD` o `sudo crontab -e`; revisar `instalar_todo.log`. |
+| `Permission denied` al ejecutar | Falta `sudo` o permisos de ejecución. | `chmod +x instalar-todo.sh`; usar un usuario con `sudo`. |
+| Cron no hace nada | Ruta relativa, `sudo` con contraseña o `crontab` de otro usuario. | Usar rutas absolutas, `NOPASSWD` o `sudo crontab -e`; revisar `instalar-todo.log`. |
 
 ## 14. Revertir y desinstalar
 
@@ -474,7 +474,7 @@ sudo rm -rf /opt/telemet-colector          # borra también la base SQLite y con
 sudo userdel telemet
 ```
 
-**Quitar la tarea de cron**: `crontab -e` y eliminar la línea de `instalar_todo.sh`.
+**Quitar la tarea de cron**: `crontab -e` y eliminar la línea de `instalar-todo.sh`.
 
 **Borrar los clones**: `rm -rf ~/RafaUMH2110`.
 

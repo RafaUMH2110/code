@@ -70,7 +70,7 @@ The deployment to Apache can also be done on its own with [`deploy-apache.sh`](d
 | `--no-index` | Do not generate the root `index.html` |
 | `-n` | Dry run (changes nothing) |
 
-> Both scripts are superseded by `install_all.sh` (see `../install-all/`), which adds repo selection, a visual portal and the collector.
+> Both scripts are superseded by `install-all.sh` (see `../install-all/`), which adds repo selection, a visual portal and the collector.
 
 ## 4. Automate with cron
 

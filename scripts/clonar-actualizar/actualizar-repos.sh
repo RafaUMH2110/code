@@ -2,7 +2,7 @@
 # Actualiza (git pull) los repos públicos de RafaUMH2110, clona los nuevos
 # y copia todos los archivos .html al directorio de documentos de Apache.
 #
-# Uso: ./actualizar_repos.sh [directorio_repos] [directorio_apache]
+# Uso: ./actualizar-repos.sh [directorio_repos] [directorio_apache]
 #   directorio_repos   por defecto: $HOME/RafaUMH2110
 #   directorio_apache  por defecto: /var/www/html/rafa
 set -euo pipefail

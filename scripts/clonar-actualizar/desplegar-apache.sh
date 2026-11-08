@@ -5,7 +5,7 @@
 # Resultado:   <DESTINO>/<repo>/<estructura original del repo>
 #              <DESTINO>/index.html   (índice con enlaces a todas las apps HTML)
 #
-# Uso: ./desplegar_apache.sh [-o ORIGEN] [-d DESTINO] [--solo-html] [--sin-indice] [-n]
+# Uso: ./desplegar-apache.sh [-o ORIGEN] [-d DESTINO] [--solo-html] [--sin-indice] [-n]
 #   -o ORIGEN       Directorio con los repos clonados   (def.: ~/RafaUMH2110)
 #   -d DESTINO      Directorio de Apache                (def.: /var/www/html/rafa)
 #   --solo-html     Copia solo *.html/*.htm (por defecto copia todo el contenido del repo)

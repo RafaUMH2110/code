@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# instalar_todo.sh  ·  Todo en uno para el servidor local Debian 13
+# instalar-todo.sh  ·  Todo en uno para el servidor local Debian 13
 #
 #   1. Instala dependencias (apache2, git, curl, jq, rsync, python3)
 #   2. Elige qué repos/apps clonar (todos, lista, menú interactivo) y los
@@ -11,7 +11,7 @@
 #   5. Fija la entrada del servidor en  http://<IP>/rafa/
 #   6. Comprueba el resultado (y, opcionalmente, programa la tarea en cron)
 #
-# Ayuda completa:  ./instalar_todo.sh -h
+# Ayuda completa:  ./instalar-todo.sh -h
 # Es idempotente: se puede ejecutar de nuevo para actualizar todo.
 # =============================================================================
 set -euo pipefail
@@ -33,7 +33,7 @@ COLECTOR=0
 
 uso() {
 cat <<'EOF'
-Uso: ./instalar_todo.sh [opciones]
+Uso: ./instalar-todo.sh [opciones]
 
 Origen y destino
   -u USUARIO       Cuenta de GitHub                     (def.: RafaUMH2110)

@@ -1,4 +1,4 @@
-# Despliegue en https://isa.umh.es con `instalar_todo_isa.sh`
+# Despliegue en https://isa.umh.es con `instalar-todo-isa.sh`
 
 **Autor:** Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es
 **Fecha:** 04/11/2026
@@ -8,7 +8,7 @@
 
 ## 1. Qué es
 
-Variante del instalador `instalar_todo.sh` para el servidor de producción **https://isa.umh.es** (Debian 13), cuyo DocumentRoot de Apache es `/var/www/htdocs`. El contenido se publica en `/var/www/htdocs/rafa` y el portal queda en **https://isa.umh.es/rafa/**.
+Variante del instalador `instalar-todo.sh` para el servidor de producción **https://isa.umh.es** (Debian 13), cuyo DocumentRoot de Apache es `/var/www/htdocs`. El contenido se publica en `/var/www/htdocs/rafa` y el portal queda en **https://isa.umh.es/rafa/**.
 
 Diferencia de fondo: el servidor ya tiene configuración propia (`<Directory /var/www/htdocs/rafa>`, `Alias "/moda"`, `.htaccess` en `rafa/` y `rafa/moda/`). Esta variante **no la modifica**.
 
@@ -37,19 +37,19 @@ El script instala por sí mismo `git`, `curl`, `jq`, `rsync` y `python3` si falt
 ## 4. Uso
 
 ```bash
-chmod +x instalar_todo_isa.sh
+chmod +x instalar-todo-isa.sh
 
 # Elegir qué clonar y desplegar
-./instalar_todo_isa.sh --repos "apps/telemetria,apps/moda,code/linux"
+./instalar-todo-isa.sh --repos "apps/telemetria,apps/moda,code/linux"
 
 # Menú interactivo
-./instalar_todo_isa.sh -i
+./instalar-todo-isa.sh -i
 
 # Todo + colector de telemetría
-./instalar_todo_isa.sh --todos --colector
+./instalar-todo-isa.sh --todos --colector
 
 # Ver repos y carpetas disponibles
-./instalar_todo_isa.sh --listar
+./instalar-todo-isa.sh --listar
 ```
 
 ### Opciones propias de esta variante
@@ -61,7 +61,7 @@ chmod +x instalar_todo_isa.sh
 | `--entrada-raiz` | Además, `/` redirige a `/rafa/` (cambia la portada) |
 | `--json-dir DIR` | Carpeta donde el colector publica `historial.json` |
 
-El resto de opciones (`-u`, `-o`, `-d`, `--modo`, `--repos`, `--excluir`, `--todos`, `--listar`, `--sin-indice`, `--colector`, `--cron`, `--forzar`) funcionan igual que en la versión local; ver `instrucciones_instalar_todo.md`.
+El resto de opciones (`-u`, `-o`, `-d`, `--modo`, `--repos`, `--excluir`, `--todos`, `--listar`, `--sin-indice`, `--colector`, `--cron`, `--forzar`) funcionan igual que en la versión local; ver `instrucciones-instalar-todo.md`.
 
 ## 5. Primera ejecución en isa.umh.es
 
@@ -87,7 +87,7 @@ No se modifican: `rafa/.htaccess`, `rafa/moda/`, `rafa/telemethistorial/datos/` 
 ## 7. Actualización periódica
 
 ```bash
-./instalar_todo_isa.sh --cron "0 3 * * *" --colector
+./instalar-todo-isa.sh --cron "0 3 * * *" --colector
 ```
 
 La entrada de cron incluye `--docroot` y `--url`, y reutiliza la selección guardada en `<ORIGEN>/.seleccion`.
@@ -102,7 +102,7 @@ sudo apache2ctl configtest
 sudo systemctl status telemet-colector
 ```
 
-El log de cada ejecución queda en `<ORIGEN>/instalar_todo.log`. Incluye, por repo y en total, commits, ficheros nuevos/modificados/borrados, líneas, descarga y bytes transferidos a Apache (ver «Información de cada actualización» en `instrucciones_instalar_todo.md`).
+El log de cada ejecución queda en `<ORIGEN>/instalar-todo.log`. Incluye, por repo y en total, commits, ficheros nuevos/modificados/borrados, líneas, descarga y bytes transferidos a Apache (ver «Información de cada actualización» en `instrucciones-instalar-todo.md`).
 
 ## 9. Problemas frecuentes
 

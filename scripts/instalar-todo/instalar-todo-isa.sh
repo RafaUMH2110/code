@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
-# instalar_todo.sh  ·  Todo en uno para el servidor local Debian 13
+#  instalar-todo-isa.sh  ·  Todo en uno para https://isa.umh.es (Debian 13)
+#  DocumentRoot de Apache: /var/www/htdocs  ·  contenido en /var/www/htdocs/rafa
 #
-#   1. Instala dependencias (apache2, git, curl, jq, rsync, python3)
-#   2. Elige qué repos/apps clonar (todos, lista, menú interactivo) y los
-#      clona o actualiza; permite clonar solo algunas carpetas de un repo
-#   3. Despliega en Apache solo lo que se sirve por web (HTML, CSS, JS,
-#      imágenes…), genera apps.json e instala el portal index.html
-#   4. (Opcional) Instala el colector de telemetría como servicio systemd
-#   5. Fija la entrada del servidor en  http://<IP>/rafa/
-#   6. Comprueba el resultado (y, opcionalmente, programa la tarea en cron)
+#  Variante de producción del instalador: NO modifica apache2.conf, NO toca el
+#  alias /moda ni reglas existentes, NO cambia la portada del servidor salvo con
+#  --entrada-raiz y respeta un colector de telemetría ya instalado.
 #
-# Ayuda completa:  ./instalar_todo.sh -h
+#  Pasos: 1 dependencias · 2 selección y clonado · 3 despliegue en Apache ·
+#         4 colector (opcional) · 5 Apache (solo si hace falta) · 6 comprobación
+#
+# Ayuda completa:  ./instalar-todo-isa.sh -h
 # Es idempotente: se puede ejecutar de nuevo para actualizar todo.
 # =============================================================================
 set -euo pipefail
@@ -19,7 +18,10 @@ set -euo pipefail
 USUARIO_GH="RafaUMH2110"
 ORIGEN="$HOME/RafaUMH2110"
 DESTINO=""
-DOCROOT="/var/www/html"
+DOCROOT="/var/www/htdocs"
+URL_BASE="https://isa.umh.es"
+ENTRADA_RAIZ=0
+JSON_DIR_CLI=""
 FORZAR=0
 USUARIO_WEB="www-data"
 MODO="web"
@@ -34,13 +36,14 @@ COLECTOR=0
 
 uso() {
 cat <<'EOF'
-Uso: ./instalar_todo.sh [opciones]
+Uso: ./instalar-todo-isa.sh [opciones]
 
 Origen y destino
   -u USUARIO       Cuenta de GitHub                     (def.: RafaUMH2110)
   -o ORIGEN        Dónde se clonan los repos            (def.: ~/RafaUMH2110)
   -d DESTINO       Directorio de Apache para las apps   (def.: <docroot>/rafa)
-  --docroot DIR    DocumentRoot de Apache               (def.: /var/www/html)
+  --docroot DIR    DocumentRoot de Apache               (def.: /var/www/htdocs)
+  --url URL        URL pública del servidor             (def.: https://isa.umh.es)
   --forzar         No pedir confirmación si DESTINO ya tiene contenido ajeno
 
 Qué clonar (la selección se guarda en ORIGEN/.seleccion y se reutiliza,
@@ -59,12 +62,17 @@ Qué se publica en Apache
   --modo html         Solo *.html / *.htm      (alias: --solo-html)
   --modo todo         Todo el contenido del repo (excepto .git, .github y secretos)
   --sin-indice        No instalar el portal index.html (apps.json se genera siempre)
+  --entrada-raiz      Además, hace que la raíz del servidor redirija a /rafa/.
+                      NO se hace por defecto: cambia la portada de isa.umh.es.
 
 Telemetría
   --colector          Instala el colector (telemetcolector) como servicio systemd.
                       Credenciales: variables TELEMET_STATION_ID y TELEMET_API_KEY,
                       o se piden por terminal. Sin ellas deja el servicio preparado
-                      pero sin arrancar.
+                      pero sin arrancar. Si ya hay un colector instalado, conserva
+                      su config.ini, su servicio y la ruta de su JSON.
+  --json-dir DIR      Carpeta donde el colector publica historial.json (por defecto,
+                      la de su config.ini actual o <destino>/telemethistorial/datos)
 
 Otros
   --cron "EXPR"       Programa la tarea en cron, p. ej. --cron "0 3 * * *"
@@ -78,6 +86,9 @@ while [ $# -gt 0 ]; do
     -o) ORIGEN="$2"; shift 2 ;;
     -d) DESTINO="$2"; shift 2 ;;
     --docroot) DOCROOT="${2%/}"; shift 2 ;;
+    --url) URL_BASE="${2%/}"; shift 2 ;;
+    --entrada-raiz) ENTRADA_RAIZ=1; shift ;;
+    --json-dir) JSON_DIR_CLI="${2%/}"; shift 2 ;;
     --forzar) FORZAR=1; shift ;;
     --modo) MODO="$2"; shift 2 ;;
     --solo-html) MODO="html"; shift ;;
@@ -106,6 +117,7 @@ case "$DESTINO" in
   *) echo "El destino debe estar dentro de $DOCROOT (usa --docroot si tu Apache sirve otra carpeta)." >&2; exit 1 ;;
 esac
 ENTRADA="${ENTRADA//\/\//\/}"
+HOST_WEB="${URL_BASE#*://}"; HOST_WEB="${HOST_WEB%%/*}"
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -274,7 +286,7 @@ if [ "$LISTAR" -eq 1 ]; then
 fi
 
 mkdir -p "$ORIGEN"
-LOG="$ORIGEN/instalar_todo.log"
+LOG="$ORIGEN/instalar-todo.log"
 log()  { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
 # humano BYTES -> "812 B" / "34.5 KB" / "1.2 MB"
@@ -407,9 +419,9 @@ log "Resumen git -> commits: $g_commits | ficheros: +$g_add ~$g_mod -$g_del | l�
 
 # -----------------------------------------------------------------------------
 paso "3/6 Desplegar en Apache ($DESTINO) · modo $MODO"
-MARCA="$DESTINO/.instalar_todo"
+MARCA="$DESTINO/.instalar-todo"
 PRIMERA=0; BKP=""
-if $SUDO test -d "$DESTINO" && ! $SUDO test -f "$MARCA" && [ -n "$($SUDO ls -A "$DESTINO" 2>/dev/null)" ]; then
+if $SUDO test -d "$DESTINO" && ! $SUDO test -f "$MARCA" && ! $SUDO test -f "$DESTINO/.instalar_todo" && [ -n "$($SUDO ls -A "$DESTINO" 2>/dev/null)" ]; then
   PRIMERA=1
   echo
   echo "AVISO: $DESTINO ya tiene contenido que no fue creado por este script:"
@@ -680,7 +692,7 @@ ini_set() {   # ini_set clave valor fichero  (el valor viaja por entorno, no por
 }
 
 instalar_colector() {
-  local src src_dir historial json_dir unit tmp station key resp pend=0
+  local src src_dir json_dir unit tmp station key resp pend=0 bak
   src="$(find "$ORIGEN" -type f -path '*/telemetcolector/telemet_colector.py' 2>/dev/null | head -1)"
   if [ -z "$src" ]; then
     log "AVISO: no se encontró telemetcolector en los repos clonados (¿está seleccionado apps/telemetria?)"
@@ -688,15 +700,24 @@ instalar_colector() {
   fi
   src_dir="$(dirname "$src")"
 
-  # Dónde publica el JSON: junto a la app TeleMet Historial desplegada
-  historial="$(find "$DESTINO" -type f -path '*/telemet/historial/index.html' 2>/dev/null | head -1)"
-  if [ -n "$historial" ]; then json_dir="$(dirname "$historial")/datos"; else json_dir="$DESTINO/telemethistorial/datos"; fi
+  # Dónde publica el JSON: --json-dir, o el de su config.ini actual, o el del README
+  local cfg_ruta="" json_nuevo=1
+  if $SUDO test -f "$COLECTOR_DIR/config.ini"; then
+    cfg_ruta="$($SUDO sed -nE 's/^[[:space:]]*ruta_json[[:space:]]*=[[:space:]]*([^[:space:]]+).*/\1/p' "$COLECTOR_DIR/config.ini" | head -1)"
+  fi
+  if [ -n "$JSON_DIR_CLI" ]; then json_dir="$JSON_DIR_CLI"
+  elif [ -n "$cfg_ruta" ] && [ "$cfg_ruta" != "/ruta/historial.json" ]; then json_dir="$(dirname "$cfg_ruta")"; json_nuevo=0
+  else json_dir="$DESTINO/telemethistorial/datos"; fi
 
   id telemet >/dev/null 2>&1 || {
     $SUDO useradd --system --home-dir "$COLECTOR_DIR" --shell /usr/sbin/nologin telemet
     log "Usuario de servicio 'telemet' creado"
   }
   $SUDO mkdir -p "$COLECTOR_DIR/datos"
+  if $SUDO test -f "$COLECTOR_DIR/telemet_colector.py" && ! $SUDO cmp -s "$src_dir/telemet_colector.py" "$COLECTOR_DIR/telemet_colector.py"; then
+    bak="$COLECTOR_DIR/telemet_colector.py.bak-$(date +%Y%m%d-%H%M%S)"
+    $SUDO cp -a "$COLECTOR_DIR/telemet_colector.py" "$bak"; log "Programa anterior guardado en $bak"
+  fi
   $SUDO install -m 644 "$src_dir/telemet_colector.py" "$COLECTOR_DIR/telemet_colector.py"
   $SUDO install -m 644 "$src_dir/config.example.ini" "$COLECTOR_DIR/config.example.ini"
   if ! $SUDO test -f "$COLECTOR_DIR/config.ini"; then
@@ -704,7 +725,8 @@ instalar_colector() {
     log "Creado $COLECTOR_DIR/config.ini a partir de la plantilla"
   fi
   $SUDO install -d -o telemet -g telemet -m 755 "$json_dir"
-  ini_set ruta_json "$json_dir/historial.json" "$COLECTOR_DIR/config.ini"
+  if [ "$json_nuevo" -eq 1 ]; then ini_set ruta_json "$json_dir/historial.json" "$COLECTOR_DIR/config.ini"; fi
+  log "El colector publica el JSON en $json_dir/historial.json"
 
   # Credenciales (solo si siguen siendo los marcadores de la plantilla)
   if $SUDO grep -qE '^[[:space:]]*(station_id|api_key)[[:space:]]*=[[:space:]]*(TU_STATION_ID|TU_API_KEY)' "$COLECTOR_DIR/config.ini"; then
@@ -725,6 +747,10 @@ instalar_colector() {
   $SUDO chmod 600 "$COLECTOR_DIR/config.ini"
   $SUDO chown -R telemet:telemet "$json_dir"
 
+  # Servicio systemd: si ya existe se respeta tal cual (puede tener ajustes propios)
+  if $SUDO test -f /etc/systemd/system/telemet-colector.service; then
+    log "Servicio ya instalado: se conserva /etc/systemd/system/telemet-colector.service"
+  else
   # Servicio systemd: el del repo, con la carpeta del JSON adaptada
   tmp="$(mktemp)"
   if [ -f "$src_dir/telemet-colector.service" ]; then
@@ -758,6 +784,7 @@ UNIT
   $SUDO install -m 644 "$tmp" /etc/systemd/system/telemet-colector.service
   rm -f "$tmp"
   log "Servicio instalado: /etc/systemd/system/telemet-colector.service (JSON en $json_dir/historial.json)"
+  fi
 
   # Apache: que el navegador no guarde en caché el JSON
   $SUDO a2enmod headers >/dev/null 2>&1 || true
@@ -797,91 +824,79 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-paso "5/6 Fijar la entrada en $ENTRADA"
-TS="$(date +%Y%m%d-%H%M%S)"
-COPIA="/var/backups/entrada-apache-$TS"
-$SUDO mkdir -p "$COPIA"
-cambios=()
-
-# 5a) Anular Redirect/Rewrite hacia /moda/ y DocumentRoot en .../moda
-mapfile -t CANDIDATOS < <($SUDO grep -rliE "^[[:space:]]*(Redirect|RedirectMatch|RedirectPermanent|RewriteRule|DocumentRoot).*moda" \
-    /etc/apache2/sites-available /etc/apache2/conf-available /etc/apache2/apache2.conf \
-    "$DOCROOT/.htaccess" 2>/dev/null || true)
-for f in "${CANDIDATOS[@]}"; do
-  [ -n "$f" ] || continue
-  $SUDO cp -a --parents "$f" "$COPIA"
-  $SUDO sed -i --follow-symlinks -E \
-    -e "s|^([[:space:]]*)(Redirect[A-Za-z]*[[:space:]].*[Mm][Oo][Dd][Aa].*)$|\1# [anulado $TS] \2|" \
-    -e "s|^([[:space:]]*)(RewriteRule[[:space:]].*[Mm][Oo][Dd][Aa].*)$|\1# [anulado $TS] \2|" \
-    -e "s|^([[:space:]]*)DocumentRoot[[:space:]]+\"?[^[:space:]\"]*[Mm][Oo][Dd][Aa]/?\"?[[:space:]]*$|\1DocumentRoot $DOCROOT|" \
-    "$f"
-  cambios+=("$f")
-  log "Reglas hacia /moda/ anuladas en: $f"
-done
-
-# 5b) index.html de la raíz que apunte a /moda/ -> sustituir por redirección
-if [ -f "$DOCROOT/index.html" ] && $SUDO grep -qiE "moda" "$DOCROOT/index.html"; then
-  $SUDO cp -a --parents "$DOCROOT/index.html" "$COPIA"
-  cambios+=("$DOCROOT/index.html")
-  log "Sustituido $DOCROOT/index.html (apuntaba a /moda/)"
-  printf '%s\n' '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' \
-    "<meta http-equiv=\"refresh\" content=\"0; url=$ENTRADA\"><title>Redirigiendo…</title></head>" \
-    "<body><a href=\"$ENTRADA\">Ir a $ENTRADA</a></body></html>" \
-    | $SUDO tee "$DOCROOT/index.html" >/dev/null
+paso "5/6 Apache"
+CONF_NUEVAS=()
+if grep -rqE "<Directory[[:space:]]+\"?$DESTINO/?\"?[[:space:]]*>" /etc/apache2/ 2>/dev/null; then
+  log "Apache: ya existe un bloque <Directory $DESTINO> en /etc/apache2 (no se modifica)"
+else
+  log "AVISO: no hay un bloque <Directory $DESTINO> en /etc/apache2; si hay 403, añade 'Require all granted' para esa carpeta"
 fi
+[ "$HEADERS_CONF" -eq 1 ] && CONF_NUEVAS+=(telemet-historial)
 
-# 5c) Regla de entrada: la raíz redirige a /rafa/ (relativa: vale con localhost, IP o nombre)
-$SUDO a2enmod alias >/dev/null 2>&1 || true
-$SUDO tee /etc/apache2/conf-available/entrada-rafa.conf >/dev/null <<EOF
-# Entrada por defecto del servidor: la raíz redirige a $ENTRADA
+if [ "$ENTRADA_RAIZ" -eq 1 ]; then
+  $SUDO a2enmod alias >/dev/null 2>&1 || true
+  $SUDO tee /etc/apache2/conf-available/entrada-rafa.conf >/dev/null <<EOF
+# Entrada del servidor: la raíz redirige a $ENTRADA
 RedirectMatch ^/\$ $ENTRADA
 EOF
-$SUDO a2enconf entrada-rafa >/dev/null
-
-if $SUDO apache2ctl configtest >>"$LOG" 2>&1; then
-  if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-    $SUDO systemctl reload apache2
-  else
-    $SUDO apache2ctl graceful || $SUDO apache2ctl start
-  fi
-  log "Apache recargado con la entrada $ENTRADA"
+  $SUDO a2enconf entrada-rafa >/dev/null
+  CONF_NUEVAS+=(entrada-rafa)
+  log "Activada la redirección de / a $ENTRADA (conf entrada-rafa)"
 else
-  log "ERROR en la configuración de Apache: restaurando copia de seguridad"
-  $SUDO a2disconf entrada-rafa >/dev/null 2>&1 || true
-  [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-historial >/dev/null 2>&1 || true
-  for f in "${cambios[@]}"; do $SUDO cp -a "$COPIA$f" "$f"; done
-  log "Restaurado desde $COPIA. Revisa: sudo apache2ctl configtest"
-  exit 1
+  log "No se cambia la portada del servidor (usa --entrada-raiz para que / redirija a $ENTRADA)"
 fi
 
-# 5d) Avisos: menciones a /moda/ que no se han podido anular automáticamente
-RESTOS=$($SUDO grep -rniE "(Redirect|RewriteRule|DocumentRoot|DirectoryIndex|Alias).*moda" /etc/apache2 2>/dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)
-if [ -n "$RESTOS" ]; then
-  log "AVISO: quedan referencias a 'moda' en la configuración; revísalas:"
-  echo "$RESTOS" | tee -a "$LOG"
+if [ "${#CONF_NUEVAS[@]}" -gt 0 ]; then
+  if $SUDO apache2ctl configtest >>"$LOG" 2>&1; then
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+      $SUDO systemctl reload apache2
+    else
+      $SUDO apache2ctl graceful || $SUDO apache2ctl start
+    fi
+    log "Apache recargado (configuración nueva: ${CONF_NUEVAS[*]})"
+  else
+    log "ERROR en la configuración de Apache: se desactiva lo añadido (${CONF_NUEVAS[*]})"
+    for c in "${CONF_NUEVAS[@]}"; do $SUDO a2disconf "$c" >/dev/null 2>&1 || true; done
+    log "Revisa: sudo apache2ctl configtest"
+    exit 1
+  fi
+else
+  log "Sin cambios de configuración: no hace falta recargar Apache"
 fi
 
 # -----------------------------------------------------------------------------
 paso "6/6 Comprobación"
-IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; IP="${IP:-localhost}"
-cod_raiz=$(curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}' "http://localhost/" || echo "sin respuesta")
-cod_rafa=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$ENTRADA" || echo "sin respuesta")
-log "http://localhost/        : $cod_raiz"
-log "http://localhost$ENTRADA : $cod_rafa"
+comprobar() {   # comprobar RUTA -> código HTTP (resuelve el host al propio servidor)
+  local ruta="$1" cod
+  cod="$(curl -s -o /dev/null -w '%{http_code}' --resolve "$HOST_WEB:443:127.0.0.1" "$URL_BASE$ruta" 2>/dev/null || true)"
+  if [ -z "$cod" ] || [ "$cod" = "000" ]; then
+    cod="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$HOST_WEB:443:127.0.0.1" "$URL_BASE$ruta" 2>/dev/null || true)"
+    if [ -n "$cod" ] && [ "$cod" != "000" ]; then cod="$cod (certificado no verificado)"; fi
+  fi
+  if [ -z "$cod" ] || [ "$cod" = "000" ]; then
+    cod="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $HOST_WEB" "http://localhost$ruta" 2>/dev/null || true) (por http://localhost)"
+  fi
+  echo "$cod"
+}
+log "$URL_BASE$ENTRADA : $(comprobar "$ENTRADA")"
+log "$URL_BASE${ENTRADA}apps.json : $(comprobar "${ENTRADA}apps.json")"
+if [ "$ENTRADA_RAIZ" -eq 1 ]; then log "$URL_BASE/ : $(comprobar /)"; fi
 if [ "$COLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
-  log "telemet-colector         : $(systemctl is-active telemet-colector 2>/dev/null || true)"
+  log "telemet-colector : $(systemctl is-active telemet-colector 2>/dev/null || true)"
 fi
 
 if [ -n "$CRON_EXPR" ]; then
-  linea="$CRON_EXPR $SCRIPT_ABS -u $USUARIO_GH -o $ORIGEN -d $DESTINO"
+  linea="$CRON_EXPR $SCRIPT_ABS -u $USUARIO_GH -o $ORIGEN -d $DESTINO --docroot $DOCROOT --url $URL_BASE"
   [ "$MODO" != "web" ] && linea="$linea --modo $MODO"
   [ "$INDICE" -eq 0 ]  && linea="$linea --sin-indice"
   [ "$COLECTOR" -eq 1 ] && linea="$linea --colector"
+  [ "$ENTRADA_RAIZ" -eq 1 ] && linea="$linea --entrada-raiz"
+  [ -n "$JSON_DIR_CLI" ] && linea="$linea --json-dir $JSON_DIR_CLI"
   linea="$linea >/dev/null 2>&1"
   ( crontab -l 2>/dev/null | grep -vF "$SCRIPT_ABS" ; echo "$linea" ) | crontab -
   log "Cron programado: $CRON_EXPR (usa la selección guardada en $SEL_FILE)"
 fi
 
 echo | tee -a "$LOG"
-log "FIN. Entrada: http://$IP$ENTRADA  |  Errores: $errores  |  Duración: ${SECONDS}s  |  Copia de seguridad: $COPIA"
+log "FIN. Portal: $URL_BASE$ENTRADA  |  Errores: $errores  |  Duración: ${SECONDS}s${BKP:+  |  Copia de seguridad: $BKP}"
 [ "$errores" -eq 0 ]

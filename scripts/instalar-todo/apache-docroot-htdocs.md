@@ -1,6 +1,6 @@
 # Apache en Debian 13: publicar en `/var/www/html` o en `/var/www/htdocs`
 
-Guía para el servidor local `192.168.0.129` y el script `instalar_todo.sh`.
+Guía para el servidor local `192.168.0.129` y el script `instalar-todo.sh`.
 
 Autor: Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · UMH · r.puerto@umh.es
 _Generado con IA · Revisado por el autor_ · Última modificación: 04/11/2026 01:58
@@ -38,7 +38,7 @@ curl -sI http://localhost/rafa/ | head -1
 No hay que configurar nada en Apache. Es la opción por defecto del script:
 
 ```bash
-./instalar_todo.sh -d /var/www/html/rafa
+./instalar-todo.sh -d /var/www/html/rafa
 ```
 
 Si el destino anterior (`/var/www/htdocs/rafa`) ya no se usa, puedes revisarlo y borrarlo cuando quieras. Apache no lo sirve.
@@ -50,12 +50,12 @@ Si el destino anterior (`/var/www/htdocs/rafa`) ya no se usa, puedes revisarlo y
 ```bash
 sudo sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/htdocs|' /etc/apache2/sites-available/000-default.conf
 sudo apache2ctl configtest && sudo systemctl reload apache2
-./instalar_todo.sh --docroot /var/www/htdocs
+./instalar-todo.sh --docroot /var/www/htdocs
 ```
 
 - `/etc/apache2/apache2.conf` ya concede acceso a todo `/var/www/`, así que no hace falta añadir un bloque `<Directory>`.
 - La raíz del servidor pasa a ser `/var/www/htdocs`. Deja de servirse `/var/www/html`.
-- Si ya tenías contenido en `/var/www/htdocs/rafa`, el script lo listará y pedirá confirmación (ver la guía de `instalar_todo.sh`).
+- Si ya tenías contenido en `/var/www/htdocs/rafa`, el script lo listará y pedirá confirmación (ver la guía de `instalar-todo.sh`).
 
 ### Opción B: mantener `/var/www/html` como raíz y publicar solo `/rafa` desde htdocs
 
@@ -68,7 +68,7 @@ Alias /rafa /var/www/htdocs/rafa
 EOF
 sudo a2enconf rafa-alias
 sudo apache2ctl configtest && sudo systemctl reload apache2
-./instalar_todo.sh --docroot /var/www/htdocs
+./instalar-todo.sh --docroot /var/www/htdocs
 ```
 
 - `http://192.168.0.129/rafa/` se sirve desde `/var/www/htdocs/rafa` sin cambiar la raíz del servidor.

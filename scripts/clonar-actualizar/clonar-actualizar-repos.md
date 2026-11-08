@@ -45,14 +45,14 @@ done
 
 Resultado: un directorio por repositorio dentro de `~/RafaUMH2110/`.
 
-## 3. Script de actualización (`actualizar_repos.sh`)
+## 3. Script de actualización (`actualizar-repos.sh`)
 
 Hace `git pull --ff-only` en los repos ya clonados, clona los públicos nuevos y guarda un registro en `actualizar.log`.
 
 ```bash
 #!/usr/bin/env bash
 # Actualiza (git pull) los repos públicos de RafaUMH2110 y clona los nuevos.
-# Uso: ./actualizar_repos.sh [directorio_destino]
+# Uso: ./actualizar-repos.sh [directorio_destino]
 set -euo pipefail
 
 USUARIO="RafaUMH2110"
@@ -102,11 +102,11 @@ log "Fin. Nuevos: $nuevos | Actualizados: $actualizados | Errores: $errores"
 ### Instalación y uso
 
 ```bash
-nano ~/actualizar_repos.sh        # pegar el contenido anterior
-chmod +x ~/actualizar_repos.sh
+nano ~/actualizar-repos.sh        # pegar el contenido anterior
+chmod +x ~/actualizar-repos.sh
 
-~/actualizar_repos.sh             # destino por defecto: ~/RafaUMH2110
-~/actualizar_repos.sh /srv/repos  # destino personalizado
+~/actualizar-repos.sh             # destino por defecto: ~/RafaUMH2110
+~/actualizar-repos.sh /srv/repos  # destino personalizado
 ```
 
 ## 4. Automatizar con cron
@@ -118,7 +118,7 @@ crontab -e
 Añadir (ejecución diaria a las 3:00):
 
 ```
-0 3 * * * /home/usuario/actualizar_repos.sh >/dev/null 2>&1
+0 3 * * * /home/usuario/actualizar-repos.sh >/dev/null 2>&1
 ```
 
 Sustituye `usuario` por el usuario real del servidor. Revisa el resultado en `~/RafaUMH2110/actualizar.log`.
