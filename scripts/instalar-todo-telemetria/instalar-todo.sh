@@ -237,8 +237,8 @@ if $SUDO test -d "$DESTINO" && ! $SUDO test -f "$MARCA" && ! $SUDO test -f "$DES
   echo
   echo "AVISO: $DESTINO ya tiene contenido que no fue creado por este script:"
   { $SUDO ls -A "$DESTINO" | head -25 | sed 's/^/    /'; } || true
-  echo "  El despliegue sustituirá index.html y apps.json, y hará un espejo de cada repo"
-  echo "  (borra, dentro de <repo>/, lo que no esté en el repositorio)."
+  echo "  El despliegue sustituirá index.html y apps.json, y hará un espejo de $REPO/$FOLDER"
+  echo "  (borra, dentro de $REPO/$FOLDER/, lo que no esté en el repositorio; el resto de $DESTINO no se toca)."
   if [ "$FORZAR" -ne 1 ]; then
     if [ -t 0 ]; then
       read -r -p "  ¿Continuar? Se guardará una copia de lo sustituido o borrado [s/N] " resp </dev/tty || resp=""
@@ -275,27 +275,29 @@ esac
 copiados=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$ORIGEN/$r/.git" ] || [ -f "$ORIGEN/$r/.git" ] || continue
+  [ -d "$ORIGEN/$r/$FOLDER" ] || { log "ERROR: no existe $r/$FOLDER en el clon de $ORIGEN"; errores=$((errores+1)); continue; }
+  $SUDO mkdir -p "$DESTINO/$r/$FOLDER"
   extra=()
-  [ -n "$BKP" ] && extra=(--backup --backup-dir="$BKP/$r")
+  [ -n "$BKP" ] && extra=(--backup --backup-dir="$BKP/$r/$FOLDER")
   salida_rs="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/$FOLDER/" "$DESTINO/$r/$FOLDER/" >"$salida_rs" 2>&1; then
     copiados=$((copiados+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$salida_rs")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$salida_rs" | tr -d ',.')"; bytes="${bytes:-0}"
     d_new=$((d_new+n)); d_mod=$((d_mod+m)); d_del=$((d_del+d)); d_bytes=$((d_bytes+bytes))
     if [ $((n+m+d)) -eq 0 ]; then
-      log "Desplegado: $r  ·  sin cambios"
+      log "Desplegado: $r/$FOLDER  ·  sin cambios"
     else
-      log "Desplegado: $r  ·  $n nuevos  ·  $m modificados  ·  $d borrados  ·  transferido $(humano $bytes)"
+      log "Desplegado: $r/$FOLDER  ·  $n nuevos  ·  $m modificados  ·  $d borrados  ·  transferido $(humano $bytes)"
       listar_cambios "$salida_rs"
     fi
   else
-    log "ERROR copiando: $r"; tail -n 5 "$salida_rs" | tee -a "$LOG"; errores=$((errores+1))
+    log "ERROR copying: $r"; tail -n 5 "$salida_rs" | tee -a "$LOG"; errores=$((errores+1))
   fi
   rm -f "$salida_rs"
 done
 for r in "${SEL_REPOS[@]}"; do
-  [ -d "$DESTINO/$r" ] && $SUDO find "$DESTINO/$r" -type d -empty ! -name datos ! -name data -delete 2>/dev/null
+  [ -d "$DESTINO/$r/$FOLDER" ] && $SUDO find "$DESTINO/$r/$FOLDER" -type d -empty ! -name datos ! -name data -delete 2>/dev/null
 done
 log "Repos desplegados: $copiados"
 log "Resumen despliegue -> nuevos: $d_new | modificados: $d_mod | borrados: $d_del | transferido $(humano $d_bytes)"
@@ -304,7 +306,7 @@ log "Resumen despliegue -> nuevos: $d_new | modificados: $d_mod | borrados: $d_d
 # Por cada HTML recoge título, descripción, tamaño, fecha del último commit y el
 # README más cercano (proyecto y resumen).
 tmp_json="$(mktemp)"
-python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" >/dev/null <<'PYEOF'
+python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
 origen, destino, salida = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -380,27 +382,45 @@ def fecha_git(repo_dir, rel):
         pass
     return ''
 
+# Carpetas donde puede haber clones: la de este script y las vecinas del mismo usuario
+# (p. ej. ~/RafaUMH2110 si también se usa el instalar-todo completo). Así la página de
+# entrada lista TODAS las apps clonadas y desplegadas, no solo las de esta ejecución.
+home, user = sys.argv[4], sys.argv[5]
+origins = [origen]
+for base in (os.path.dirname(os.path.abspath(origen)), home):
+    try:
+        for n in sorted(os.listdir(base)):
+            p = os.path.join(base, n)
+            if (n == user or n.startswith(user + '-')) and os.path.isdir(p) and p not in origins:
+                origins.append(p)
+    except OSError:
+        pass
+
 apps = []
-for repo in sorted(os.listdir(origen)):
-    repo_origen = os.path.join(origen, repo)
+for repo in sorted(os.listdir(destino)):
     repo_dest = os.path.join(destino, repo)
-    if not (os.path.exists(os.path.join(repo_origen, '.git')) and os.path.isdir(repo_dest)):
+    if repo.startswith('.') or not os.path.isdir(repo_dest):
         continue
-    for raiz, dirs, ficheros in os.walk(repo_dest):
+    clones = [os.path.join(o, repo) for o in origins if os.path.exists(os.path.join(o, repo, '.git'))]
+    if not clones:
+        continue
+    for root_dir, dirs, filenames in os.walk(repo_dest):
         dirs[:] = sorted(d for d in dirs if d not in SKIP)
-        for f in sorted(ficheros):
+        for f in sorted(filenames):
             if not f.lower().endswith(('.html', '.htm')):
                 continue
-            full = os.path.join(raiz, f)
+            full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            titulo, desc = meta_html(leer(full))
-            proyecto, resumen = readme_cercano(repo_origen, os.path.dirname(rel))
-            fecha = fecha_git(repo_origen, rel)
-            if not fecha:
-                fecha = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
-            apps.append({'repo': repo, 'path': rel, 'title': titulo, 'description': desc,
-                         'project': proyecto, 'summary': resumen,
-                         'size': os.path.getsize(full), 'updated': fecha})
+            # clon que contiene este fichero (el de esta ejecución puede ser parcial)
+            clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
+            title, desc = meta_html(leer(full))
+            project_name, summary_text = readme_cercano(clone, os.path.dirname(rel)) if clone else ('', '')
+            date_str = fecha_git(clone, rel) if clone else ''
+            if not date_str:
+                date_str = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
+            apps.append({'repo': repo, 'path': rel, 'title': title, 'description': desc,
+                         'project': project_name, 'summary': summary_text,
+                         'size': os.path.getsize(full), 'updated': date_str})
 
 with open(salida, 'w', encoding='utf-8') as fh:
     json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},
@@ -415,10 +435,14 @@ log "Catálogo generado: $DESTINO/apps.json ($(jq '.apps|length' "$DESTINO/apps.
 PLANTILLA="$(dirname "$SCRIPT_ABS")/index.html"
 if [ "$INDICE" -eq 1 ] && [ -f "$PLANTILLA" ]; then
   $SUDO install -m 644 "$PLANTILLA" "$DESTINO/index.html"
+  for _f in favicon.svg favicon.ico apple-touch-icon.png; do
+    if [ -f "$(dirname "$PLANTILLA")/$_f" ]; then $SUDO install -m 644 "$(dirname "$PLANTILLA")/$_f" "$DESTINO/$_f"; fi
+  done
   log "Portal instalado: $DESTINO/index.html"
 elif [ "$INDICE" -eq 1 ]; then
   log "AVISO: no se encontró la plantilla $PLANTILLA; se genera un índice simple"
   tmp="$(mktemp)"
+  mapfile -t _repos < <(find "$DESTINO" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%f\n' | sort)
   {
     echo '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'
     echo '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -429,7 +453,7 @@ elif [ "$INDICE" -eq 1 ]; then
     echo 'small{color:#777}</style></head><body>'
     echo '<h1>Aplicaciones HTML</h1>'
     echo "<small>Actualizado: $(date '+%d/%m/%Y %H:%M')</small>"
-    for r in "${SEL_REPOS[@]}"; do
+    for r in "${_repos[@]}"; do
       [ -d "$DESTINO/$r" ] || continue
       mapfile -t files < <(cd "$DESTINO/$r" && find . -type f \( -iname '*.html' -o -iname '*.htm' \) \
                             | sed 's|^\./||' | sort)
@@ -448,14 +472,15 @@ elif [ "$INDICE" -eq 1 ]; then
 fi
 
 # Permisos solo sobre lo que gestiona el script (no sobre contenido ajeno de DESTINO)
-for item in "$DESTINO/index.html" "$DESTINO/apps.json"; do
+for item in "$DESTINO/index.html" "$DESTINO/apps.json" "$DESTINO/favicon.svg" "$DESTINO/favicon.ico" "$DESTINO/apple-touch-icon.png"; do
   $SUDO test -f "$item" && $SUDO chown "$USUARIO_WEB:$USUARIO_WEB" "$item"
 done
 for r in "${SEL_REPOS[@]}"; do
-  [ -d "$DESTINO/$r" ] || continue
-  $SUDO chown -R "$USUARIO_WEB:$USUARIO_WEB" "$DESTINO/$r"
-  $SUDO find "$DESTINO/$r" -type d -exec chmod 755 {} +
-  $SUDO find "$DESTINO/$r" -type f -exec chmod 644 {} +
+  [ -d "$DESTINO/$r/$FOLDER" ] || continue
+  $SUDO chown "$USUARIO_WEB:$USUARIO_WEB" "$DESTINO/$r"
+  $SUDO chown -R "$USUARIO_WEB:$USUARIO_WEB" "$DESTINO/$r/$FOLDER"
+  $SUDO find "$DESTINO/$r/$FOLDER" -type d -exec chmod 755 {} +
+  $SUDO find "$DESTINO/$r/$FOLDER" -type f -exec chmod 644 {} +
 done
 $SUDO touch "$MARCA"
 

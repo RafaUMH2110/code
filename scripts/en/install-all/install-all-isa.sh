@@ -479,7 +479,7 @@ for r in "${SEL_REPOS[@]}"; do
       list_changes "$rsync_out"
     fi
   else
-    log "ERROR copiando: $r"; tail -n 5 "$rsync_out" | tee -a "$LOG"; errors=$((errors+1))
+    log "ERROR copying: $r"; tail -n 5 "$rsync_out" | tee -a "$LOG"; errors=$((errors+1))
   fi
   rm -f "$rsync_out"
 done
@@ -501,7 +501,7 @@ done
 # For each HTML file it collects title, description, size, last commit date and the
 # nearest README (project and summary).
 tmp_json="$(mktemp)"
-python3 -I - "$SOURCE" "$DEST" "$tmp_json" >/dev/null <<'PYEOF'
+python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
 src_root, dest_root, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -577,11 +577,27 @@ def git_date(repo_dir, rel):
         pass
     return ''
 
+# Folders that may hold clones: this script's one and the user's sibling ones
+# (e.g. ~/RafaUMH2110 if the full install-all is also used). This way the entry page
+# lists ALL the cloned and deployed apps, not only those of this run.
+home, user = sys.argv[4], sys.argv[5]
+origins = [src_root]
+for base in (os.path.dirname(os.path.abspath(src_root)), home):
+    try:
+        for n in sorted(os.listdir(base)):
+            p = os.path.join(base, n)
+            if (n == user or n.startswith(user + '-')) and os.path.isdir(p) and p not in origins:
+                origins.append(p)
+    except OSError:
+        pass
+
 apps = []
-for repo in sorted(os.listdir(src_root)):
-    repo_src = os.path.join(src_root, repo)
+for repo in sorted(os.listdir(dest_root)):
     repo_dest = os.path.join(dest_root, repo)
-    if not (os.path.exists(os.path.join(repo_src, '.git')) and os.path.isdir(repo_dest)):
+    if repo.startswith('.') or not os.path.isdir(repo_dest):
+        continue
+    clones = [os.path.join(o, repo) for o in origins if os.path.exists(os.path.join(o, repo, '.git'))]
+    if not clones:
         continue
     for root_dir, dirs, filenames in os.walk(repo_dest):
         dirs[:] = sorted(d for d in dirs if d not in SKIP)
@@ -590,9 +606,11 @@ for repo in sorted(os.listdir(src_root)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
+            # clone that contains this file (this run's one may be partial)
+            clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
             title, desc = html_meta(read_text(full))
-            project_name, summary_text = nearest_readme(repo_src, os.path.dirname(rel))
-            date_str = git_date(repo_src, rel)
+            project_name, summary_text = nearest_readme(clone, os.path.dirname(rel)) if clone else ('', '')
+            date_str = git_date(clone, rel) if clone else ''
             if not date_str:
                 date_str = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
             apps.append({'repo': repo, 'path': rel, 'title': title, 'description': desc,
@@ -612,6 +630,9 @@ log "Catalog generated: $DEST/apps.json ($(jq '.apps|length' "$DEST/apps.json") 
 TEMPLATE="$(dirname "$SCRIPT_ABS")/index.html"
 if [ "$INDEX" -eq 1 ] && [ -f "$TEMPLATE" ]; then
   $SUDO install -m 644 "$TEMPLATE" "$DEST/index.html"
+  for _f in favicon.svg favicon.ico apple-touch-icon.png; do
+    if [ -f "$(dirname "$TEMPLATE")/$_f" ]; then $SUDO install -m 644 "$(dirname "$TEMPLATE")/$_f" "$DEST/$_f"; fi
+  done
   log "Portal installed: $DEST/index.html"
 elif [ "$INDEX" -eq 1 ]; then
   log "WARNING: template $TEMPLATE not found; a simple index is generated"
@@ -645,7 +666,7 @@ elif [ "$INDEX" -eq 1 ]; then
 fi
 
 # Permissions only on what the script manages (not on foreign content in DEST)
-for item in "$DEST/index.html" "$DEST/apps.json"; do
+for item in "$DEST/index.html" "$DEST/apps.json" "$DEST/favicon.svg" "$DEST/favicon.ico" "$DEST/apple-touch-icon.png"; do
   $SUDO test -f "$item" && $SUDO chown "$WEB_USER:$WEB_USER" "$item"
 done
 for r in "${SEL_REPOS[@]}"; do

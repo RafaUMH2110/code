@@ -14,13 +14,13 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `clonar-actualizar-repos.md` | Guía de las dos anteriores |
 | `instalar-todo/` | `instalar-todo.sh` | Todo en uno para el servidor local (selección de repos, despliegue, colector, entrada `/rafa/`) |
 | | `instalar-todo-isa.sh` | Variante para https://isa.umh.es (DocumentRoot `/var/www/htdocs`; no toca la configuración existente) |
-| | `index.html` | Portal de entrada; debe estar junto a los scripts |
+| | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Portal de entrada y su favicon; deben estar junto a los scripts |
 | | `instrucciones-instalar-todo.md` | Guía de `instalar-todo.sh` |
 | | `instrucciones-instalar-todo-isa.md` | Guía de `instalar-todo-isa.sh` |
 | | `apache-docroot-htdocs.md` | Por qué `/rafa/` da 404 si Apache sirve otro DocumentRoot |
 | | `anteriores/instalar-todo-anterior.sh` | Versión previa de `instalar-todo.sh`, solo como histórico |
 | `instalar-todo-telemetria/` | `instalar-todo.sh` | Versión reducida: clona **solo** `apps/telemetria` (clonado parcial), lo despliega en Apache y permite elegir instalar `telemet-colector` (`--colector` / `--sin-colector`). Su pareja inglesa instala `telemet-collector` |
-| | `index.html` | Portal de entrada; debe estar junto al script |
+| | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Portal de entrada (lista **todas** las apps clonadas, no solo las de telemetría) y su favicon; deben estar junto al script |
 | | `instrucciones-instalar-todo.md` | Guía de `instalar-todo.sh` |
 | `telemet-colector/` | `telemet_colector.py` | TeleMet Colector: lee de forma continua la estación meteorológica y guarda un histórico (24 h por defecto; `duracion_horas`, `--horas` o `TELEMET_HORAS`) en SQLite y como JSON para las apps TeleMet. Admite varias estaciones, cada una con su API Key (`[estacion:ID]`). |
 | | `MANUAL.md`, `README.md` | Manual detallado (instalación, configuración y funcionamiento) y guía rápida |

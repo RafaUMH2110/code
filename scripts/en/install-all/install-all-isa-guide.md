@@ -29,7 +29,7 @@ The core difference: the server already has its own configuration (`<Directory /
 
 - Debian 13 with Apache already running for isa.umh.es.
 - A user with `sudo`.
-- In the same folder as the script: `index.html` (the portal).
+- In the same folder as the script: `index.html` (the portal) and its favicon (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
 - Access to `api.github.com` and `github.com` (public repos of `RafaUMH2110`).
 
 The script installs `git`, `curl`, `jq`, `rsync` and `python3` itself if they are missing.

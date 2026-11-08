@@ -50,6 +50,7 @@ Only the **public** repos of the account are cloned; no token is needed.
 |---|---|
 | `install-all.sh` | The script. |
 | `index.html` | Template of the portal published at `/rafa/`. If missing, the script generates a simple index as a fallback. |
+| `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Favicon of the portal (browser tab, bookmarks and iOS icon). They are copied next to `index.html`. |
 
 Server requirements:
 
@@ -61,7 +62,7 @@ Server requirements:
 
 ```bash
 # 1. Copy to the server (from your computer)
-scp install-all.sh index.html user@192.168.0.129:~/
+scp install-all.sh index.html favicon.svg favicon.ico apple-touch-icon.png user@192.168.0.129:~/
 
 # 2. On the server
 chmod +x install-all.sh
@@ -221,7 +222,7 @@ If the destination folder **already exists and has files not created by this scr
 2. Saves in `/var/backups/install-all-<date>/` a copy of whatever it replaces or deletes: the previous `index.html` and `apps.json` and any file that a repo mirror replaces or removes.
 3. Marks the folder with the hidden file `.install-all`; from then on it does not ask again.
 
-Only `index.html`, `apps.json` and the folders named after a selected repo are touched. Any other folder or file in `DEST` (for example, `GenImOd/` or `empty/`) is left as it is. If you already had a folder with the same name as a repo (for example, `apps/`), its content is replaced by the repo's: review the list before accepting.
+Only `index.html`, `apps.json`, the favicon files and the folders named after a selected repo are touched. Any other folder or file in `DEST` (for example, `GenImOd/` or `empty/`) is left as it is. If you already had a folder with the same name as a repo (for example, `apps/`), its content is replaced by the repo's: review the list before accepting.
 
 ### Notes
 

@@ -50,6 +50,7 @@ Hacen falta **dos ficheros en la misma carpeta**:
 |---|---|
 | `instalar-todo.sh` | El script. |
 | `index.html` | Plantilla del portal que se publica en `/rafa/`. Si falta, el script genera un índice simple como alternativa. |
+| `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Favicon del portal (pestaña del navegador, marcadores e icono en iOS). Se copian junto a `index.html`. |
 
 Requisitos del servidor:
 
@@ -61,7 +62,7 @@ Requisitos del servidor:
 
 ```bash
 # 1. Copiar al servidor (desde tu equipo)
-scp instalar-todo.sh index.html usuario@192.168.0.129:~/
+scp instalar-todo.sh index.html favicon.svg favicon.ico apple-touch-icon.png usuario@192.168.0.129:~/
 
 # 2. En el servidor
 chmod +x instalar-todo.sh
@@ -221,7 +222,7 @@ Si la carpeta de destino **ya existe y tiene ficheros que no creó este script**
 2. Guarda en `/var/backups/instalar-todo-<fecha>/` una copia de lo que sustituya o borre: el `index.html` y `apps.json` anteriores y cualquier fichero que el espejo de un repo reemplace o elimine.
 3. Marca la carpeta con el fichero oculto `.instalar-todo`; desde entonces no vuelve a preguntar.
 
-Solo se tocan `index.html`, `apps.json` y las carpetas con nombre de repo seleccionado. Cualquier otra carpeta o fichero de `DESTINO` (por ejemplo, `GenImOd/` o `vacio/`) se deja como está. Si ya tenías una carpeta con el mismo nombre que un repo (por ejemplo, `apps/`), su contenido se sustituye por el del repo: revisa la lista antes de aceptar.
+Solo se tocan `index.html`, `apps.json`, los ficheros del favicon y las carpetas con nombre de repo seleccionado. Cualquier otra carpeta o fichero de `DESTINO` (por ejemplo, `GenImOd/` o `vacio/`) se deja como está. Si ya tenías una carpeta con el mismo nombre que un repo (por ejemplo, `apps/`), su contenido se sustituye por el del repo: revisa la lista antes de aceptar.
 
 ### Notas
 

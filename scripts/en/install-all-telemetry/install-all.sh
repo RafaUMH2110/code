@@ -239,8 +239,8 @@ if $SUDO test -d "$DEST" && ! $SUDO test -f "$MARKER" && ! $SUDO test -f "$DEST/
   echo
   echo "WARNING: $DEST already has content that was not created by this script:"
   { $SUDO ls -A "$DEST" | head -25 | sed 's/^/    /'; } || true
-  echo "  The deployment will replace index.html and apps.json, and mirror each repo"
-  echo "  (inside <repo>/ it deletes whatever is not in the repository)."
+  echo "  The deployment will replace index.html and apps.json, and mirror $REPO/$FOLDER"
+  echo "  (inside $REPO/$FOLDER/ it deletes whatever is not in the repository; the rest of $DEST is left alone)."
   if [ "$FORCE" -ne 1 ]; then
     if [ -t 0 ]; then
       read -r -p "  Continue? A copy of whatever is replaced or deleted will be kept [y/N] " resp </dev/tty || resp=""
@@ -277,27 +277,29 @@ esac
 copied=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$SOURCE/$r/.git" ] || [ -f "$SOURCE/$r/.git" ] || continue
+  [ -d "$SOURCE/$r/$FOLDER" ] || { log "ERROR: $r/$FOLDER does not exist in the clone in $SOURCE"; errors=$((errors+1)); continue; }
+  $SUDO mkdir -p "$DEST/$r/$FOLDER"
   extra=()
-  [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r")
+  [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r/$FOLDER")
   rsync_out="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/$FOLDER/" "$DEST/$r/$FOLDER/" >"$rsync_out" 2>&1; then
     copied=$((copied+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$rsync_out")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$rsync_out" | tr -d ',.')"; bytes="${bytes:-0}"
     d_new=$((d_new+n)); d_mod=$((d_mod+m)); d_del=$((d_del+d)); d_bytes=$((d_bytes+bytes))
     if [ $((n+m+d)) -eq 0 ]; then
-      log "Deployed: $r  ·  no changes"
+      log "Deployed: $r/$FOLDER  ·  no changes"
     else
-      log "Deployed: $r  ·  $n new  ·  $m modified  ·  $d deleted  ·  transferred $(human_size $bytes)"
+      log "Deployed: $r/$FOLDER  ·  $n new  ·  $m modified  ·  $d deleted  ·  transferred $(human_size $bytes)"
       list_changes "$rsync_out"
     fi
   else
-    log "ERROR copiando: $r"; tail -n 5 "$rsync_out" | tee -a "$LOG"; errors=$((errors+1))
+    log "ERROR copying: $r"; tail -n 5 "$rsync_out" | tee -a "$LOG"; errors=$((errors+1))
   fi
   rm -f "$rsync_out"
 done
 for r in "${SEL_REPOS[@]}"; do
-  [ -d "$DEST/$r" ] && $SUDO find "$DEST/$r" -type d -empty ! -name datos ! -name data -delete 2>/dev/null
+  [ -d "$DEST/$r/$FOLDER" ] && $SUDO find "$DEST/$r/$FOLDER" -type d -empty ! -name datos ! -name data -delete 2>/dev/null
 done
 log "Repos deployed: $copied"
 log "Deployment summary -> new: $d_new | modified: $d_mod | deleted: $d_del | transferred $(human_size $d_bytes)"
@@ -306,7 +308,7 @@ log "Deployment summary -> new: $d_new | modified: $d_mod | deleted: $d_del | tr
 # For each HTML file it collects title, description, size, last commit date and the
 # nearest README (project and summary).
 tmp_json="$(mktemp)"
-python3 -I - "$SOURCE" "$DEST" "$tmp_json" >/dev/null <<'PYEOF'
+python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
 src_root, dest_root, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -382,11 +384,27 @@ def git_date(repo_dir, rel):
         pass
     return ''
 
+# Folders that may hold clones: this script's one and the user's sibling ones
+# (e.g. ~/RafaUMH2110 if the full install-all is also used). This way the entry page
+# lists ALL the cloned and deployed apps, not only those of this run.
+home, user = sys.argv[4], sys.argv[5]
+origins = [src_root]
+for base in (os.path.dirname(os.path.abspath(src_root)), home):
+    try:
+        for n in sorted(os.listdir(base)):
+            p = os.path.join(base, n)
+            if (n == user or n.startswith(user + '-')) and os.path.isdir(p) and p not in origins:
+                origins.append(p)
+    except OSError:
+        pass
+
 apps = []
-for repo in sorted(os.listdir(src_root)):
-    repo_src = os.path.join(src_root, repo)
+for repo in sorted(os.listdir(dest_root)):
     repo_dest = os.path.join(dest_root, repo)
-    if not (os.path.exists(os.path.join(repo_src, '.git')) and os.path.isdir(repo_dest)):
+    if repo.startswith('.') or not os.path.isdir(repo_dest):
+        continue
+    clones = [os.path.join(o, repo) for o in origins if os.path.exists(os.path.join(o, repo, '.git'))]
+    if not clones:
         continue
     for root_dir, dirs, filenames in os.walk(repo_dest):
         dirs[:] = sorted(d for d in dirs if d not in SKIP)
@@ -395,9 +413,11 @@ for repo in sorted(os.listdir(src_root)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
+            # clone that contains this file (this run's one may be partial)
+            clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
             title, desc = html_meta(read_text(full))
-            project_name, summary_text = nearest_readme(repo_src, os.path.dirname(rel))
-            date_str = git_date(repo_src, rel)
+            project_name, summary_text = nearest_readme(clone, os.path.dirname(rel)) if clone else ('', '')
+            date_str = git_date(clone, rel) if clone else ''
             if not date_str:
                 date_str = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
             apps.append({'repo': repo, 'path': rel, 'title': title, 'description': desc,
@@ -417,10 +437,14 @@ log "Catalog generated: $DEST/apps.json ($(jq '.apps|length' "$DEST/apps.json") 
 TEMPLATE="$(dirname "$SCRIPT_ABS")/index.html"
 if [ "$INDEX" -eq 1 ] && [ -f "$TEMPLATE" ]; then
   $SUDO install -m 644 "$TEMPLATE" "$DEST/index.html"
+  for _f in favicon.svg favicon.ico apple-touch-icon.png; do
+    if [ -f "$(dirname "$TEMPLATE")/$_f" ]; then $SUDO install -m 644 "$(dirname "$TEMPLATE")/$_f" "$DEST/$_f"; fi
+  done
   log "Portal installed: $DEST/index.html"
 elif [ "$INDEX" -eq 1 ]; then
   log "WARNING: template $TEMPLATE not found; a simple index is generated"
   tmp="$(mktemp)"
+  mapfile -t _repos < <(find "$DEST" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%f\n' | sort)
   {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
     echo '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -431,7 +455,7 @@ elif [ "$INDEX" -eq 1 ]; then
     echo 'small{color:#777}</style></head><body>'
     echo '<h1>HTML applications</h1>'
     echo "<small>Updated: $(date '+%Y-%m-%d %H:%M')</small>"
-    for r in "${SEL_REPOS[@]}"; do
+    for r in "${_repos[@]}"; do
       [ -d "$DEST/$r" ] || continue
       mapfile -t files < <(cd "$DEST/$r" && find . -type f \( -iname '*.html' -o -iname '*.htm' \) \
                             | sed 's|^\./||' | sort)
@@ -450,14 +474,15 @@ elif [ "$INDEX" -eq 1 ]; then
 fi
 
 # Permissions only on what the script manages (not on foreign content in DEST)
-for item in "$DEST/index.html" "$DEST/apps.json"; do
+for item in "$DEST/index.html" "$DEST/apps.json" "$DEST/favicon.svg" "$DEST/favicon.ico" "$DEST/apple-touch-icon.png"; do
   $SUDO test -f "$item" && $SUDO chown "$WEB_USER:$WEB_USER" "$item"
 done
 for r in "${SEL_REPOS[@]}"; do
-  [ -d "$DEST/$r" ] || continue
-  $SUDO chown -R "$WEB_USER:$WEB_USER" "$DEST/$r"
-  $SUDO find "$DEST/$r" -type d -exec chmod 755 {} +
-  $SUDO find "$DEST/$r" -type f -exec chmod 644 {} +
+  [ -d "$DEST/$r/$FOLDER" ] || continue
+  $SUDO chown "$WEB_USER:$WEB_USER" "$DEST/$r"
+  $SUDO chown -R "$WEB_USER:$WEB_USER" "$DEST/$r/$FOLDER"
+  $SUDO find "$DEST/$r/$FOLDER" -type d -exec chmod 755 {} +
+  $SUDO find "$DEST/$r/$FOLDER" -type f -exec chmod 644 {} +
 done
 $SUDO touch "$MARKER"
 
@@ -667,7 +692,7 @@ if $SUDO apache2ctl configtest >>"$LOG" 2>&1; then
 else
   log "ERROR in the Apache configuration: restoring backup"
   $SUDO a2disconf rafa-entry >/dev/null 2>&1 || true
-  [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-historial >/dev/null 2>&1 || true
+  [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-history >/dev/null 2>&1 || true
   for f in "${changes[@]}"; do $SUDO cp -a "$ENTRY_BACKUP$f" "$f"; done
   log "Restored from $ENTRY_BACKUP. Check: sudo apache2ctl configtest"
   exit 1

@@ -9,7 +9,7 @@ Reduced version of `install-all` for Debian 13: it works **only** with the telem
 
 1. Installs dependencies (`apache2`, `git`, `curl`, `jq`, `rsync`, `python3`).
 2. Clones or updates **only** the `telemetria/` folder of the `RafaUMH2110/apps` repo (partial clone: `--filter=blob:none` + `sparse-checkout`). That folder contains both collectors: `telemetcolector` (Spanish) and `telemetcollector` (English).
-3. Deploys the web files to Apache, generates `apps.json` and installs the `index.html` portal (it must sit next to the script).
+3. Deploys to Apache the web files **of `telemetria/` only** (`<dest>/apps/telemetria/`), generates `apps.json` and installs the `index.html` portal with its favicon (they must sit next to the script).
 4. **Your choice**: installs `telemet-collector` (the English version) as a systemd service. The Spanish one, `telemet-colector`, is installed by `instalar-todo.sh` (folder `instalar-todo-telemetria/`).
 5. Sets the server entry point to `http://<IP>/rafa/`.
 6. Checks the result and, if requested, schedules the task in cron.
@@ -41,6 +41,13 @@ Collector credentials: the `TELEMET_STATION_ID` and `TELEMET_API_KEY` variables,
 | `--no-index` | Do not install the `index.html` portal |
 | `--collector` / `--no-collector` | Install or skip `telemet-collector` |
 | `--cron "EXPR"` | Schedule the task in cron, e.g. `"0 3 * * *"` |
+
+## Entry page
+
+- The portal lists **all the cloned and deployed apps**, not only the telemetry ones: if the same destination holds apps from other repos or from other folders of `apps/` (for example, those left by the full `install-all.sh`), they keep showing.
+- To do so, when generating `apps.json` the script walks **the whole destination** and looks for the clones in the source folder (`-o`) and in the user's sibling folders (`~/RafaUMH2110`, `~/RafaUMH2110-telemetria`…): that is where each app's README, summary and date come from.
+- The mirror (`rsync --delete`) is done **only on `apps/telemetria/`**: anything else in the destination is neither deleted nor touched.
+- `favicon.svg`, `favicon.ico` and `apple-touch-icon.png` are copied next to the portal (browser tab icon, bookmarks and iOS).
 
 ## Notes
 

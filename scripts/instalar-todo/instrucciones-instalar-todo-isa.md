@@ -29,7 +29,7 @@ Diferencia de fondo: el servidor ya tiene configuración propia (`<Directory /va
 
 - Debian 13 con Apache ya funcionando para isa.umh.es.
 - Usuario con `sudo`.
-- En la misma carpeta que el script: `index.html` (el portal).
+- En la misma carpeta que el script: `index.html` (el portal) y su favicon (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
 - Acceso a `api.github.com` y `github.com` (repos públicos de `RafaUMH2110`).
 
 El script instala por sí mismo `git`, `curl`, `jq`, `rsync` y `python3` si faltan.

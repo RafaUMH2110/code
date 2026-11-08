@@ -489,7 +489,7 @@ done
 # Por cada HTML recoge título, descripción, tamaño, fecha del último commit y el
 # README más cercano (proyecto y resumen).
 tmp_json="$(mktemp)"
-python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" >/dev/null <<'PYEOF'
+python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
 origen, destino, salida = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -565,27 +565,45 @@ def fecha_git(repo_dir, rel):
         pass
     return ''
 
+# Carpetas donde puede haber clones: la de este script y las vecinas del mismo usuario
+# (p. ej. ~/RafaUMH2110 si también se usa el instalar-todo completo). Así la página de
+# entrada lista TODAS las apps clonadas y desplegadas, no solo las de esta ejecución.
+home, user = sys.argv[4], sys.argv[5]
+origins = [origen]
+for base in (os.path.dirname(os.path.abspath(origen)), home):
+    try:
+        for n in sorted(os.listdir(base)):
+            p = os.path.join(base, n)
+            if (n == user or n.startswith(user + '-')) and os.path.isdir(p) and p not in origins:
+                origins.append(p)
+    except OSError:
+        pass
+
 apps = []
-for repo in sorted(os.listdir(origen)):
-    repo_origen = os.path.join(origen, repo)
+for repo in sorted(os.listdir(destino)):
     repo_dest = os.path.join(destino, repo)
-    if not (os.path.exists(os.path.join(repo_origen, '.git')) and os.path.isdir(repo_dest)):
+    if repo.startswith('.') or not os.path.isdir(repo_dest):
         continue
-    for raiz, dirs, ficheros in os.walk(repo_dest):
+    clones = [os.path.join(o, repo) for o in origins if os.path.exists(os.path.join(o, repo, '.git'))]
+    if not clones:
+        continue
+    for root_dir, dirs, filenames in os.walk(repo_dest):
         dirs[:] = sorted(d for d in dirs if d not in SKIP)
-        for f in sorted(ficheros):
+        for f in sorted(filenames):
             if not f.lower().endswith(('.html', '.htm')):
                 continue
-            full = os.path.join(raiz, f)
+            full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            titulo, desc = meta_html(leer(full))
-            proyecto, resumen = readme_cercano(repo_origen, os.path.dirname(rel))
-            fecha = fecha_git(repo_origen, rel)
-            if not fecha:
-                fecha = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
-            apps.append({'repo': repo, 'path': rel, 'title': titulo, 'description': desc,
-                         'project': proyecto, 'summary': resumen,
-                         'size': os.path.getsize(full), 'updated': fecha})
+            # clon que contiene este fichero (el de esta ejecución puede ser parcial)
+            clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
+            title, desc = meta_html(leer(full))
+            project_name, summary_text = readme_cercano(clone, os.path.dirname(rel)) if clone else ('', '')
+            date_str = fecha_git(clone, rel) if clone else ''
+            if not date_str:
+                date_str = datetime.date.fromtimestamp(os.path.getmtime(full)).isoformat()
+            apps.append({'repo': repo, 'path': rel, 'title': title, 'description': desc,
+                         'project': project_name, 'summary': summary_text,
+                         'size': os.path.getsize(full), 'updated': date_str})
 
 with open(salida, 'w', encoding='utf-8') as fh:
     json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},
@@ -600,6 +618,9 @@ log "Catálogo generado: $DESTINO/apps.json ($(jq '.apps|length' "$DESTINO/apps.
 PLANTILLA="$(dirname "$SCRIPT_ABS")/index.html"
 if [ "$INDICE" -eq 1 ] && [ -f "$PLANTILLA" ]; then
   $SUDO install -m 644 "$PLANTILLA" "$DESTINO/index.html"
+  for _f in favicon.svg favicon.ico apple-touch-icon.png; do
+    if [ -f "$(dirname "$PLANTILLA")/$_f" ]; then $SUDO install -m 644 "$(dirname "$PLANTILLA")/$_f" "$DESTINO/$_f"; fi
+  done
   log "Portal instalado: $DESTINO/index.html"
 elif [ "$INDICE" -eq 1 ]; then
   log "AVISO: no se encontró la plantilla $PLANTILLA; se genera un índice simple"
@@ -633,7 +654,7 @@ elif [ "$INDICE" -eq 1 ]; then
 fi
 
 # Permisos solo sobre lo que gestiona el script (no sobre contenido ajeno de DESTINO)
-for item in "$DESTINO/index.html" "$DESTINO/apps.json"; do
+for item in "$DESTINO/index.html" "$DESTINO/apps.json" "$DESTINO/favicon.svg" "$DESTINO/favicon.ico" "$DESTINO/apple-touch-icon.png"; do
   $SUDO test -f "$item" && $SUDO chown "$USUARIO_WEB:$USUARIO_WEB" "$item"
 done
 for r in "${SEL_REPOS[@]}"; do
