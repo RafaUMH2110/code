@@ -35,6 +35,22 @@
       "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
       "console": "integratedTerminal",
       "args": ["${input:servidor}", "--ask-password"]
+    },
+    {
+      "name": "TeleMet Collector · validar acceso por clave (authorized_keys)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": ["${input:servidor}", "--check-key", "--accept-new-host-key"]
+    },
+    {
+      "name": "TeleMet Collector · instalar mi clave pública (pide la contraseña)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+      "console": "integratedTerminal",
+      "args": ["${input:servidor}", "--install-key", "--accept-new-host-key"]
     }
   ],
   "inputs": [

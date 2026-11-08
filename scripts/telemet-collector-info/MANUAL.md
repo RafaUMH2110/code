@@ -10,7 +10,7 @@ Este manual cubre dos scripts que muestran **todos los parámetros de TeleMet Co
 | `telemet-collector-info.py` | **En el servidor** donde está instalado el colector | Informe local |
 | `telemet-collector-info-ssh.py` | **En tu ordenador** (CLI o VS Code) | Se conecta por SSH al servidor (contraseña o clave RSA) y muestra el mismo informe sin instalar nada allí |
 
-Ambos son de **solo lectura**: no modifican ningún fichero, no tocan el servicio y no consultan la API de Weather Underground.
+Ambos son de **solo lectura**: no modifican ningún fichero, no tocan el servicio y no consultan la API de Weather Underground. La única excepción es `--install-key` del script SSH (sección 5.4), que añade tu clave pública a `~/.ssh/authorized_keys` del servidor, y `--generate-key`, que crea una clave en tu ordenador; solo se ejecutan si las pides.
 
 ---
 
@@ -78,23 +78,28 @@ Opcionalmente, `chmod +x telemet-collector-info-ssh.py` permite ejecutarlo como 
 
 ## 5. Autenticación
 
-### 5.1 Clave RSA (recomendada)
+### 5.1 Clave RSA / ed25519 con `authorized_keys` (recomendada)
 
-Crear la clave (una vez, en tu ordenador) y copiarla al servidor:
-
-```bash
-ssh-keygen -t rsa -b 4096 -C "rafa@mi-portatil"      # o: ssh-keygen -t ed25519
-ssh-copy-id -i ~/.ssh/id_rsa.pub rafa@192.168.0.129  # pide la contraseña esta única vez
-```
-
-Uso:
+El acceso por clave consiste en guardar tu **clave pública** en el fichero `~/.ssh/authorized_keys` del usuario del servidor. El script puede hacerlo todo por ti (ver también la sección 5.4):
 
 ```bash
+# 1) Crear el par de claves (solo si no tienes ninguna): RSA 4096 en ~/.ssh/id_rsa
+python3 telemet-collector-info-ssh.py --generate-key
+
+# 2) Copiar la clave pública al servidor (pide la contraseña SSH una sola vez) y validar
+python3 telemet-collector-info-ssh.py rafa@192.168.0.129 --install-key
+
+# 3) Comprobar cuando quieras que el acceso por clave (sin contraseña) funciona
+python3 telemet-collector-info-ssh.py rafa@192.168.0.129 --check-key
+
+# 4) Uso normal
 python3 telemet-collector-info-ssh.py rafa@192.168.0.129 -i ~/.ssh/id_rsa
 ```
 
+Equivale a hacer a mano `ssh-keygen -t rsa -b 4096` y `ssh-copy-id -i ~/.ssh/id_rsa.pub rafa@192.168.0.129`.
+
 - Si no indicas `-i`, `ssh` prueba las claves por defecto y las del `ssh-agent`.
-- Si la clave tiene **frase de paso**, `ssh` la pide en el terminal; para no escribirla cada vez usa `ssh-agent` / `ssh-add ~/.ssh/id_rsa` (en macOS: `ssh-add --apple-use-keychain`).
+- Si la clave tiene **frase de paso**, `ssh` la pide en el terminal; para no escribirla cada vez usa `ssh-agent` / `ssh-add ~/.ssh/id_rsa` (en macOS: `ssh-add --apple-use-keychain`). Con `--check-key` no se puede pedir la frase (se usa `BatchMode`), así que la clave debe estar cargada en el agente.
 - En Windows, la clave está en `C:\Users\<tú>\.ssh\id_rsa` y el agente es el servicio *OpenSSH Authentication Agent*.
 - La clave privada debe tener permisos estrictos (`chmod 600 ~/.ssh/id_rsa`); si no, `ssh` responde `UNPROTECTED PRIVATE KEY FILE`.
 
@@ -138,6 +143,62 @@ python3 telemet-collector-info-ssh.py servidor-lab
 ```
 
 Si necesitas un salto o una opción sin tocar `~/.ssh/config`: `--ssh-arg '-J pasarela'`, `--ssh-arg '-o KexAlgorithms=+diffie-hellman-group14-sha1'` (se puede repetir).
+
+### 5.4 Validar el acceso por `authorized_keys` (`--check-key`, `--install-key`, `--generate-key`)
+
+Estas opciones **no piden informe del colector**: solo trabajan con las claves SSH.
+
+| Opción | Qué hace |
+|---|---|
+| `--generate-key` | Crea un par RSA 4096 en la ruta de `-i` (por defecto `~/.ssh/id_rsa`). **Nunca sobrescribe** una clave existente. Si hay terminal, `ssh-keygen` te deja poner frase de paso. No necesita servidor |
+| `--install-key` | Añade tu clave pública a `~/.ssh/authorized_keys` del servidor (como `ssh-copy-id`). Usa la contraseña SSH (`--ask-password`, `--password-env VAR` o la que pide al ejecutar en un terminal). Es **idempotente** (no duplica), crea `~/.ssh` (700) y el fichero (600) si faltan y corrige sus permisos. Después valida el acceso por clave automáticamente |
+| `--check-key` | Valida que se puede entrar **solo con clave** y muestra la auditoría de `authorized_keys` del servidor |
+| `--pubkey FICHERO.pub` | Clave pública a instalar. Por defecto: `<clave de -i>.pub` (si solo existe la privada, se obtiene con `ssh-keygen -y`) o la primera de `~/.ssh/id_ed25519.pub`, `id_rsa.pub`, `id_ecdsa.pub` |
+
+**Cómo valida el acceso por clave.** `--check-key` abre una conexión con `PreferredAuthentications=publickey`, `PasswordAuthentication=no`, `KbdInteractiveAuthentication=no` y `BatchMode=yes`: si entra, es que `authorized_keys` funciona de verdad (no es la contraseña quien te deja pasar). Usa `ssh -v` para decir **qué clave** se ofreció y aceptó (huella SHA256 y fichero, o `ssh-agent`). Si te conectas con `-i`, solo se ofrece esa clave (`IdentitiesOnly`).
+
+Ejemplo de salida correcta:
+
+```
+== Acceso por clave SSH (authorized_keys) en rafa@192.168.0.129 ==
+✔ Acceso por clave correcto: entras en isa-server como 'rafa' sin contraseña.
+  Clave usada: SHA256:6bsaq0sx4NAW95LjMeGCuddzBOANzPSsJIIMnTOxaTM  /home/rafa/.ssh/id_rsa
+
+Auditoría de authorized_keys en el servidor:
+▌ Claves SSH autorizadas (authorized_keys)
+  Usuario:              rafa
+  Directorio personal:  /home/rafa · 750 · rafa:rafa
+  Carpeta .ssh:         /home/rafa/.ssh · 700 · rafa:rafa
+  Fichero de claves:    /home/rafa/.ssh/authorized_keys · 600 · rafa:rafa
+  Claves autorizadas (1):
+    #1 ssh-rsa 4096  SHA256:6bsaq0sx…  rafa@mi-portatil
+▌ Diagnóstico
+  ✔ OK Acceso por clave correcto: 1 clave(s) autorizada(s) y permisos válidos.
+```
+
+**Si falla**, el script distingue tres causas y te dice qué hacer:
+
+| Mensaje | Causa | Solución |
+|---|---|---|
+| *ssh no tiene ninguna clave privada que ofrecer* | No hay clave en `~/.ssh`, ni en el agente, ni en `-i` | `--generate-key`, `-i RUTA` o `ssh-add` |
+| *La clave se ha ofrecido pero el servidor no la ha aceptado* | La clave pública no está en `authorized_keys`, o sshd la ignora por permisos | `--install-key` (la añade y corrige permisos). Si ya está, ejecuta `--check-key --ask-password`: con la contraseña entra y **audita el servidor** para decirte el motivo |
+| *No se pudo conectar por SSH* | Servidor, puerto, huella (`--accept-new-host-key`) | Ver sección 11 |
+
+**Qué audita en el servidor** (por el usuario con el que entras; también disponible en local con `telemet-collector-info.py --keys-only`):
+
+- Cada clave de `authorized_keys`: tipo, bits (RSA), huella SHA256 (la misma que muestra `ssh-keygen -lf`), comentario y opciones (`command="…"`, `from="…"`…).
+- Permisos y propietario de la **carpeta personal, `~/.ssh` y el fichero**. Con `StrictModes yes` (por defecto) sshd **ignora** las claves si alguno es escribible por grupo u otros o es de otro usuario; el diagnóstico indica el `chmod` exacto.
+- Claves débiles u obsoletas (DSA, RSA < 2048 bits), fichero vacío o inexistente.
+- Ajustes de `/etc/ssh/sshd_config` (y sus `Include`): `PubkeyAuthentication`, `AuthorizedKeysFile`, `PasswordAuthentication`, `PermitRootLogin`, `StrictModes`. Si `PasswordAuthentication` sigue en `yes`, sugiere ponerlo en `no` **cuando ya hayas comprobado que la clave funciona** (hazlo con otra sesión abierta para no quedarte fuera).
+- Solo ve las directivas globales de `sshd_config`; no evalúa bloques `Match` ni lo que dice `sshd -T`.
+
+**Con `--json`** se obtiene un objeto con `key_login` (`ok`, `user`, `host`, `key`, `reason`…), `install` (si se instaló) y `audit` (la auditoría completa); con varios servidores, un objeto por destino.
+
+**Informe completo + claves.** Añade `--authorized-keys` al informe normal para incluir la auditoría de claves del usuario de login en el mismo informe (y sus avisos en el diagnóstico).
+
+> `--install-key` solo escribe en el fichero estándar `~/.ssh/authorized_keys`. Si `sshd` usa otro `AuthorizedKeysFile`, la auditoría lo avisa.
+
+---
 
 ## 6. `sudo` en el servidor
 
@@ -212,6 +273,11 @@ La API Key solo se muestra completa con `--show-key`. **No pegues esa salida en 
 | `--lang es\|en` | Idioma (por defecto, según `$LANG`) |
 | `--remote-python CMD` | Comando de Python en el servidor (def. `python3`) |
 | `--check` | Solo comprueba conexión, python, `config.ini`, sudo y servicios |
+| `--authorized-keys` | Añade al informe la auditoría de `authorized_keys` del usuario de login |
+| `--check-key` | Valida el acceso solo con clave y audita `authorized_keys` en el servidor (sección 5.4) |
+| `--install-key` | Instala tu clave pública en `authorized_keys` del servidor y la valida |
+| `--pubkey FICHERO.pub` | Clave pública a instalar (por defecto la de `-i` o `~/.ssh/id_*.pub`) |
+| `--generate-key` | Crea un par RSA 4096 si no existe (`-i RUTA`, por defecto `~/.ssh/id_rsa`) |
 
 ### Códigos de salida
 
@@ -222,6 +288,7 @@ La API Key solo se muestra completa con `--show-key`. **No pegues esa salida en 
 | 2 | Conectó, pero **no se pudo leer `config.ini`** (ruta incorrecta o falta sudo) |
 | 3 | Problema local: no hay `ssh`, falta `telemet-collector-info.py` o el destino no es válido |
 | 4 | Fallo de conexión SSH, de autenticación, de sudo, de `python3` o tiempo agotado |
+| 5 | Con `--check-key` / `--install-key`: se conectó, pero el servidor **no acepta el acceso solo con clave** |
 
 Con varios servidores devuelve el peor código.
 
@@ -242,7 +309,7 @@ VS Code no necesita nada especial: ejecuta el script en un terminal. **Lo import
 
 ### 9.3 Tareas (Terminal → Ejecutar tarea)
 
-Copia `vscode-ejemplo/tasks.json` a `.vscode/tasks.json`. Quedan tres tareas: informe con contraseña, comprobar conexión e informe JSON con clave RSA. Cada una te pide el servidor (`${input:destino}`) y se ejecuta en un panel dedicado. Puedes asignarles un atajo en *Keyboard Shortcuts (JSON)* con `workbench.action.tasks.runTask`.
+Copia `vscode-ejemplo/tasks.json` a `.vscode/tasks.json`. Quedan cinco tareas: informe con contraseña, comprobar conexión, validar el acceso por `authorized_keys`, instalar tu clave pública en el servidor e informe JSON con clave RSA. Cada una te pide el servidor (`${input:destino}`) y se ejecuta en un panel dedicado. Puedes asignarles un atajo en *Keyboard Shortcuts (JSON)* con `workbench.action.tasks.runTask`.
 
 ### 9.4 Alternativa: Remote-SSH
 
@@ -281,6 +348,8 @@ Para cron, lo recomendable es una clave dedicada, sin contraseña de sudo (`NOPA
 | `No se pudo conectar por SSH … (código 255)` | Servidor, puerto, usuario o credenciales incorrectos | Prueba `ssh -v usuario@servidor`; revisa `-p`, `-i` y la contraseña |
 | `Host key verification failed` | Servidor nuevo o su huella cambió | Si es nuevo: `--accept-new-host-key` o `ssh usuario@servidor` una vez. Si **cambió**, averigua por qué antes de borrar la línea de `~/.ssh/known_hosts` |
 | `Permission denied (publickey,password)` | Contraseña o clave incorrecta | Revísalas; con `--batch` no se puede pedir contraseña |
+| `--check-key` dice que la clave no se acepta aunque ya la instalé | Permisos de la carpeta personal, `~/.ssh` o `authorized_keys` (StrictModes), o `PubkeyAuthentication no` | `--check-key --ask-password` audita y muestra el `chmod` necesario; `--install-key` también repara `~/.ssh` y el fichero |
+| `--install-key`: «No hay clave pública que instalar» | Sin `~/.ssh/id_*.pub` ni `-i`/`--pubkey` | `--generate-key` o `--pubkey FICHERO.pub` |
 | `UNPROTECTED PRIVATE KEY FILE` | Permisos de la clave | `chmod 600 ~/.ssh/id_rsa` |
 | `sudo necesita contraseña … no se ha podido autenticar` | sudo exige contraseña y no se dio o es otra | `--ask-sudo-password`, `--sudo-password-env`, NOPASSWD o `--no-sudo` (sección 6) |
 | `No se puede leer /opt/telemet-collector/config.ini` (código 2) | Falta sudo o la ruta es otra | Quita `--no-sudo` o indica la ruta con `-c` |
@@ -296,10 +365,14 @@ Para cron, lo recomendable es una clave dedicada, sin contraseña de sudo (`NOPA
 - La API Key sale enmascarada; `--show-key` la muestra completa en pantalla.
 - `--accept-new-host-key` solo evita la pregunta de la primera conexión; si la huella de un servidor conocido cambia, `ssh` sigue rechazando la conexión.
 - Preferible **clave RSA/ed25519 con frase de paso + ssh-agent** antes que contraseña.
+- `--install-key` es la **única** operación que escribe en el servidor: solo añade una línea a `~/.ssh/authorized_keys` del usuario con el que entras (y ajusta permisos de `~/.ssh` a 700 y del fichero a 600). Nunca borra ni modifica otras claves. El resto de opciones son de solo lectura.
+- `--generate-key` nunca sobrescribe una clave privada existente. Si lo ejecutas sin terminal (cron, tareas) la crea **sin frase de paso**.
+- Se instala la clave **pública**; la privada no sale de tu ordenador.
 
 ## 13. Limitaciones
 
-- Solo lectura: no arregla nada; solo informa.
+- Solo lectura (salvo `--install-key` / `--generate-key`): no arregla nada; solo informa.
 - Necesita `python3` en el servidor (cualquier 3.7+; Debian 13 trae 3.13).
 - Probado con OpenSSH en Linux (clave RSA, contraseña con `--password-env` y por terminal, sudo con y sin contraseña, varios servidores, `--check`). En macOS es el mismo OpenSSH; en **Windows** no se ha probado y el ayudante de contraseñas (`--ask-password` / `--password-env`) puede comportarse distinto según la versión de OpenSSH.
+- La validación de claves se ha probado con OpenSSH en Linux (clave RSA 4096, instalación idempotente, reparación de permisos, clave no autorizada, destino inexistente). `--install-key` asume un shell POSIX en el servidor.
 - El informe lee el servicio por `systemctl`; en servidores sin systemd solo se muestra la unidad si existe el fichero.

@@ -14,6 +14,9 @@ report, what the service is really going to use:
   · the systemd service (state, user, ExecStart, ReadWritePaths, restarts)
   · a list of diagnostics (OK / warnings / errors)
 
+  · (--authorized-keys / --keys-only) audit of the SSH keys that allow logging in to this server:
+    ~/.ssh/authorized_keys (keys, fingerprints, permissions, owner) and the sshd settings that matter
+
 It only READS: it never modifies anything and never calls the Weather Underground API.
 
 Usage:
@@ -22,13 +25,18 @@ Usage:
     sudo python3 telemet-collector-info.py --show-key      # shows the API Key in full
     python3 telemet-collector-info.py --json               # machine-readable output
     python3 telemet-collector-info.py --lang en            # English (default: from $LANG)
+    python3 telemet-collector-info.py --keys-only          # only the authorized_keys audit (no sudo needed)
+    sudo python3 telemet-collector-info.py --authorized-keys   # full report + authorized_keys audit
 
 config.ini is normally mode 600 and owned by 'telemet': run it with sudo.
 """
 
 import argparse
+import base64
 import configparser
+import glob
 import grp
+import hashlib
 import json
 import os
 import pwd
@@ -96,6 +104,23 @@ T = {
         "w_other": "Hay también un servicio %s (colector en español) instalado; si lee la misma estación, deja solo uno.",
         "w_calls": "Con %s s entre lecturas son %s llamadas/día a la API: comprueba el límite diario de tu API Key.",
         "w_station_mismatch": "La base de datos %s pertenece a la estación '%s', no a '%s'.",
+        "k_title": "Claves SSH autorizadas (authorized_keys)", "k_user": "Usuario", "k_home": "Directorio personal",
+        "k_sshdir": "Carpeta .ssh", "k_file": "Fichero de claves", "k_keys": "Claves autorizadas", "k_none": "(ninguna)",
+        "k_sshd": "Servidor SSH (sshd)", "k_opts": "opciones", "k_missing": "no existe", "k_default": "por defecto",
+        "k_nouser": "El usuario '%s' no existe.",
+        "k_nodir": "No existe %s: no hay claves autorizadas (el acceso por clave no funcionará).",
+        "k_nofile": "No existe %s (falta authorized_keys): el acceso por clave no funcionará.",
+        "k_unread": "No se puede leer %s (%s).",
+        "k_empty": "%s no contiene ninguna clave.",
+        "k_perm": "%s tiene permisos %s: no debe ser escribible por grupo ni otros (con StrictModes sshd ignora las claves). Arreglo: chmod %s %s",
+        "k_owner": "%s pertenece a %s y debería ser de %s (sshd ignorará las claves).",
+        "k_home_w": "El directorio personal %s es escribible por grupo u otros (permisos %s): con StrictModes sshd rechaza las claves. Arreglo: chmod go-w %s",
+        "k_pubauth": "sshd tiene PubkeyAuthentication desactivado: el acceso por clave no funcionará.",
+        "k_weak": "Clave débil u obsoleta en la línea %d (%s): %s.",
+        "k_custom": "sshd lee las claves de AuthorizedKeysFile = %s.",
+        "k_pw_on": "sshd admite contraseña (PasswordAuthentication yes). Cuando compruebes que la clave funciona puedes ponerlo en 'no'.",
+        "k_ok": "Acceso por clave correcto: %d clave(s) autorizada(s) y permisos válidos.",
+        "info": "INFO",
         "i_all_ok": "Sin problemas detectados.", "i_sudo": "Ejecuta con sudo para ver la configuración completa.",
         "key_hint": "(usa --show-key para verla completa)",
     },
@@ -139,6 +164,23 @@ T = {
         "w_other": "A service %s (the Spanish collector) is also installed; if it reads the same station, keep only one.",
         "w_calls": "With %s s between readings that is %s API calls/day: check your API Key's daily limit.",
         "w_station_mismatch": "The database %s belongs to station '%s', not '%s'.",
+        "k_title": "Authorized SSH keys (authorized_keys)", "k_user": "User", "k_home": "Home directory",
+        "k_sshdir": ".ssh folder", "k_file": "Keys file", "k_keys": "Authorized keys", "k_none": "(none)",
+        "k_sshd": "SSH server (sshd)", "k_opts": "options", "k_missing": "does not exist", "k_default": "default",
+        "k_nouser": "User '%s' does not exist.",
+        "k_nodir": "%s does not exist: there are no authorized keys (key login will not work).",
+        "k_nofile": "%s does not exist (authorized_keys is missing): key login will not work.",
+        "k_unread": "Cannot read %s (%s).",
+        "k_empty": "%s contains no key.",
+        "k_perm": "%s has permissions %s: it must not be writable by group or others (with StrictModes sshd ignores the keys). Fix: chmod %s %s",
+        "k_owner": "%s belongs to %s and should belong to %s (sshd will ignore the keys).",
+        "k_home_w": "The home directory %s is writable by group or others (permissions %s): with StrictModes sshd rejects the keys. Fix: chmod go-w %s",
+        "k_pubauth": "sshd has PubkeyAuthentication disabled: key login will not work.",
+        "k_weak": "Weak or obsolete key on line %d (%s): %s.",
+        "k_custom": "sshd reads the keys from AuthorizedKeysFile = %s.",
+        "k_pw_on": "sshd accepts passwords (PasswordAuthentication yes). Once you have checked that the key works you can set it to 'no'.",
+        "k_ok": "Key login is fine: %d authorized key(s) and valid permissions.",
+        "info": "INFO",
         "i_all_ok": "No problems found.", "i_sudo": "Run with sudo to see the full configuration.",
         "key_hint": "(use --show-key to see it in full)",
     },
@@ -384,6 +426,184 @@ def inspect_json(path):
     return r
 
 
+# ----------------------------------------------------------------------------- authorized_keys audit
+KEY_RE = re.compile(r"(?:^|\s)((?:ssh-(?:rsa|dss|ed25519)|ecdsa-sha2-nistp(?:256|384|521)|"
+                    r"sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com))\s+"
+                    r"([A-Za-z0-9+/]+={0,3})(?:\s+(.*))?$")
+
+
+def fingerprint(blob):
+    return "SHA256:" + base64.b64encode(hashlib.sha256(blob).digest()).decode("ascii").rstrip("=")
+
+
+def rsa_bits(blob):
+    try:
+        def rd(b, i):
+            n = int.from_bytes(b[i:i + 4], "big")
+            return b[i + 4:i + 4 + n], i + 4 + n
+        _t, i = rd(blob, 0)
+        _e, i = rd(blob, i)
+        n, _ = rd(blob, i)
+        return int.from_bytes(n, "big").bit_length()
+    except Exception:
+        return None
+
+
+def parse_sshd_config(path="/etc/ssh/sshd_config", _seen=None):
+    """Global directives of sshd_config (the first value wins, like sshd). Match blocks are ignored."""
+    cfg, _seen = {}, (_seen if _seen is not None else set())
+    if path in _seen:
+        return cfg
+    _seen.add(path)
+    try:
+        lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        return cfg
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split(None, 1)
+        key, val = parts[0].lower(), (parts[1].strip() if len(parts) > 1 else "")
+        if key == "match":
+            break
+        if key == "include":
+            for pat in val.split():
+                pat = pat if os.path.isabs(pat) else os.path.join("/etc/ssh", pat)
+                for p in sorted(glob.glob(pat)):
+                    for k, v in parse_sshd_config(p, _seen).items():
+                        cfg.setdefault(k, v)
+            continue
+        cfg.setdefault(key, val.strip('"'))
+    return cfg
+
+
+def _stat_info(path):
+    try:
+        st = os.stat(path)
+    except OSError:
+        return {"path": path, "exists": False}
+    return {"path": path, "exists": True, "mode": oct(st.st_mode & 0o777)[2:], "mode_int": st.st_mode & 0o777,
+            "owner": owner_of(st), "uid": st.st_uid, "size": st.st_size, "is_dir": os.path.isdir(path)}
+
+
+def audit_authorized_keys(user=None):
+    """Audit of the SSH keys that allow logging in as `user` (default: the login user, even under sudo)."""
+    user = user or os.environ.get("SUDO_USER") or pwd.getpwuid(os.getuid()).pw_name
+    res = {"user": user, "diag": []}
+    d = res["diag"]
+    try:
+        pw = pwd.getpwnam(user)
+    except KeyError:
+        d.append(("err", ("k_nouser", user)))
+        return res
+    home = pw.pw_dir
+    sshd = parse_sshd_config()
+    res["sshd"] = {k: sshd.get(k) for k in ("pubkeyauthentication", "authorizedkeysfile", "passwordauthentication",
+                                            "permitrootlogin", "strictmodes", "port") if sshd.get(k) is not None}
+    strict = (sshd.get("strictmodes", "yes").lower() != "no")
+    tokens = (sshd.get("authorizedkeysfile") or ".ssh/authorized_keys .ssh/authorized_keys2").split()
+    paths = []
+    for tok in tokens:
+        p = tok.replace("%%", "\0").replace("%h", home).replace("%u", user).replace("\0", "%")
+        paths.append(p if os.path.isabs(p) else os.path.join(home, p))
+    akf = next((p for p in paths if os.path.isfile(p)), paths[0])
+    res["home"] = {**_stat_info(home), "dir": home}
+    res["ssh_dir"] = _stat_info(os.path.join(home, ".ssh"))
+    res["file"] = _stat_info(akf)
+    res["custom_file"] = bool(sshd.get("authorizedkeysfile")) and akf != os.path.join(home, ".ssh", "authorized_keys")
+    if sshd.get("pubkeyauthentication", "yes").lower() == "no":
+        d.append(("err", ("k_pubauth",)))
+    if res["custom_file"]:
+        d.append(("info", ("k_custom", sshd.get("authorizedkeysfile"))))
+    if sshd.get("passwordauthentication", "yes").lower() == "yes":
+        d.append(("info", ("k_pw_on",)))
+
+    keys = []
+    if not res["file"]["exists"]:
+        if not res["ssh_dir"]["exists"]:
+            d.append(("warn", ("k_nodir", res["ssh_dir"]["path"])))
+        else:
+            d.append(("warn", ("k_nofile", akf)))
+    else:
+        try:
+            lines = open(akf, encoding="utf-8", errors="replace").read().splitlines()
+        except OSError as e:
+            d.append(("err", ("k_unread", akf, e.strerror or str(e))))
+            lines = []
+        for n, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            m = KEY_RE.search(line)
+            if not m:
+                continue
+            ktype, b64, comment = m.group(1), m.group(2), (m.group(3) or "").strip()
+            try:
+                blob = base64.b64decode(b64 + "=" * (-len(b64) % 4))
+            except Exception:
+                continue
+            bits = rsa_bits(blob) if ktype == "ssh-rsa" else None
+            keys.append({"line": n, "type": ktype, "bits": bits, "fingerprint": fingerprint(blob),
+                         "comment": comment, "options": line[:m.start()].strip()})
+            if ktype == "ssh-dss":
+                d.append(("warn", ("k_weak", n, ktype, "DSA")))
+            elif bits and bits < 2048:
+                d.append(("warn", ("k_weak", n, "RSA %d" % bits, "< 2048 bits")))
+        if not keys and res["file"]["exists"]:
+            d.append(("warn", ("k_empty", akf)))
+    res["keys"] = keys
+
+    # StrictModes: sshd rejects the keys if home, ~/.ssh or the file are writable by others or foreign
+    if strict:
+        h = res["home"]
+        if h["exists"] and (h["mode_int"] & 0o022):
+            d.append(("err", ("k_home_w", home, h["mode"], home)))
+        for key, want in (("ssh_dir", "700"), ("file", "600")):
+            e = res[key]
+            if e["exists"]:
+                if e["mode_int"] & 0o022:
+                    d.append(("err", ("k_perm", e["path"], e["mode"], want, e["path"])))
+                if e["uid"] not in (pw.pw_uid, 0):
+                    d.append(("err", ("k_owner", e["path"], e["owner"], user)))
+    if keys and not any(l == "err" for l, *_ in d):
+        d.append(("ok", ("k_ok", len(keys))))
+    return res
+
+
+def keys_text(t, diag_item):
+    """('k_xxx', args…) -> translated text."""
+    return t[diag_item[0]] % tuple(diag_item[1:]) if len(diag_item) > 1 else t[diag_item[0]]
+
+
+def print_keys(o, t, k):
+    o.head(t["k_title"])
+    o.row(t["k_user"], k["user"])
+    if "home" not in k:
+        return
+    o.row(t["k_home"], "%s · %s · %s" % (k["home"]["dir"], k["home"].get("mode", "?"), k["home"].get("owner", "?")))
+    for label, e in ((t["k_sshdir"], k["ssh_dir"]), (t["k_file"], k["file"])):
+        o.row(label, "%s · %s" % (e["path"], ("%s · %s" % (e["mode"], e["owner"])) if e["exists"] else t["k_missing"]))
+    sshd = k.get("sshd", {})
+    dflt = {"pubkeyauthentication": "yes", "passwordauthentication": "yes", "permitrootlogin": "prohibit-password",
+            "strictmodes": "yes", "authorizedkeysfile": ".ssh/authorized_keys"}
+    o.row(t["k_sshd"], ", ".join("%s=%s" % (n, sshd[n.lower()] if n.lower() in sshd else "%s (%s)" % (dflt[n.lower()], t["k_default"]))
+                                  for n in ("PubkeyAuthentication", "PasswordAuthentication", "PermitRootLogin",
+                                            "StrictModes")))
+    print("  " + o.paint("2", t["k_keys"] + " (%d):" % len(k["keys"])) + ("" if k["keys"] else " " + t["k_none"]))
+    for i, key in enumerate(k["keys"], 1):
+        kind = key["type"] + (" %d" % key["bits"] if key["bits"] else "")
+        extra = ("  [%s: %s]" % (t["k_opts"], key["options"])) if key["options"] else ""
+        print("    #%d %s  %s  %s%s" % (i, kind, key["fingerprint"], key["comment"] or "-", o.paint("2", extra)))
+
+
+def print_diag(o, t, diag):
+    for lvl, msg in diag:
+        sym, col, lab = {"err": ("✘", "31", t["err"]), "warn": ("▲", "33", t["warn"]),
+                         "info": ("ℹ", "36", t["info"]), "ok": ("✔", "32", t["ok"])}[lvl]
+        print("  " + o.paint(col, "%s %s" % (sym, lab)) + " " + msg)
+
+
 # ----------------------------------------------------------------------------- report
 class Out:
     def __init__(self, color):
@@ -410,9 +630,27 @@ def main(argv=None):
     ap.add_argument("--no-color", action="store_true")
     ap.add_argument("--color", action="store_true", help="force colors even if the output is not a terminal (used by the SSH version)")
     ap.add_argument("--lang", choices=("es", "en"), default=default_lang())
+    ap.add_argument("--authorized-keys", nargs="?", const="", default=None, metavar="USER",
+                    help="also audit the SSH keys that allow logging in (default: the login user)")
+    ap.add_argument("--keys-only", nargs="?", const="", default=None, metavar="USER",
+                    help="show only the authorized_keys audit (no config.ini, no sudo needed)")
     a = ap.parse_args(argv)
     t = T[a.lang]
     o = Out((sys.stdout.isatty() or a.color) and not a.no_color and not a.json)
+
+    if a.keys_only is not None:
+        k = audit_authorized_keys(a.keys_only or None)
+        kd = [(l, keys_text(t, m)) for l, m in k["diag"]]
+        if a.json:
+            print(json.dumps({"authorized_keys": {**{n: v for n, v in k.items() if n != "diag"}},
+                              "diagnostics": [{"level": l, "message": m} for l, m in kd]}, indent=2, ensure_ascii=False))
+        else:
+            print(o.paint("2", "%s %s" % (t["generated"], fmt_time(time.time()))))
+            print_keys(o, t, k)
+            o.head(t["diag"])
+            print_diag(o, t, kd or [("ok", t["i_all_ok"])])
+            print()
+        return 1 if any(l == "err" for l, _ in kd) else 0
 
     path = a.config
     if not path:
@@ -510,6 +748,10 @@ def main(argv=None):
     if not a.no_service and os.path.isfile("/etc/systemd/system/%s.service" % OTHER_SERVICE) and a.service != OTHER_SERVICE:
         diag.append(("warn", t["w_other"] % OTHER_SERVICE))
 
+    keys_audit = None
+    if a.authorized_keys is not None:
+        keys_audit = audit_authorized_keys(a.authorized_keys or None)
+        diag += [(l if l != "ok" else "info", keys_text(t, m)) for l, m in keys_audit["diag"] if l != "ok"]
     diag = list(dict.fromkeys(diag))   # without repeated messages (stations that share a folder)
 
     # ---- JSON mode
@@ -522,6 +764,8 @@ def main(argv=None):
                "service": {**svc, "user": svc_user, "read_write_paths": unit["rw"], "keys": unit["keys"],
                            "environment": sorted(unit["env"])},
                "diagnostics": [{"level": l, "message": m} for l, m in diag]}
+        if keys_audit:
+            out["authorized_keys"] = {n: v for n, v in keys_audit.items() if n != "diag"}
         print(json.dumps(out, indent=2, ensure_ascii=False))
         return 1 if any(l == "err" for l, _ in diag) else 0
 
@@ -612,12 +856,13 @@ def main(argv=None):
     if shell_env:
         o.row(t["env_shell"], ", ".join("%s=%s" % (k, "***" if "KEY" in k else v) for k, v in sorted(shell_env.items())))
 
+    if keys_audit:
+        print_keys(o, t, keys_audit)
+
     o.head(t["diag"])
     if not diag:
         print("  " + o.paint("32", "✔ " + t["ok"]) + " " + t["i_all_ok"])
-    for lvl, msg in diag:
-        sym, col, lab = ("✘", "31", t["err"]) if lvl == "err" else ("▲", "33", t["warn"])
-        print("  " + o.paint(col, "%s %s" % (sym, lab)) + " " + msg)
+    print_diag(o, t, diag)
     print()
     return 1 if any(l == "err" for l, _ in diag) else 0
 

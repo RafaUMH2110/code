@@ -8,7 +8,7 @@ Scripts **independientes** (solo biblioteca estándar de Python 3, no necesitan 
 | Script | Se ejecuta | Para qué |
 |---|---|---|
 | `telemet-collector-info.py` | En el servidor | Informe local |
-| `telemet-collector-info-ssh.py` | En tu ordenador (CLI o VS Code) | Se conecta por SSH (contraseña o clave RSA) y muestra el informe del servidor sin instalar nada allí; admite varios servidores |
+| `telemet-collector-info-ssh.py` | En tu ordenador (CLI o VS Code) | Se conecta por SSH (contraseña o clave RSA) y muestra el informe del servidor sin instalar nada allí; admite varios servidores. También valida/instala el acceso por `authorized_keys` |
 
 **Manual detallado: [`MANUAL.md`](MANUAL.md)** (autenticación, sudo, VS Code, automatización, solución de problemas). Ejemplos para VS Code en `vscode-ejemplo/`.
 
@@ -21,6 +21,7 @@ Scripts **independientes** (solo biblioteca estándar de Python 3, no necesitan 
 | Lectura, ciclo, salida y log | `base_url`, `interval_s`, `timeout_s`, `backoff_*`, `duration_hours`, `mode`, `db_path`, `json_path`, `decimals`, nivel y fichero de log |
 | Directorios y ficheros | Directorio de instalación; por estación, base de datos (tamaño, propietario, nº de lecturas, primera y última) y JSON (tamaño, propietario, antigüedad, lecturas) |
 | Servicio systemd | Unidad, estado, arranque automático, usuario, `ExecStart`, `ReadWritePaths`, reinicios, variables de entorno de la unidad |
+| Claves SSH (opcional) | Con `--authorized-keys` / `--keys-only`: claves de `authorized_keys` (tipo, bits, huella, comentario, opciones), permisos y propietario, ajustes de `sshd` |
 | Diagnóstico | Avisos y errores: credenciales de plantilla o ausentes, BOM, permisos, carpeta del JSON inexistente o sin permiso de escritura, `ReadWritePaths`, JSON antiguo, servicio parado o reiniciándose, servicio español instalado a la vez… |
 
 Los valores se calculan con las mismas reglas que `telemet_collector.py` (rutas relativas respecto a `config.ini`, sufijo `_<ID>` con varias estaciones, `[station:ID]`, `TELEMET_*`…).
@@ -46,6 +47,18 @@ python3 telemet-collector-info-ssh.py rafa@servidor --ask-password       # contr
 python3 telemet-collector-info-ssh.py srv1 srv2 --json                   # varios servidores
 python3 telemet-collector-info-ssh.py rafa@servidor --check              # solo probar la conexión
 ```
+
+### Acceso por clave (`authorized_keys`)
+
+```bash
+python3 telemet-collector-info-ssh.py --generate-key                       # crea ~/.ssh/id_rsa (RSA 4096) si no existe
+python3 telemet-collector-info-ssh.py rafa@servidor --install-key          # copia tu clave pública (pide la contraseña una vez) y valida
+python3 telemet-collector-info-ssh.py rafa@servidor --check-key            # ¿entra solo con clave? + auditoría de authorized_keys
+python3 telemet-collector-info-ssh.py rafa@servidor --check-key --ask-password   # si falla: audita el servidor con la contraseña
+python3 telemet-collector-info.py --keys-only                              # auditoría local de authorized_keys (en el servidor, sin sudo)
+```
+
+`--check-key` fuerza `PreferredAuthentications=publickey` y `PasswordAuthentication=no`, así que solo da OK si la clave funciona de verdad; indica qué clave se usó y, en el servidor, revisa claves, huellas, permisos (`StrictModes`) y ajustes de `sshd_config`. `--install-key` es idempotente y repara permisos de `~/.ssh`. Código de salida 5 si el servidor no acepta la clave. Detalle en [`MANUAL.md`](MANUAL.md) §5.4.
 
 Los dos `.py` deben estar en la misma carpeta. Necesita `ssh` en tu ordenador y `python3` (y `sudo` si no eres root) en el servidor.
 

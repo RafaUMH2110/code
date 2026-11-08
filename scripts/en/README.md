@@ -24,7 +24,7 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | same | Entry portal (lists **all** the cloned apps, not only the telemetry ones) and its favicon; must sit next to the script |
 | | `install-all-guide.md` | `instrucciones-instalar-todo.md` | Guide for `install-all.sh` |
 | `../telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` | Shows all the TeleMet Collector parameters (bilingual output, `--lang en`). Standalone, read-only |
-| | `telemet-collector-info-ssh.py` | `telemet-collector-info-ssh.py` | Runs on your computer (CLI or VS Code): connects by SSH (password or RSA key) and shows the report of one or several servers. Manual in Spanish: `MANUAL.md` |
+| | `telemet-collector-info-ssh.py` | `telemet-collector-info-ssh.py` | Runs on your computer (CLI or VS Code): connects by SSH (password or RSA key) and shows the report of one or several servers. `--check-key` / `--install-key` / `--generate-key` validate or install `authorized_keys` login. Manual in Spanish: `MANUAL.md` |
 
 `install-all*.sh` supersede the scripts in `clone-update/`.
 

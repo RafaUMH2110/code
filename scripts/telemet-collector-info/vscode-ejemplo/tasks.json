@@ -30,6 +30,32 @@
       "problemMatcher": []
     },
     {
+      "label": "TeleMet Collector: validar acceso por clave (authorized_keys)",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+        "${input:destino}",
+        "--check-key",
+        "--accept-new-host-key"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "TeleMet Collector: instalar mi clave pública en el servidor",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "${workspaceFolder}/scripts/telemet-collector-info/telemet-collector-info-ssh.py",
+        "${input:destino}",
+        "--install-key",
+        "--accept-new-host-key"
+      ],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "focus": true },
+      "problemMatcher": []
+    },
+    {
       "label": "TeleMet Collector: parámetros (clave RSA, JSON)",
       "type": "shell",
       "command": "python3",
