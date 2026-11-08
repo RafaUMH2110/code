@@ -1,0 +1,11 @@
+{
+  // Solo afecta a la carpeta raíz del workspace: oculta lo que ya es una carpeta propia.
+  "files.exclude": {
+    "macos": true,
+    "windows": true,
+    "linux": true,
+    "generador-apps": true,
+    "scripts": true,
+    "telemetria": true
+  }
+}

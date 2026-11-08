@@ -51,6 +51,9 @@ notas-rapidas/
 3. Ajusta `.vscode/launch.json`, `.vscode/tasks.json`, el manual y las guías.
 4. Añade la app a la tabla de abajo.
 
+## VS Code
+Abre `code.code-workspace` (menú *Archivo → Abrir workspace desde archivo*): reúne cada app como carpeta raíz, de modo que se aplica su `.vscode/` (intérprete `.venv`, depuración y tareas). También puedes abrir una app suelta como carpeta.
+
 ## Apps
 
 | App | Descripción | macOS | Windows | Linux |
