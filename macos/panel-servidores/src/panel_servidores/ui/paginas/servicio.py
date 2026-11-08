@@ -42,7 +42,8 @@ class PaginaServicio(PaginaBase):
 
         # --- estado y acciones
         self.estado = QLabel("Estado: —")
-        self.estado.setProperty("rol", "titulo")
+        estilo.poner_rol(self.estado, "titulo")
+        self.estado.setProperty("grande", True)      # conserva el tamaño de título al cambiar a ok/error
         self.detalle = QLabel("")
         self.detalle.setProperty("rol", "subtitulo")
         self.raiz.addWidget(self.estado)
@@ -149,7 +150,7 @@ class PaginaServicio(PaginaBase):
             activo = d.get("active", "?")
             self.estado.setText("Estado: %s (%s)" % (activo, "arranca con el sistema" if d.get("enabled") == "enabled"
                                                     else "arranque: " + d.get("enabled", "?")))
-            self.estado.setStyleSheet("color:%s" % (estilo.COLOR_OK if activo == "active" else estilo.COLOR_ERROR))
+            estilo.poner_rol(self.estado, "ok" if activo == "active" else "error")
             self.detalle.setText("Reinicios: %s · PID: %s · usuario: %s · desde: %s" % (
                 d.get("NRestarts", "—"), d.get("MainPID", "—"), d.get("User", "—") or "—", d.get("ActiveEnterTimestamp", "—")))
             self.consola.clear()

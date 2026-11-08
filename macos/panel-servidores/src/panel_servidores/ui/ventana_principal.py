@@ -5,14 +5,15 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (QDialog, QDockWidget, QFileDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-                               QMainWindow, QMessageBox, QPushButton, QSplitter, QTabWidget, QVBoxLayout,
+                               QMainWindow, QMenu, QMessageBox, QPushButton, QSplitter, QTabWidget, QVBoxLayout,
                                QWidget)
 
 from .. import LEYENDA_IA, AUTOR, NOMBRE_APP, __version__
 from ..nucleo import sshconfig
 from ..nucleo.modelos import Perfil
+from . import estilo
 from .contexto import Contexto
 from .dialogo_ajustes import DialogoAjustes
 from .dialogo_flota import DialogoFlota
@@ -23,7 +24,7 @@ from .paginas.informe import PaginaInforme
 from .paginas.instalador import PaginaInstalador
 from .paginas.resumen import PaginaResumen
 from .paginas.servicio import PaginaServicio
-from .widgets import ConsolaAnsi, guardar_texto
+from .widgets import botones_es, ConsolaAnsi, guardar_texto
 
 
 class VentanaPrincipal(QMainWindow):
@@ -47,6 +48,7 @@ class VentanaPrincipal(QMainWindow):
         ctx.actividad.connect(self.actividad.anadir)
         ctx.sesion_cambiada.connect(lambda _id: self._refrescar_lista())
         ctx.perfiles_cambiados.connect(self._refrescar_lista)
+        estilo.notificador.cambiado.connect(self._refrescar_lista)   # los colores de la lista dependen del tema
         self._refrescar_lista()
         if self.lista.count():
             self.lista.setCurrentRow(0)
@@ -142,11 +144,35 @@ class VentanaPrincipal(QMainWindow):
 
         m = mb.addMenu("Ver")
         m.addAction(self.dock.toggleViewAction())
+        m.addMenu(self._menu_apariencia())
+        m.addSeparator()
         for i, p in enumerate(self.paginas):
             self._accion(m, p.titulo, lambda i=i: self.pestanas.setCurrentIndex(i), "Ctrl+%d" % (i + 1))
 
         m = mb.addMenu("Ayuda")
         self._accion(m, "Acerca de %s" % NOMBRE_APP, self.acerca_de, None, QAction.MenuRole.AboutRole)
+
+    def _menu_apariencia(self) -> QMenu:
+        """Submenú Ver ▸ Apariencia: según el sistema / claro / oscuro. Se recuerda en las preferencias."""
+        menu = QMenu("Apariencia", self)
+        self._grupo_tema = QActionGroup(self)
+        self._grupo_tema.setExclusive(True)
+        actual = self.ctx.almacen.ajustes.tema
+        for clave, texto in estilo.TEMAS:
+            a = QAction(texto, self, checkable=True)
+            a.setChecked(clave == actual)
+            a.triggered.connect(lambda _=False, c=clave: self.cambiar_tema(c))
+            self._grupo_tema.addAction(a)
+            menu.addAction(a)
+        return menu
+
+    def cambiar_tema(self, modo: str) -> None:
+        """Aplica y guarda la apariencia elegida."""
+        self.ctx.almacen.ajustes.tema = modo
+        self.ctx.almacen.guardar_ajustes()
+        estilo.aplicar_tema(modo)
+        for a in self._grupo_tema.actions():       # por si se llamó desde Preferencias
+            a.setChecked(a.text() == dict(estilo.TEMAS)[modo])
 
     # ------------------------------------------------------------------ lista de servidores
     def perfil_actual(self) -> Optional[Perfil]:
@@ -163,7 +189,7 @@ class VentanaPrincipal(QMainWindow):
             it.setToolTip("%s\n%s" % (p.destino, "conectado" if abierta else "sin conexión"))
             it.setData(Qt.ItemDataRole.UserRole, p.id)
             if abierta:
-                it.setForeground(Qt.GlobalColor.darkGreen)
+                it.setForeground(estilo.qcolor("ok"))
             self.lista.addItem(it)
             if p.id == actual:
                 self.lista.setCurrentItem(it)
@@ -251,7 +277,7 @@ class VentanaPrincipal(QMainWindow):
             lista.addItem(it)
         capa.addWidget(lista)
         from PySide6.QtWidgets import QDialogButtonBox
-        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        botones = botones_es(QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel))
         botones.accepted.connect(dlg.accept)
         botones.rejected.connect(dlg.reject)
         capa.addWidget(botones)

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+from collections import deque
 from typing import Optional
 
-from PySide6.QtGui import QColor, QGuiApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPlainTextEdit, QProgressBar, QPushButton,
-                               QTableWidget, QTableWidgetItem, QTextBrowser, QWidget, QHeaderView, QAbstractItemView)
+                               QTableWidget, QTableWidgetItem, QTextBrowser, QWidget, QHeaderView, QAbstractItemView,
+                               QDialogButtonBox, QTreeWidget)
 
 from ..nucleo.ansi import ansi_a_html, quitar_ansi
 from . import estilo
@@ -15,25 +18,46 @@ from .hilos import Trabajo
 
 
 class ConsolaAnsi(QPlainTextEdit):
-    """Registro de solo lectura que entiende los colores ANSI y limita su tamaño."""
+    """Registro de solo lectura que entiende los colores ANSI y limita su tamaño.
+
+    Guarda el texto original de cada anotación para poder repintarlo con la paleta del otro tema cuando el
+    usuario cambia entre claro y oscuro (los colores ya convertidos a HTML no se pueden «recolorear»)."""
 
     def __init__(self, maximo_lineas: int = 20000, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setFont(estilo.fuente_mono(11))
+        self.setFont(estilo.fuente_mono())
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.setMaximumBlockCount(maximo_lineas)
+        self._anotaciones: deque = deque(maxlen=maximo_lineas)
+        estilo.notificador.cambiado.connect(self._repintar)
+
+    def _html(self, texto: str, es_error: bool) -> str:
+        html = ansi_a_html(texto.rstrip("\n"), envolver=False, oscuro=estilo.es_oscuro())
+        if es_error:
+            html = '<span style="color:%s">%s</span>' % (estilo.color("error"), html)
+        return html.replace("\n", "<br>")
 
     def anadir(self, texto: str, es_error: bool = False) -> None:
         """Añade una o varias líneas (con ANSI) al final y mantiene el desplazamiento si el usuario estaba abajo."""
         barra = self.verticalScrollBar()
         abajo = barra.value() >= barra.maximum() - 4
-        html = ansi_a_html(texto.rstrip("\n"), envolver=False)
-        if es_error:
-            html = '<span style="color:%s">%s</span>' % (estilo.COLOR_ERROR, html)
-        self.appendHtml(html.replace("\n", "<br>"))
+        self._anotaciones.append((texto, es_error))
+        self.appendHtml(self._html(texto, es_error))
         if abajo:
             barra.setValue(barra.maximum())
+
+    def clear(self) -> None:  # noqa: D401 - sobrescribe QPlainTextEdit.clear
+        self._anotaciones.clear()
+        super().clear()
+
+    def _repintar(self) -> None:
+        """Vuelve a escribir todo con los colores del tema actual."""
+        self.setFont(estilo.fuente_mono())
+        super().clear()
+        for texto, es_error in self._anotaciones:
+            self.appendHtml(self._html(texto, es_error))
+        self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
 
     def texto_plano(self) -> str:
         return self.toPlainText()
@@ -44,16 +68,39 @@ class VisorTexto(QTextBrowser):
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.setFont(estilo.fuente_mono(11))
+        self.setFont(estilo.fuente_mono())
         self.setOpenLinks(False)
         self._crudo = ""
+        estilo.notificador.cambiado.connect(lambda: self.poner(self._crudo) if self._crudo else None)
 
     def poner(self, texto_ansi: str) -> None:
         self._crudo = texto_ansi
-        self.setHtml(ansi_a_html(texto_ansi))
+        self.setHtml(ansi_a_html(texto_ansi, oscuro=estilo.es_oscuro()))
 
     def texto_sin_color(self) -> str:
         return quitar_ansi(self._crudo)
+
+
+class VistaComando(QPlainTextEdit):
+    """Línea de comando de solo lectura que **se ajusta al ancho** (una QLineEdit cortaría el final de las
+    órdenes largas). Mantiene ``text()`` / ``setText()`` para usarse como un campo de texto."""
+
+    def __init__(self, parent: Optional[QWidget] = None, lineas: int = 2):
+        super().__init__(parent)
+        self.setReadOnly(True)
+        self.setFont(estilo.fuente_mono())
+        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.setWordWrapMode(self.wordWrapMode().WrapAnywhere)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setTabChangesFocus(True)
+        alto = self.fontMetrics().lineSpacing() * lineas + 2 * self.frameWidth() + 12
+        self.setFixedHeight(alto)
+
+    def text(self) -> str:
+        return self.toPlainText()
+
+    def setText(self, texto: str) -> None:
+        self.setPlainText(texto)
 
 
 class BarraTarea(QWidget):
@@ -95,39 +142,105 @@ class BarraTarea(QWidget):
         self.cancelar.hide()
 
     def poner(self, texto: str, rol: str = "") -> None:
-        self.estado.setProperty("rol", rol)
-        self.estado.style().unpolish(self.estado)
-        self.estado.style().polish(self.estado)
+        estilo.poner_rol(self.estado, rol)
         self.estado.setText(texto)
 
 
+ANCHO_MAX_COLUMNA = 460      # una columna de texto largo no se come toda la tabla; el resto se ve con el tooltip
+MARGEN_COLUMNA = 14          # aire a cada lado del contenido
+
+
+def ajustar_columnas(t: QTableWidget) -> None:
+    """Da a cada columna el ancho de su contenido **o de su cabecera, el mayor**, con un tope.
+
+    ``resizeColumnsToContents`` por sí solo deja la cabecera cortada en tablas vacías o con textos cortos;
+    aquí se parte de ``sectionSizeHint`` (lo que de verdad necesita la cabecera, con sus márgenes)."""
+    cab = t.horizontalHeader()
+    for c in range(t.columnCount()):
+        ancho = max(cab.sectionSizeHint(c) + MARGEN_COLUMNA, t.sizeHintForColumn(c) + MARGEN_COLUMNA)
+        t.setColumnWidth(c, min(ancho, max(ANCHO_MAX_COLUMNA, cab.sectionSizeHint(c))))
+    cab.setStretchLastSection(True)
+
+
 def tabla(columnas: list, parent: Optional[QWidget] = None, seleccion_filas: bool = True) -> QTableWidget:
-    """Tabla de solo lectura con cabeceras ajustables, filas alternas y sin edición."""
+    """Tabla de solo lectura con el mismo aspecto en todas las pestañas: cabeceras alineadas a la izquierda y
+    sin resaltar, columnas ajustables, filas alternas, texto largo abreviado por el centro y sin edición."""
     t = QTableWidget(0, len(columnas), parent)
     t.setHorizontalHeaderLabels(columnas)
     t.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     t.setAlternatingRowColors(True)
+    t.setWordWrap(False)
+    t.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+    t.setShowGrid(False)
     t.verticalHeader().setVisible(False)
-    t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-    t.horizontalHeader().setStretchLastSection(True)
+    t.verticalHeader().setDefaultSectionSize(max(24, t.fontMetrics().height() + 10))
+    cab = t.horizontalHeader()
+    cab.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+    cab.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    cab.setHighlightSections(False)
+    cab.setMinimumSectionSize(40)
+    cab.setStretchLastSection(True)
     if seleccion_filas:
         t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+    ajustar_columnas(t)
     return t
 
 
+def preparar_arbol(a: QTreeWidget) -> QTreeWidget:
+    """Mismo aspecto de cabecera y de filas que ``tabla`` para los árboles (checkbox + columnas)."""
+    cab = a.header()
+    cab.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    cab.setHighlightSections(False)
+    cab.setMinimumSectionSize(40)
+    cab.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+    cab.setStretchLastSection(True)
+    a.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+    a.setAlternatingRowColors(True)
+    a.setUniformRowHeights(True)
+    ajustar_arbol(a)
+    return a
+
+
+def ajustar_arbol(a: QTreeWidget) -> None:
+    """Como ``ajustar_columnas``: cada columna, al menos tan ancha como su cabecera y su contenido (con tope)."""
+    cab = a.header()
+    for c in range(a.columnCount()):
+        a.resizeColumnToContents(c)
+        ancho = max(cab.sectionSizeHint(c) + MARGEN_COLUMNA, a.columnWidth(c) + MARGEN_COLUMNA)
+        a.setColumnWidth(c, min(ancho, max(ANCHO_MAX_COLUMNA, cab.sectionSizeHint(c))))
+    cab.setStretchLastSection(True)
+
+
 def rellenar(t: QTableWidget, filas: list, colores: Optional[list] = None) -> None:
-    """Sustituye el contenido de ``t`` por ``filas`` (lista de tuplas de texto)."""
+    """Sustituye el contenido de ``t`` por ``filas`` (lista de tuplas de texto).
+
+    ``colores`` es una lista (una entrada por fila) con un rol de ``estilo`` (``ok | aviso | error | tenue``)
+    o ``None``; se resuelve con el tema actual al pintar."""
     t.setRowCount(0)
     t.setRowCount(len(filas))
     for i, fila in enumerate(filas):
         for j, valor in enumerate(fila):
             item = QTableWidgetItem(str(valor))
+            item.setToolTip(str(valor))       # el texto abreviado se puede leer entero al pasar el ratón
             if colores and colores[i]:
-                item.setForeground(QColor(colores[i]))
+                item.setForeground(estilo.qcolor(colores[i]))
             t.setItem(i, j, item)
-    t.resizeColumnsToContents()
-    t.horizontalHeader().setStretchLastSection(True)
+    ajustar_columnas(t)
+
+
+_TEXTOS_BOTONES = {QDialogButtonBox.StandardButton.Save: "Guardar", QDialogButtonBox.StandardButton.Cancel: "Cancelar",
+                   QDialogButtonBox.StandardButton.Ok: "Aceptar", QDialogButtonBox.StandardButton.Close: "Cerrar"}
+
+
+def botones_es(caja: QDialogButtonBox) -> QDialogButtonBox:
+    """Pone en español los botones estándar de un diálogo aunque no esté cargada la traducción de Qt
+    (por ejemplo en la app empaquetada). Devuelve la misma caja para poder encadenarlo."""
+    for boton_std, texto in _TEXTOS_BOTONES.items():
+        b = caja.button(boton_std)
+        if b is not None:
+            b.setText(texto)
+    return caja
 
 
 def copiar(texto: str) -> None:

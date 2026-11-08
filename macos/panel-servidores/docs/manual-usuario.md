@@ -66,7 +66,9 @@ Arrástrala a *Aplicaciones*. La primera vez: **clic derecho → Abrir** (la fir
 * **Abajo:** panel **Actividad**, con cada comando `ssh` que lanza la aplicación (sin contraseñas). Sirve para aprender, para depurar y para copiar un comando y repetirlo a mano. *Guardar registro…* lo exporta.
 * **Barra de cada pestaña:** estado de la operación, barra de progreso y botón **Cancelar**. Una pestaña ejecuta una operación a la vez; las demás siguen disponibles.
 
-Menús: **Archivo** (nuevo, importar/exportar, preferencias), **Servidor** (editar, duplicar, eliminar, desconectar), **Herramientas** (informe de varios servidores), **Ver**, **Ayuda**.
+Menús: **Archivo** (nuevo, importar/exportar, preferencias), **Servidor** (editar, duplicar, eliminar, desconectar), **Herramientas** (informe de varios servidores), **Ver** (panel Actividad, **Apariencia**, ir a una pestaña), **Ayuda**.
+
+**Apariencia clara u oscura.** *Ver ▸ Apariencia* (o *Preferencias ▸ General*) permite elegir **Según el sistema** (por defecto: sigue el modo claro/oscuro de macOS y cambia solo cuando tú lo cambias), **Claro** u **Oscuro**. La elección se recuerda. Los colores de estado (verde correcto, ámbar aviso, rojo error), los informes con color y el registro de actividad se ajustan solos para leerse bien en ambos modos.
 
 ---
 
@@ -209,7 +211,7 @@ Receta típica para dejar de usar contraseña: *Generar nueva* → seleccionarla
 
 ## 8. Preferencias (⌘,)
 
-* **General:** ruta de `ssh` (vacío = autodetectar), idioma del informe, Terminal o iTerm, confirmaciones antes de acciones que modifican el servidor, mostrar clave API por defecto, tamaño de las consolas.
+* **General:** ruta de `ssh` (vacío = autodetectar), apariencia (sistema / claro / oscuro), idioma del informe, Terminal o iTerm, confirmaciones antes de acciones que modifican el servidor, mostrar clave API por defecto, tamaño de las consolas.
 * **GitHub y scripts:** usuario y rama, token opcional (sube el límite de 60 peticiones/hora de la API), y la tabla de **scripts que se envían al servidor** con su origen y huella. Tres orígenes, por orden de prioridad: *carpeta propia* → *descargados de GitHub* (botón **Actualizar desde GitHub**) → *incluidos en la aplicación* (botón **Volver a los incluidos**).
 
 ---

@@ -14,29 +14,41 @@ import re
 _RE_SGR = re.compile(r"\x1b\[([0-9;]*)m")
 _RE_OTRAS = re.compile(r"\x1b\[[0-9;?]*[A-LN-Za-ln-z]")
 
-# Colores medios que se leen bien tanto en tema claro como oscuro.
-_COLORES = {
-    30: "#6b7280", 31: "#d6453d", 32: "#2e9d4f", 33: "#c98a00", 34: "#3b82f6",
-    35: "#a855f7", 36: "#1fa2b8", 37: "#9ca3af",
-    90: "#6b7280", 91: "#ef6a62", 92: "#4cc26e", 93: "#e0a800", 94: "#60a5fa",
-    95: "#c084fc", 96: "#38bdf8", 97: "#d1d5db",
+# Dos paletas, una por tema: los colores del terminal «de siempre» no se leen sobre fondo blanco (amarillo,
+# cian) ni sobre fondo oscuro (negro, azul). Todos cumplen un contraste mínimo de 4,5:1 con el fondo típico
+# de cada tema (blanco #ffffff y gris oscuro #1e1e1e); lo comprueba tests/test_unitarias.py.
+_COLORES_CLARO = {
+    30: "#4b5563", 31: "#c0392b", 32: "#1e7a43", 33: "#8f5f00", 34: "#1d4ed8",
+    35: "#7e22ce", 36: "#0e7490", 37: "#6b7280",
+    90: "#4b5563", 91: "#b91c1c", 92: "#15803d", 93: "#8a5a00", 94: "#1e40af",
+    95: "#6b21a8", 96: "#0e7490", 97: "#6b7280",
 }
-_ATENUADO = "#8a8f98"
+_COLORES_OSCURO = {
+    30: "#9ca3af", 31: "#ff7b72", 32: "#4cc26e", 33: "#e0a800", 34: "#79b8ff",
+    35: "#d2a8ff", 36: "#56d4dd", 37: "#d1d5db",
+    90: "#9ca3af", 91: "#ff9d96", 92: "#7ee787", 93: "#f2cc60", 94: "#a5c8ff",
+    95: "#e0c0ff", 96: "#7fe3ee", 97: "#f3f4f6",
+}
+_ATENUADO_CLARO = "#6b7280"
+_ATENUADO_OSCURO = "#9ca3af"
+PALETAS = {False: (_COLORES_CLARO, _ATENUADO_CLARO), True: (_COLORES_OSCURO, _ATENUADO_OSCURO)}
 
 
-def _estilo(negrita: bool, atenuado: bool, color: int) -> str:
+def _estilo(negrita: bool, atenuado: bool, color: int, oscuro: bool) -> str:
+    colores, tenue = PALETAS[bool(oscuro)]
     css = []
     if negrita:
         css.append("font-weight:bold")
-    if color in _COLORES:
-        css.append("color:%s" % _COLORES[color])
+    if color in colores:
+        css.append("color:%s" % colores[color])
     elif atenuado:
-        css.append("color:%s" % _ATENUADO)
+        css.append("color:%s" % tenue)
     return ";".join(css)
 
 
-def ansi_a_html(texto: str, envolver: bool = True) -> str:
-    """Traduce ``texto`` con ANSI a HTML. Con ``envolver`` lo mete en un ``<pre>`` de fuente fija."""
+def ansi_a_html(texto: str, envolver: bool = True, oscuro: bool = False) -> str:
+    """Traduce ``texto`` con ANSI a HTML. Con ``envolver`` lo mete en un ``<pre>`` de fuente fija.
+    ``oscuro`` elige la paleta para fondo oscuro."""
     texto = _RE_OTRAS.sub("", texto)
     salida: list = []
     negrita = atenuado = False
@@ -62,11 +74,11 @@ def ansi_a_html(texto: str, envolver: bool = True) -> str:
                 negrita = atenuado = False
             elif c == 39:
                 color = 0
-            elif c in _COLORES:
+            elif c in _COLORES_CLARO:
                 color = c
-        estilo = _estilo(negrita, atenuado, color)
-        if estilo:
-            salida.append('<span style="%s">' % estilo)
+        css = _estilo(negrita, atenuado, color, oscuro)
+        if css:
+            salida.append('<span style="%s">' % css)
             abierto = True
     salida.append(html.escape(texto[posicion:]))
     if abierto:

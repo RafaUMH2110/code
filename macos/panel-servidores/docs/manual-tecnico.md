@@ -71,12 +71,21 @@ panel-servidores/
 | `hilos.py` | `Trabajo` (hilo de trabajo + cancelación) y `en_gui()` (vuelta segura al hilo de la interfaz) |
 | `puente.py` | `PuenteInteraccion`: contesta a `pedir_secreto`/`confirmar` con diálogos |
 | `contexto.py` | Estado compartido: perfiles, conexiones abiertas, askpass, señales |
-| `widgets.py` · `estilo.py` | Consola ANSI, barra de tarea, tablas, fuentes |
+| `widgets.py` · `estilo.py` | Consola ANSI, barra de tarea, tablas y árboles (`tabla`, `preparar_arbol`, `ajustar_columnas`), `VistaComando`, `botones_es`; `estilo`: temas claro/oscuro, roles de color, fuentes |
 | `paginas/*.py` | Una pestaña por función, todas derivadas de `PaginaBase` |
 | `dialogo_servidor.py` · `dialogo_ajustes.py` · `dialogo_flota.py` | Ventanas modales |
 | `ventana_principal.py` | Lista, pestañas, dock de actividad, menús |
 
 **Regla:** la interfaz solo llama a funciones de `nucleo/` dentro de un `Trabajo` y pinta el resultado.
+
+#### Aspecto y temas (`ui/estilo.py`)
+
+* **Un rol, no un color.** Las pestañas nunca escriben colores fijos: `estilo.poner_rol(widget, "ok" | "aviso" | "error" | "tenue" | "titulo" | "subtitulo" | "activo")`. La hoja de estilo de la aplicación (`estilo.hoja()`) asigna el color según el tema; si hace falta un color en HTML o `QColor`, `estilo.color(rol)` / `estilo.qcolor(rol)`.
+* **Tema.** `estilo.es_oscuro()` mira la paleta real. `aplicar_tema("sistema" | "claro" | "oscuro")` usa `QStyleHints.setColorScheme` (Qt ≥ 6.8, de ahí `PySide6>=6.8`) y, al cambiar la paleta, vuelve a aplicar la hoja y emite `estilo.notificador.cambiado`. Quien guarde colores ya convertidos (consola ANSI, visor de informe, diagnóstico HTML, lista de servidores) se suscribe a esa señal y se repinta.
+* **ANSI.** `nucleo/ansi.py` tiene dos paletas (`PALETAS`), una por tema, con contraste ≥ 4,5:1 sobre blanco y sobre gris oscuro.
+* **Tablas y árboles.** Siempre se crean con `widgets.tabla(...)` / `preparar_arbol(...)`: cabeceras alineadas a la izquierda, sin resaltar, ancho de columna ≥ el de su cabecera (`sectionSizeHint`) y ≤ 460 px, texto largo abreviado por el centro con tooltip.
+* **Letra de ancho fijo.** `fuente_mono()` sin argumentos = la del sistema, un punto menor que la de la interfaz; no se usan tamaños absolutos (en macOS y en Linux «11 pt» se ven distintos).
+* **Textos en español.** `estilo.instalar_traduccion` carga `qtbase_es`; los diálogos propios llevan además `botones_es(...)` por si la app empaquetada no incluye la traducción.
 
 ---
 
@@ -280,6 +289,7 @@ Limitaciones conocidas: los secretos están en memoria de Python mientras dura l
 | `test_unitarias.py` | Destinos, comandos remotos (ejecutados con `sh` local), opciones del instalador, validaciones, analizador de log, cron, ANSI, almacén, secretos, askpass (ida y vuelta), GitHub (servidor HTTP falso), `ssh_config`, terminal | Nada |
 | `test_ssh_integracion.py` | **sshd real** con usuario de prueba: contraseña con `"` `$` y espacios, 2FA/askpass, multiplexado, huella, sudo (reutilizar/reintentar/nunca), streaming, cancelación, timeout, claves (con y sin frase), auditoría, informe JSON/texto, resumen, servicio | root + OpenSSH servidor/cliente (si no, se **saltan solas**) |
 | `test_ui.py` | La ventana completa sin pantalla (`QT_QPA_PLATFORM=offscreen`) contra el sshd: conectar, resumen, informe con sudo, instalador con script simulado, claves, aplicaciones, flota, diálogo de servidor. Un «autopiloto» contesta a los diálogos | Lo anterior + PySide6 |
+| `test_visual.py` | Renderiza cada pestaña, sub-pestaña y diálogo en **claro y oscuro** y con dos tamaños de ventana, y falla si algún texto o cabecera de tabla queda cortado o desalineado; comprueba el contraste de todos los colores. Con `PSV_CAPTURAS=/carpeta` guarda además las imágenes PNG para revisarlas | Lo anterior + PySide6 |
 | `test_listar_real.py` | El `instalar-todo.sh` **real** (`--listar`) subido y ejecutado por el envoltorio | Lo anterior |
 
 El `sshd` de pruebas (`conftest.py`) se arranca en un puerto libre con el usuario `psv-test`, contraseña `Pa55 w0rd"$x` y `sudo` con contraseña (`/etc/sudoers.d/psv-test`). Solo se ejecuta si eres root; en tu Mac esas pruebas se saltan y corren las unitarias.
