@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Panel de Servidores",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/lanzador.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Panel de Servidores (datos de prueba aislados)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/lanzador.py",
+      "console": "integratedTerminal",
+      "env": { "PANEL_SERVIDORES_HOME": "${workspaceFolder}/.datos-prueba" },
+      "justMyCode": true
+    },
+    {
+      "name": "Pruebas (pytest)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-q", "tests"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
