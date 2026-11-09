@@ -21,8 +21,10 @@ from PySide6.QtWidgets import QApplication, QWidget
 # Colores semánticos por tema. Cumplen un contraste mínimo de 4,5:1 con el fondo habitual de cada tema
 # (blanco / gris oscuro); lo comprueba tests/test_visual.py.
 COLORES = {
-    "claro": {"ok": "#1e7a43", "aviso": "#8f5f00", "error": "#c0392b", "tenue": "#6b7280"},
-    "oscuro": {"ok": "#4cc26e", "aviso": "#e0a800", "error": "#ff7b72", "tenue": "#9ca3af"},
+    "claro": {"ok": "#1e7a43", "aviso": "#8f5f00", "error": "#c0392b", "tenue": "#6b7280",
+              "enlace": "#0b5cad"},
+    "oscuro": {"ok": "#4cc26e", "aviso": "#e0a800", "error": "#ff7b72", "tenue": "#9ca3af",
+               "enlace": "#6cb6ff"},
 }
 
 TEMAS = (("sistema", "Según el sistema"), ("claro", "Claro"), ("oscuro", "Oscuro"))
@@ -48,7 +50,7 @@ def nombre_tema() -> str:
 
 
 def color(rol: str) -> str:
-    """Color (``#rrggbb``) del rol semántico ``ok | aviso | error | tenue`` en el tema actual."""
+    """Color (``#rrggbb``) del rol semántico ``ok | aviso | error | tenue | enlace`` en el tema actual."""
     return COLORES[nombre_tema()][rol]
 
 

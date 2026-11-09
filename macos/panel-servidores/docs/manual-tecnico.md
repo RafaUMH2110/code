@@ -73,7 +73,7 @@ panel-servidores/
 | `contexto.py` | Estado compartido: perfiles, conexiones abiertas, askpass, señales |
 | `widgets.py` · `estilo.py` | Consola ANSI, barra de tarea, tablas y árboles (`tabla`, `preparar_arbol`, `ajustar_columnas`), `VistaComando`, `botones_es`; `estilo`: temas claro/oscuro, roles de color, fuentes |
 | `paginas/*.py` | Una pestaña por función, todas derivadas de `PaginaBase` |
-| `dialogo_servidor.py` · `dialogo_ajustes.py` · `dialogo_flota.py` | Ventanas modales |
+| `dialogo_servidor.py` · `dialogo_ajustes.py` · `dialogo_flota.py` · `dialogo_acerca.py` | Ventanas modales (*Acerca de* usa los datos de `nucleo/acerca.py`) |
 | `ventana_principal.py` | Lista, pestañas, dock de actividad, menús |
 
 **Regla:** la interfaz solo llama a funciones de `nucleo/` dentro de un `Trabajo` y pinta el resultado.

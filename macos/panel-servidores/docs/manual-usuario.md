@@ -216,6 +216,12 @@ Receta típica para dejar de usar contraseña: *Generar nueva* → seleccionarla
 
 ---
 
+### Acerca de (Ayuda ▸ Acerca de Panel de Servidores)
+
+Muestra la versión, la **fecha y hora de la última modificación** del programa, las versiones de Python, Qt y del cliente `ssh`, el sistema operativo y las carpetas donde se guardan los ajustes y los scripts. El botón **Copiar información** deja ese resumen en el portapapeles para pegarlo en un correo cuando haya que pedir ayuda; no contiene contraseñas ni claves.
+
+---
+
 ## 9. Seguridad y privacidad
 
 * Las contraseñas **no se guardan en ningún fichero** de la aplicación. Solo se recuerdan en memoria durante la sesión o, si tú lo pides, en el **Llavero de macOS**.

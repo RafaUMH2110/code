@@ -15,6 +15,7 @@ from ..nucleo import sshconfig
 from ..nucleo.modelos import Perfil
 from . import estilo
 from .contexto import Contexto
+from .dialogo_acerca import DialogoAcerca
 from .dialogo_ajustes import DialogoAjustes
 from .dialogo_flota import DialogoFlota
 from .dialogo_servidor import DialogoServidor
@@ -323,11 +324,7 @@ class VentanaPrincipal(QMainWindow):
         DialogoFlota(self.ctx, self).exec()
 
     def acerca_de(self) -> None:
-        QMessageBox.about(self, "Acerca de %s" % NOMBRE_APP,
-                          "<h3>%s %s</h3><p>Administración gráfica de servidores TeleMet / Apache por SSH.</p>"
-                          "<p>Sustituye a <code>instalar-todo.sh</code>, <code>telemet-collector-info.py</code> y "
-                          "<code>telemet-collector-info-ssh.py</code>.</p><p>%s</p><p><i>%s</i></p>"
-                          % (NOMBRE_APP, __version__, AUTOR, LEYENDA_IA))
+        DialogoAcerca(self.ctx.ajustes.ssh_path, self).exec()
 
     # ------------------------------------------------------------------ cierre
     def closeEvent(self, ev: QCloseEvent) -> None:
