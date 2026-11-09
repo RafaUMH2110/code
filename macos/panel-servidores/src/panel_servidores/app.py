@@ -11,10 +11,10 @@ def main(argv=None) -> int:
     """Crea la aplicación Qt, el contexto y la ventana principal, y entra en el bucle de eventos."""
     from PySide6.QtWidgets import QApplication
 
+    from . import rutas
     from .nucleo.almacen import Almacen
     from .nucleo.askpass import GestorAskpass
     from .nucleo.secretos import Llavero
-    from . import rutas
     from .ui import estilo, hilos
     from .ui.contexto import Contexto
     from .ui.puente import PuenteInteraccion
