@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (QAbstractButton, QAbstractItemView, QApplication,
                                QLabel, QTabWidget, QTableWidget, QTreeWidget, QWidget)
 
 from panel_servidores.ui import estilo  # noqa: E402
+from panel_servidores.ui.dialogo_acerca import DialogoAcerca  # noqa: E402
 from panel_servidores.ui.dialogo_ajustes import DialogoAjustes  # noqa: E402
 from panel_servidores.ui.dialogo_flota import DialogoFlota  # noqa: E402
 from panel_servidores.ui.dialogo_servidor import DialogoServidor  # noqa: E402
@@ -169,7 +170,7 @@ def test_maquetacion_claro_y_oscuro(app, entorno, autopiloto):  # noqa: F811
                     interior.setCurrentIndex(0)
         # diálogos
         dialogos = {"servidor": DialogoServidor(ctx, perfil, ventana), "ajustes": DialogoAjustes(ctx, ventana),
-                    "flota": DialogoFlota(ctx, ventana),
+                    "flota": DialogoFlota(ctx, ventana), "acerca": DialogoAcerca("", ventana),
                     "secreto": DialogoSecreto("Contraseña de psv-test@127.0.0.1", "Introduce la contraseña de SSH.",
                                               True, ventana)}
         for nombre, d in dialogos.items():

@@ -26,6 +26,7 @@ App de escritorio para macOS (Python + PySide6/Qt 6) que sustituye a `instalar-t
 - Tras cambiar código: ejecuta las pruebas y no des la tarea por terminada si falla alguna. Añade una prueba por cada fallo corregido o función nueva.
 - Qt: nunca toques widgets desde un hilo; usa `ui.hilos.en_gui()`. No conectes señales a lambdas esperando que corran en el hilo de la interfaz.
 - Interfaz: **nunca** pongas colores fijos ni `setStyleSheet("color:…")`; usa `estilo.poner_rol` / `estilo.color` (ver «Aspecto y temas» en el manual técnico). Tablas y árboles con `widgets.tabla` / `preparar_arbol`. Tras tocar la interfaz ejecuta `PSV_CAPTURAS=/tmp/capturas python -m pytest tests/test_visual.py` y mira las imágenes (claro y oscuro).
+- Antes de cada commit que cambie la app, ejecuta `./scripts/marcar-modificacion.sh`: actualiza la fecha y hora de «Última modificación» que muestra *Ayuda ▸ Acerca de* (`ULTIMA_MODIFICACION` en `__init__.py`). No la dejes desfasada.
 - Cambios en `nucleo/remoto.py`: la función debe ser pura y tener prueba ejecutándola con `sh` local.
 
 ## Recursos incluidos

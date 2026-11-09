@@ -391,3 +391,20 @@ def test_terminal_applescript():
     assert terminal.escapar_applescript('ssh -o "x" a\\b') == 'ssh -o \\"x\\" a\\\\b'
     assert 'tell application "Terminal"' in terminal.guion_terminal("ssh h")
     assert 'tell application "iTerm"' in terminal.guion_terminal("ssh h", "iTerm2")
+
+
+# ----------------------------------------------------------------------------- «Acerca de»
+def test_acerca_de():
+    import re
+    from panel_servidores import ULTIMA_MODIFICACION, __version__
+    from panel_servidores.nucleo import acerca
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", ULTIMA_MODIFICACION)
+    d = acerca.fecha_modificacion()                       # el formato es válido y no es una fecha futura
+    assert d.year >= 2026
+    assert "de" in acerca.fecha_modificacion_legible() and ("%02d:%02d" % (d.hour, d.minute)) in acerca.fecha_modificacion_legible()
+    etiquetas = [e for e, _ in acerca.informacion()]
+    assert etiquetas[:2] == ["Versión", "Última modificación"] and "Cliente SSH" in etiquetas
+    texto = acerca.texto_para_copiar([("Qt", "6.x")])
+    assert __version__ in texto and ULTIMA_MODIFICACION in texto and "Qt:" in texto
+    assert "SECRETA" not in texto
+    assert acerca.version_ssh("/ruta/que/no/existe").startswith("no encontrado")
