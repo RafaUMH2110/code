@@ -15,7 +15,10 @@
   "settings": {
     "files.exclude": { "**/.DS_Store": true, "**/__pycache__": true },
     "search.exclude": { "**/.venv*": true, "**/build": true, "**/dist": true },
-    "files.watcherExclude": { "**/.venv*/**": true, "**/build/**": true, "**/dist/**": true }
+    "files.watcherExclude": { "**/.venv*/**": true, "**/build/**": true, "**/dist/**": true },
+    // Black y Ruff están instalados a la vez: se fija Black como formateador para que no
+    // compitan (Ruff se queda como linter) y se silencia el aviso «Black is NOT the default».
+    "[python]": { "editor.defaultFormatter": "ms-python.black-formatter" }
   },
   "extensions": {
     "recommendations": ["ms-python.python", "ms-python.debugpy", "ms-python.vscode-pylance", "charliermarsh.ruff"]
