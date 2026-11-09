@@ -62,7 +62,7 @@ class PaginaResumen(PaginaBase):
         capa = QVBoxLayout(caja2)
         self.texto = QPlainTextEdit()
         self.texto.setReadOnly(True)
-        self.texto.setFont(estilo.fuente_mono(11))
+        self.texto.setFont(estilo.fuente_mono())
         self.texto.setMaximumHeight(160)
         capa.addWidget(self.texto)
         self.raiz.addWidget(caja2)

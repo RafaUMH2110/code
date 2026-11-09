@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QLabel, QLi
                                QWidget)
 
 from . import hilos
+from .widgets import botones_es
 
 
 class DialogoSecreto(QDialog):
@@ -41,7 +42,7 @@ class DialogoSecreto(QDialog):
         self.recordar = QCheckBox("Guardar en el Llavero de macOS")
         self.recordar.setVisible(permitir_recordar)
         capa.addWidget(self.recordar)
-        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        botones = botones_es(QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel))
         botones.accepted.connect(self.accept)
         botones.rejected.connect(self.reject)
         capa.addWidget(botones)

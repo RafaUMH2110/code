@@ -25,7 +25,7 @@ from ...nucleo.instalador import (OpcionesInstalador, PASOS, SELECCION_EXCLUIR, 
 from ...nucleo.modelos import VARIANTE_ISA, VARIANTE_LOCAL
 from ...nucleo.recursos import Recursos
 from .. import estilo, hilos
-from ..widgets import ConsolaAnsi, copiar
+from ..widgets import ConsolaAnsi, VistaComando, ajustar_arbol, copiar, preparar_arbol
 from .base import PaginaBase
 
 CRONS = [("(sin cron)", ""), ("Cada noche a las 03:00", "0 3 * * *"), ("Cada hora", "0 * * * *"),
@@ -52,9 +52,7 @@ class PaginaInstalador(PaginaBase):
         self.raiz.addWidget(self.pestanas, 1)
 
         # --- barra inferior común
-        self.vista_previa = QLineEdit()
-        self.vista_previa.setReadOnly(True)
-        self.vista_previa.setFont(estilo.fuente_mono(11))
+        self.vista_previa = VistaComando()
         self.b_copiar = QPushButton("Copiar")
         self.b_guardar = QPushButton("Guardar como predeterminado")
         self.b_instalar = QPushButton("Instalar / actualizar")
@@ -183,6 +181,7 @@ class PaginaInstalador(PaginaBase):
         li = QVBoxLayout(izq)
         self.arbol = QTreeWidget()
         self.arbol.setHeaderLabels(["Repositorio / carpeta", "Lenguaje", "KB"])
+        preparar_arbol(self.arbol)
         self.arbol.itemChanged.connect(self._cambiado)
         self.arbol.itemExpanded.connect(self._expandido)
         fila_b = QHBoxLayout()
@@ -201,7 +200,7 @@ class PaginaInstalador(PaginaBase):
         ld.addWidget(QLabel("Selección guardada en el servidor (ORIGEN/.seleccion):"))
         self.sel_servidor = QPlainTextEdit()
         self.sel_servidor.setReadOnly(True)
-        self.sel_servidor.setFont(estilo.fuente_mono(11))
+        self.sel_servidor.setFont(estilo.fuente_mono())
         fila_b2 = QHBoxLayout()
         self.b_leer_sel = QPushButton("Leer del servidor")
         self.b_listar = QPushButton("Listar con el script (--listar)")
@@ -371,7 +370,7 @@ class PaginaInstalador(PaginaBase):
                 if r.nombre in self._repos_sel_pendiente:
                     it.setCheckState(0, Qt.CheckState.Checked)
             self.arbol.blockSignals(False)
-            self.arbol.resizeColumnToContents(0)
+            ajustar_arbol(self.arbol)
             self.barra.poner("%d repos (sin archivados)." % len(repos), "ok")
             self._cambiado()
 
@@ -397,6 +396,7 @@ class PaginaInstalador(PaginaBase):
                 vacio.setFlags(Qt.ItemFlag.NoItemFlags)
                 item.addChild(vacio)
             self.arbol.blockSignals(False)
+            ajustar_arbol(self.arbol)
 
         def fallo(texto):
             item.takeChildren()
@@ -442,22 +442,22 @@ class PaginaInstalador(PaginaBase):
     def _reiniciar_pasos(self) -> None:
         for i, e in enumerate(self._pasos, 1):
             e.setText("○ %d. %s" % (i, PASOS[i - 1]))
-            e.setStyleSheet("")
+            estilo.poner_rol(e, "")
 
     def _marcar_paso(self, ev: instalador.EventoLog) -> None:
         if ev.tipo == "fin":
             for i, e in enumerate(self._pasos, 1):
                 if e.text().startswith("▶"):
                     e.setText("✔ %d. %s" % (i, PASOS[i - 1]))
-                    e.setStyleSheet("color:%s" % estilo.COLOR_OK)
+                    estilo.poner_rol(e, "ok")
             return
         for i, e in enumerate(self._pasos, 1):
             if i < ev.paso and not e.text().startswith("✔"):
                 e.setText("✔ %d. %s" % (i, PASOS[i - 1]))
-                e.setStyleSheet("color:%s" % estilo.COLOR_OK)
+                estilo.poner_rol(e, "ok")
             elif i == ev.paso:
                 e.setText("▶ %d. %s" % (i, PASOS[i - 1]))
-                e.setStyleSheet("font-weight:600")
+                estilo.poner_rol(e, "activo")
 
     def instalar(self, saltar_confirmacion: bool = False) -> None:
         if not self.hay_perfil():
@@ -535,13 +535,13 @@ class PaginaInstalador(PaginaBase):
         self.resumen.setText("\n".join(partes))
         if res.ok and not res.errores:
             self.barra.poner("Instalación terminada sin errores.", "ok")
-            self.resumen.setStyleSheet("color:%s" % estilo.COLOR_OK)
+            estilo.poner_rol(self.resumen, "ok")
         elif res.ok:
             self.barra.poner("Terminó con %d error(es) en el registro." % len(res.errores), "aviso")
-            self.resumen.setStyleSheet("color:%s" % estilo.COLOR_AVISO)
+            estilo.poner_rol(self.resumen, "aviso")
         else:
             self.barra.poner(res.mensaje.splitlines()[0] if res.mensaje else "El instalador falló (código %d)." % res.codigo, "error")
-            self.resumen.setStyleSheet("color:%s" % estilo.COLOR_ERROR)
+            estilo.poner_rol(self.resumen, "error")
 
     # ====================================================================== repositorios en el servidor
     def leer_seleccion(self) -> None:

@@ -12,8 +12,9 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
 from .. import rutas
 from ..nucleo import github
 from ..nucleo.recursos import Recursos
+from . import estilo
 from .hilos import Trabajo
-from .widgets import rellenar, tabla
+from .widgets import botones_es, rellenar, tabla
 
 
 class DialogoAjustes(QDialog):
@@ -36,6 +37,10 @@ class DialogoAjustes(QDialog):
         self.idioma.addItem("Español", "es")
         self.idioma.addItem("English", "en")
         self.idioma.setCurrentIndex(max(self.idioma.findData(a.idioma_informe), 0))
+        self.tema = QComboBox()
+        for clave, texto in estilo.TEMAS:
+            self.tema.addItem(texto, clave)
+        self.tema.setCurrentIndex(max(self.tema.findData(a.tema), 0))
         self.terminal = QComboBox()
         self.terminal.addItems(["Terminal", "iTerm"])
         self.terminal.setCurrentText(a.terminal)
@@ -47,6 +52,7 @@ class DialogoAjustes(QDialog):
         self.max_lineas.setRange(1000, 500000)
         self.max_lineas.setValue(a.max_lineas_consola)
         f.addRow("Ejecutable ssh:", self.ssh_path)
+        f.addRow("Apariencia:", self.tema)
         f.addRow("Idioma del informe:", self.idioma)
         f.addRow("Abrir sesiones en:", self.terminal)
         f.addRow("Líneas máximas de consola:", self.max_lineas)
@@ -97,7 +103,7 @@ class DialogoAjustes(QDialog):
         self.carpeta.textChanged.connect(self._inventario)
         self._inventario()
 
-        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        botones = botones_es(QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel))
         botones.accepted.connect(self._guardar)
         botones.rejected.connect(self.reject)
         capa.addWidget(botones)
@@ -149,5 +155,9 @@ class DialogoAjustes(QDialog):
         a.rama_github = self.rama.text().strip() or "main"
         a.token_github = self.token.text().strip()
         a.carpeta_scripts = self.carpeta.text().strip()
+        cambia_tema = a.tema != self.tema.currentData()
+        a.tema = self.tema.currentData()
         self.ctx.almacen.guardar_ajustes()
+        if cambia_tema:
+            estilo.aplicar_tema(a.tema)
         self.accept()

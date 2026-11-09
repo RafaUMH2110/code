@@ -21,8 +21,9 @@ from .. import estilo
 from ..widgets import VisorTexto, copiar, json_bonito
 from .base import PaginaBase
 
-ICONOS = {"err": ("✖", estilo.COLOR_ERROR, "Error"), "warn": ("▲", estilo.COLOR_AVISO, "Aviso"),
-          "ok": ("✔", estilo.COLOR_OK, "Correcto"), "info": ("●", estilo.COLOR_TENUE, "Info")}
+# nivel -> (símbolo, rol de color, nombre). El color se resuelve al generar el HTML, con el tema actual.
+ICONOS = {"err": ("✖", "error", "Error"), "warn": ("▲", "aviso", "Aviso"),
+          "ok": ("✔", "ok", "Correcto"), "info": ("●", "tenue", "Info")}
 
 
 def html_diagnostico(informe: Informe) -> str:
@@ -30,12 +31,12 @@ def html_diagnostico(informe: Informe) -> str:
     orden = {"err": 0, "warn": 1, "info": 2, "ok": 3}
     filas = sorted(informe.diagnostico, key=lambda d: orden.get(d.get("level"), 9))
     if not filas:
-        return '<p style="color:%s"><b>✔ El diagnóstico no ha encontrado problemas.</b></p>' % estilo.COLOR_OK
+        return '<p style="color:%s"><b>✔ El diagnóstico no ha encontrado problemas.</b></p>' % estilo.color("ok")
     partes = ["<h3>Diagnóstico: %d error(es), %d aviso(s)</h3><table cellpadding='4'>" % (informe.errores, informe.avisos)]
     for d in filas:
-        simbolo, color, nombre = ICONOS.get(d.get("level"), ICONOS["info"])
+        simbolo, rol, nombre = ICONOS.get(d.get("level"), ICONOS["info"])
         partes.append("<tr><td style='color:%s'><b>%s %s</b></td><td>%s</td></tr>" %
-                      (color, simbolo, nombre, html.escape(d.get("message", ""))))
+                      (estilo.color(rol), simbolo, nombre, html.escape(d.get("message", ""))))
     partes.append("</table>")
     return "".join(partes)
 
@@ -84,13 +85,14 @@ class PaginaInforme(PaginaBase):
         self.vista_texto = VisorTexto()
         self.vista_json = QPlainTextEdit()
         self.vista_json.setReadOnly(True)
-        self.vista_json.setFont(estilo.fuente_mono(11))
+        self.vista_json.setFont(estilo.fuente_mono())
         self.pestanas.addTab(self.vista_diag, "Diagnóstico")
         self.pestanas.addTab(self.vista_texto, "Informe")
         self.pestanas.addTab(self.vista_json, "JSON")
         self.raiz.addWidget(self.pestanas, 1)
         self.raiz.addWidget(self.barra)
 
+        estilo.notificador.cambiado.connect(self._repintar_diagnostico)
         self.preset.currentTextChanged.connect(self._aplicar_preset)
         self.b_generar.clicked.connect(self.generar)
         self.b_exportar.clicked.connect(self.exportar)
@@ -160,11 +162,16 @@ class PaginaInforme(PaginaBase):
                             4: "No se pudo ejecutar el informe (conexión, autenticación, sudo o python3)."}
                 cabecera = mensajes.get(inf.codigo, "El informe terminó con código %d." % inf.codigo)
                 self.vista_diag.setHtml("<p style='color:%s'><b>%s</b></p><pre>%s</pre>" %
-                                        (estilo.COLOR_ERROR, html.escape(cabecera), html.escape(inf.error)))
+                                        (estilo.color("error"), html.escape(cabecera), html.escape(inf.error)))
                 self.pestanas.setCurrentIndex(0)
                 self.barra.poner(cabecera, "error")
 
         self.correr("Generando informe de %s…" % perfil.etiqueta(), trabajo, listo, deshabilitar=[self.b_generar])
+
+    def _repintar_diagnostico(self) -> None:
+        """Al cambiar de tema, el HTML del diagnóstico (con sus colores ya escritos) se genera de nuevo."""
+        if self.informe is not None and self.informe.ok:
+            self.vista_diag.setHtml(html_diagnostico(self.informe))
 
     def exportar(self) -> None:
         if not self.informe:

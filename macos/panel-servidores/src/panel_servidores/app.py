@@ -25,7 +25,8 @@ def main(argv=None) -> int:
     app.setApplicationName(NOMBRE_APP)
     app.setApplicationVersion(__version__)
     app.setOrganizationDomain(IDENTIFICADOR_APP)
-    app.setStyleSheet(estilo.HOJA)
+    estilo.instalar(app)
+    estilo.instalar_traduccion(app)
     hilos.iniciar()
 
     icono = rutas.dir_recursos().parent / "icono.png"
@@ -34,6 +35,7 @@ def main(argv=None) -> int:
         app.setWindowIcon(QIcon(str(icono)))
 
     almacen = Almacen()
+    estilo.aplicar_tema(almacen.ajustes.tema)      # apariencia guardada (sistema / claro / oscuro)
     askpass = GestorAskpass()
     askpass.iniciar()
     llavero = Llavero()

@@ -120,12 +120,10 @@ class DialogoFlota(QDialog):
         fila = (perfil.etiqueta(), estado, inf.errores, inf.avisos, "%.1f" % inf.duracion, detalle)
         self._filas.append(fila)
         self._informes[perfil.etiqueta()] = inf
-        colores = [estilo.COLOR_OK if f[1] == "correcto" else (estilo.COLOR_AVISO if f[1] == "con errores" else estilo.COLOR_ERROR)
-                   for f in self._filas]
+        roles = ["ok" if f[1] == "correcto" else ("aviso" if f[1] == "con errores" else "error") for f in self._filas]
         rellenar(self.tabla, self._filas)
-        from PySide6.QtGui import QColor
-        for i, c in enumerate(colores):
-            self.tabla.item(i, 1).setForeground(QColor(c))
+        for i, rol in enumerate(roles):
+            self.tabla.item(i, 1).setForeground(estilo.qcolor(rol))
 
     def _mostrar_seleccion(self) -> None:
         filas = self.tabla.selectionModel().selectedRows()

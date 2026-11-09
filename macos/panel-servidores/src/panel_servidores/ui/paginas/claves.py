@@ -16,7 +16,8 @@ from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout
 from ...nucleo import claves, colector
 from ...nucleo.claves import ClaveLocal
 from ...nucleo.ssh import analizar_destino
-from ..widgets import ConsolaAnsi, copiar, rellenar, tabla
+from .. import estilo
+from ..widgets import botones_es, ConsolaAnsi, copiar, rellenar, tabla
 from .base import PaginaBase
 
 TIPOS = [("Ed25519 (recomendado)", "ed25519"), ("RSA 4096", "rsa"), ("ECDSA", "ecdsa")]
@@ -49,7 +50,7 @@ class DialogoGenerarClave(QDialog):
         form.addRow("Frase de paso:", self.frase)
         form.addRow("Repetir frase:", self.frase2)
         form.addRow(self.aviso)
-        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        botones = botones_es(QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel))
         botones.accepted.connect(self._aceptar)
         botones.rejected.connect(self.reject)
         form.addRow(botones)
@@ -57,9 +58,7 @@ class DialogoGenerarClave(QDialog):
     def _aceptar(self) -> None:
         if self.frase.text() != self.frase2.text():
             self.aviso.setText("Las dos frases no coinciden.")
-            self.aviso.setProperty("rol", "error")
-            self.aviso.style().unpolish(self.aviso)
-            self.aviso.style().polish(self.aviso)
+            estilo.poner_rol(self.aviso, "error")
             return
         if not self.ruta.text().strip():
             return

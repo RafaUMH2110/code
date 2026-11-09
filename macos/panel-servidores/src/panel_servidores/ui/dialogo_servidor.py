@@ -18,6 +18,8 @@ from ..nucleo.modelos import (AUTH_AUTO, AUTH_CLAVE, AUTH_INTERACTIVA, AUTH_PASS
                               ORIGEN_LLAVERO, ORIGEN_PREGUNTAR, Perfil, SUDO_AUTO, SUDO_NUNCA, SUDO_SECRETO,
                               VARIANTE_ISA, VARIANTE_LOCAL)
 from ..nucleo.ssh import analizar_destino
+from . import estilo
+from .widgets import botones_es
 
 AYUDA_AUTH = {
     AUTH_AUTO: "ssh decide: prueba tus claves (~/.ssh), el ssh-agent y, si hace falta, pide la contraseña. "
@@ -84,7 +86,7 @@ class DialogoServidor(QDialog):
         self.b_probar = QPushButton("Probar conexión")
         fila.addWidget(self.b_probar)
         fila.addStretch(1)
-        botones = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        botones = botones_es(QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel))
         botones.accepted.connect(self._guardar)
         botones.rejected.connect(self.reject)
         fila.addWidget(botones)
@@ -237,7 +239,7 @@ class DialogoServidor(QDialog):
     def _borrar_llavero(self) -> None:
         if self.original:
             self.ctx.llavero.borrar_todos(self.original.id)
-            self.resultado.setText("Secretos de este servidor borrados del Llavero.")
+            self._decir("Secretos de este servidor borrados del Llavero.")
 
     def _cargar(self, p: Perfil) -> None:
         self.nombre.setText(p.nombre)
@@ -303,14 +305,16 @@ class DialogoServidor(QDialog):
                 return "Indica el nombre de la variable de entorno para la %s." % nombre
         return ""
 
+    def _decir(self, texto: str, rol: str = "") -> None:
+        """Muestra un mensaje bajo el formulario con el color de su rol (sin arrastrar el del anterior)."""
+        estilo.poner_rol(self.resultado, rol)
+        self.resultado.setText(texto)
+
     def _guardar(self) -> None:
         p = self._construir()
         error = self._validar(p)
         if error:
-            self.resultado.setText(error)
-            self.resultado.setProperty("rol", "error")
-            self.resultado.style().unpolish(self.resultado)
-            self.resultado.style().polish(self.resultado)
+            self._decir(error, "error")
             return
         if not p.nombre:
             p.nombre = p.destino
@@ -322,7 +326,7 @@ class DialogoServidor(QDialog):
         p = self._construir()
         error = self._validar(p)
         if error:
-            self.resultado.setText(error)
+            self._decir(error, "error")
             return
         from ..nucleo.secretos import ResolutorSecretos
         from ..nucleo.ssh import Conexion
@@ -330,7 +334,7 @@ class DialogoServidor(QDialog):
         secretos = ResolutorSecretos(p, self.ctx.interaccion, self.ctx.llavero)
         con = Conexion(p, self.ctx.ajustes, self.ctx.askpass, self.ctx.interaccion, secretos, registro=self.ctx.registrar)
         self.b_probar.setEnabled(False)
-        self.resultado.setText("Conectando…")
+        self._decir("Conectando…")
 
         def trabajo(t):
             r = con.conectar(t.cancelador)
@@ -340,8 +344,8 @@ class DialogoServidor(QDialog):
 
         def listo(res):
             ok, texto = res
-            self.resultado.setText(("✔ Conexión correcta: " if ok else "✖ ") + texto)
+            self._decir(("✔ Conexión correcta: " if ok else "✖ ") + texto, "ok" if ok else "error")
 
         from .hilos import Trabajo
-        Trabajo(trabajo, "probar", al_terminar=listo, al_error=lambda d: self.resultado.setText("Error: " + d[-300:]),
+        Trabajo(trabajo, "probar", al_terminar=listo, al_error=lambda d: self._decir("Error: " + d[-300:], "error"),
                 al_fin=lambda: self.b_probar.setEnabled(True)).iniciar()
