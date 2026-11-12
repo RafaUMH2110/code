@@ -2,7 +2,7 @@
 # En macOS, `python3` suele ser el 3.9 de las Command Line Tools, demasiado viejo
 # para esta aplicación; por eso se buscan versiones concretas antes.
 PYTHON_BASE=""
-for cand in python3.13 python3.12 python3.11 python3.10 python3; do
+for cand in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
   ruta="$(command -v "$cand" 2>/dev/null || true)"
   [ -n "$ruta" ] || continue
   if "$ruta" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
