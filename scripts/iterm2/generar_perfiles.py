@@ -4,9 +4,9 @@
 generar_perfiles.py · Genera los perfiles de iTerm2 y la configuración SSH
 a partir del inventario en CSV.
 
-    python3 scripts/generar_perfiles.py                      # solo genera y valida
-    python3 scripts/generar_perfiles.py --instalar           # ...y lo instala
-    python3 scripts/generar_perfiles.py --csv otra_hoja.csv
+    python3 generar_perfiles.py                      # solo genera y valida
+    python3 generar_perfiles.py --instalar           # ...y lo instala
+    python3 generar_perfiles.py --csv otra_hoja.csv
 
 Produce:
     perfiles/Perfiles-Servidores.json   un perfil «Base» + un hijo por fila
@@ -441,7 +441,8 @@ def asegurar_include(ruta_config):
 
 
 def main():
-    # El paquete puede tener los scripts en su raíz o en scripts/
+    # Carpeta del kit (donde están datos/, colores/…); se admite también
+    # una subcarpeta por compatibilidad con versiones antiguas
     _aqui = os.path.dirname(os.path.abspath(__file__))
     aquí = _aqui if os.path.isdir(os.path.join(_aqui, "datos")) else os.path.dirname(_aqui)
     ap = argparse.ArgumentParser(description="Genera perfiles de iTerm2 y config SSH.")

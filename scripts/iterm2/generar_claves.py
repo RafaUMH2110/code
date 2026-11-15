@@ -139,7 +139,8 @@ def alias_resuelve(nombre, direccion):
 
 
 def main():
-    # El paquete puede tener los scripts en su raíz o en scripts/
+    # Carpeta del kit (donde están datos/, colores/…); se admite también
+    # una subcarpeta por compatibilidad con versiones antiguas
     _aqui = os.path.dirname(os.path.abspath(__file__))
     aquí = _aqui if os.path.isdir(os.path.join(_aqui, "datos")) else os.path.dirname(_aqui)
     ap = argparse.ArgumentParser(description="Crea y reparte las claves SSH del inventario.")
@@ -383,7 +384,7 @@ def main():
 #  4) comprobar que entra sin contraseña:
 # ssh -o PasswordAuthentication=no usuario@servidor.example.es 'hostname; whoami'
 #  Lo normal, de todos modos, es añadir la fila a la hoja y repetir:
-# python3 scripts/generar_perfiles.py --instalar && python3 scripts/generar_claves.py --solo nuevo
+# python3 generar_perfiles.py --instalar && python3 generar_claves.py --solo nuevo
 # =====================================================================""" % comentario)
 
 
