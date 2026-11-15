@@ -596,6 +596,12 @@ un `RequestTTY yes` con `RemoteCommand <orden> && exec $SHELL -l`. Esto último 
 el alias de esa fila y no en el de la máquina, así que `scp` y `rsync` siguen
 funcionando si usas el alias sin `comando`.
 
+El archivo empieza por `IgnoreUnknown UseKeychain,PubkeyAcceptedAlgorithms,PubkeyAcceptedKeyTypes`,
+lo que lo hace válido también en Linux y en un OpenSSH antiguo: `UseKeychain` solo
+existe en el de Apple, y sin esa línea `ssh` aborta con `Bad configuration option`
+para cualquier host. Tiene que ir al principio, porque `IgnoreUnknown` no se aplica a
+las opciones desconocidas que aparezcan antes que él.
+
 Con `alias_host` se escriben `HostKeyAlias` y `CheckHostIP no`. Es lo que permite que
 la misma máquina por LAN y por WiFi comparta una sola huella en `known_hosts`, y que
 dos sistemas en arranque dual —o dos máquinas distintas con la misma IP en dos

@@ -66,3 +66,21 @@ Los `.sh` llevan shebang de bash, así que se ejecutan con bash aunque tu shell 
 zsh, el de Darwin. Están escritos para funcionar igual si los lanzas con
 `zsh instalar-iterm2.sh`: sin `read -p` y sin globs que puedan quedarse sin
 resultados, que es donde zsh y bash se separan.
+
+### En Linux
+
+La parte de iTerm2 es solo de macOS, porque iTerm2 no existe en Linux:
+`instalar-iterm2.sh` y `diagnostico.sh` se niegan a ejecutarse ahí, y
+`generar_perfiles.py --instalar` instala solo la configuración SSH y dice que se
+salta los perfiles (el JSON se genera igual, por si lo llevas a un Mac).
+
+La parte SSH sí es útil en Linux, y el archivo generado vale en los dos sistemas: la
+primera línea es un `IgnoreUnknown UseKeychain,…`, porque `UseKeychain` solo existe en
+el OpenSSH de Apple y sin esa línea el `ssh` de Linux aborta con
+`Bad configuration option: usekeychain` **para cualquier host**, no solo para los del
+inventario. Va al principio del archivo a propósito: `ssh_config(5)` advierte de que
+`IgnoreUnknown` no se aplica a lo que aparezca antes de él. `generar_claves.py` ya
+distingue el sistema y usa `ssh-add` sin `--apple-use-keychain`.
+
+Los `.itermcolors` son de iTerm2, pero los colores en hexadecimal están en el
+apartado 1.2 del manual si quieres llevar la paleta a otro terminal.

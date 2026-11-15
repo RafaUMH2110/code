@@ -3,6 +3,11 @@
 #  diagnostico.sh · ¿Por qué iTerm2 no aplica fuente/tamaño?
 #  Uso:  bash scripts/diagnostico.sh
 # =====================================================================
+if [[ "$(uname)" != "Darwin" ]]; then
+  echo "Este diagnóstico es para macOS: usa mdls, defaults y las rutas de iTerm2."
+  exit 1
+fi
+
 DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 
 echo "=============================================================="

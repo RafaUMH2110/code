@@ -26,6 +26,7 @@ import json
 import os
 import re
 import shutil
+import platform
 import sys
 import uuid
 from datetime import datetime
@@ -247,12 +248,24 @@ def bloque_ssh(f):
         L.append("    ProxyJump       %s" % f["salto"])
     if f["tipo_clave"] == "rsa":
         L.append("    PubkeyAcceptedAlgorithms +ssh-rsa")
+        L.append("    PubkeyAcceptedKeyTypes   +ssh-rsa")   # OpenSSH < 8.5
         L.append("    HostKeyAlgorithms        +ssh-rsa")
     if f["comando"]:
         L.append("    RequestTTY      yes")
         L.append("    RemoteCommand   %s && exec $SHELL -l" % f["comando"])
     return "\n".join(L)
 
+
+PORTABILIDAD = """
+# ---------------------------------------------------------------------
+#  Esto va primero a propósito: IgnoreUnknown no se aplica a las opciones
+#  desconocidas que aparezcan antes de él. Con esta línea, el mismo archivo
+#  vale en macOS (donde UseKeychain existe) y en Linux o en un OpenSSH
+#  antiguo (donde no), sin que ssh aborte con «Bad configuration option».
+# ---------------------------------------------------------------------
+Host *
+    IgnoreUnknown UseKeychain,PubkeyAcceptedAlgorithms,PubkeyAcceptedKeyTypes
+"""
 
 GLOBALES = """
 # ---------------------------------------------------------------------
@@ -372,7 +385,7 @@ def main():
                 "#  No lo edites a mano: se sobrescribe en cada ejecución.\n"
                 "# =====================================================================\n"
                 % (os.path.basename(a.csv), datetime.now().strftime("%Y-%m-%d %H:%M")))
-    partes = [cabecera]
+    partes = [cabecera, PORTABILIDAD]
     grupo_actual = None
     for f in activas:
         if f["_es_local"]:
@@ -413,11 +426,14 @@ def main():
 
     # ---- instalar
     sello = datetime.now().strftime("%Y%m%d-%H%M%S")
-    os.makedirs(DYN, exist_ok=True)
-    destino_json = os.path.join(DYN, "UMH-Perfiles.json")
-    if os.path.exists(destino_json):
-        shutil.copy2(destino_json, destino_json + ".bak-" + sello)
-    shutil.copy2(ruta_json, destino_json)
+    es_mac = platform.system() == "Darwin"
+    destino_json = None
+    if es_mac:
+        os.makedirs(DYN, exist_ok=True)
+        destino_json = os.path.join(DYN, "UMH-Perfiles.json")
+        if os.path.exists(destino_json):
+            shutil.copy2(destino_json, destino_json + ".bak-" + sello)
+        shutil.copy2(ruta_json, destino_json)
 
     ssh_dir = os.path.expanduser("~/.ssh")
     os.makedirs(os.path.join(ssh_dir, "config.d"), exist_ok=True)
@@ -433,7 +449,11 @@ def main():
     añadido = asegurar_include(os.path.join(ssh_dir, "config"))
 
     print("\nInstalado:")
-    print("  %s" % destino_json)
+    if destino_json:
+        print("  %s" % destino_json)
+    else:
+        print("  (iTerm2 solo existe en macOS: aquí instalo solo la parte SSH;")
+        print("   el JSON de perfiles queda generado en %s)" % ruta_json)
     print("  %s" % destino_conf)
     print("  ~/.ssh/config: %s" % ("añadida la línea Include" if añadido
                                    else "ya tenía la línea Include"))
