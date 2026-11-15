@@ -4,8 +4,11 @@
 datos/servidores.csv
 datos/*.csv
 !datos/servidores-ejemplo.csv
+!datos/fuentes.csv
 perfiles/
 ssh/
 
 # El nombre de esta máquina es local: cada ordenador tiene el suyo
 datos/maquina.txt
+# La tipografía elegida también es de cada equipo
+datos/fuente.txt

@@ -22,6 +22,8 @@ es el que iTerm2 tiene guardado como perfil predeterminado.
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
 import os
 import re
@@ -37,8 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import umh_inventario as inv
 
 BASE = "UMH · Base"
-FUENTE_DEFECTO = "Menlo-Regular"          # viene con macOS: no hay que instalar nada
-TAM_DEFECTO = inv.DEFECTOS["fuente_pt"]   # 12; una sola fuente de verdad
+FUENTE_DEFECTO = "menlo"      # clave en datos/fuentes.csv
 VENTANA_DEFECTO = inv.DEFECTOS["ventana"]
 DYN = os.path.expanduser(
     "~/Library/Application Support/iTerm2/DynamicProfiles")
@@ -119,7 +120,63 @@ def nombre_maquina(raiz, indicado=""):
     return ""
 
 
-def perfil_base(fuente, maquina="", ventana=VENTANA_DEFECTO, tam=TAM_DEFECTO):
+def leer_fuentes(ruta):
+    """datos/fuentes.csv -> {clave: {nombre, postscript, tamano, archivo, instalacion, notas}}"""
+    if not os.path.isfile(ruta):
+        sys.exit("ERROR: no encuentro %s (las opciones de tipografía)." % ruta)
+    with open(ruta, encoding="utf-8-sig", newline="") as f:
+        utiles = [l for l in f.read().splitlines()
+                  if l.strip() and not l.lstrip().startswith("#")]
+    lector = csv.DictReader(io.StringIO("\n".join(utiles)))
+    campos = {c.strip().lower() for c in (lector.fieldnames or [])}
+    for c in ("clave", "postscript", "tamano"):
+        if c not in campos:
+            sys.exit("ERROR: fuentes.csv no tiene la columna «%s»." % c)
+    fuentes = {}
+    for n, fila in enumerate(lector, 2):
+        if None in fila:
+            sys.exit("ERROR: fuentes.csv, línea de «%s»: sobran campos "
+                     "(una nota con comas va entre comillas)." % (fila.get("clave") or n))
+        d = {(k or "").strip().lower(): (v or "").strip() for k, v in fila.items()}
+        if not d.get("clave"):
+            continue
+        k = d["clave"].lower()
+        if k in fuentes:
+            sys.exit("ERROR: fuentes.csv repite la clave «%s»." % k)
+        if not d["postscript"] or not re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]*$", d["postscript"]):
+            sys.exit("ERROR: fuentes.csv, «%s»: nombre PostScript no válido: %r" % (k, d["postscript"]))
+        if not d["tamano"].isdigit() or not 6 <= int(d["tamano"]) <= 96:
+            sys.exit("ERROR: fuentes.csv, «%s»: tamaño no válido: %r" % (k, d["tamano"]))
+        d["archivo"] = os.path.expanduser(d.get("archivo", ""))
+        d["nombre"] = d.get("nombre") or d["postscript"]
+        fuentes[k] = d
+    if not fuentes:
+        sys.exit("ERROR: fuentes.csv no tiene ninguna fuente.")
+    return fuentes
+
+
+def fuente_elegida(raiz, fuentes, indicada=""):
+    """La clave pedida con --fuente, o la que dejó instalar-iterm2.sh en
+    datos/fuente.txt, o la primera por defecto. Devuelve (clave, datos).
+    Si lo indicado no es una clave, se toma como nombre PostScript suelto."""
+    k = (indicada or "").strip()
+    if not k:
+        ruta = os.path.join(raiz, "datos", "fuente.txt")
+        if os.path.isfile(ruta):
+            with open(ruta, encoding="utf-8") as f:
+                k = f.read().strip()
+    k = k or FUENTE_DEFECTO
+    if k.lower() in fuentes:
+        return k.lower(), fuentes[k.lower()]
+    if indicada:        # --fuente NombrePostScript: compatibilidad con la opción antigua
+        tam = next(iter(fuentes.values()))["tamano"]
+        return k, {"clave": k, "nombre": k, "postscript": k, "tamano": tam,
+                   "archivo": "", "instalacion": "", "notas": ""}
+    sys.exit("ERROR: la fuente «%s» (datos/fuente.txt) no está en fuentes.csv. "
+             "Claves: %s" % (k, ", ".join(fuentes)))
+
+
+def perfil_base(fuente, tam, maquina="", ventana=VENTANA_DEFECTO):
     cols, rows = inv._RE_VENTANA.match(ventana).groups()
     p = {
         "Name": BASE,
@@ -173,7 +230,7 @@ def perfil_base(fuente, maquina="", ventana=VENTANA_DEFECTO, tam=TAM_DEFECTO):
     return p
 
 
-def perfil_de_fila(f, fuente, tam=TAM_DEFECTO):
+def perfil_de_fila(f, fuente):
     nombre = "%s · %s" % (f["grupo"], f["nombre"])
     cols, rows = inv._RE_VENTANA.match(f["ventana"]).groups()
     p = {
@@ -185,7 +242,7 @@ def perfil_de_fila(f, fuente, tam=TAM_DEFECTO):
         "Use Tab Color": True,
         "Tab Color": comp(f["color_hex"]),
     }
-    if f["fuente_pt"] != tam:
+    if f["fuente_pt"]:      # vacío: hereda la fuente y el tamaño de «UMH · Base»
         p["Normal Font"] = "%s %s" % (fuente, f["fuente_pt"])
         p["Non Ascii Font"] = p["Normal Font"]
     if f["tema"] != "oscuro":
@@ -357,8 +414,12 @@ def main():
     ap = argparse.ArgumentParser(description="Genera perfiles de iTerm2 y config SSH.")
     ap.add_argument("--csv", default=os.path.join(aquí, "datos/servidores.csv"))
     ap.add_argument("--salida", default=aquí)
-    ap.add_argument("--fuente", default=FUENTE_DEFECTO,
-                    help="nombre PostScript de la tipografía (sin el tamaño)")
+    ap.add_argument("--fuente", default="",
+                    help="clave de la tipografía de «UMH · Base» en datos/fuentes.csv "
+                         "(menlo, jetbrains, monaco...); por defecto, datos/fuente.txt")
+    ap.add_argument("--lista-fuentes", action="store_true",
+                    help="muestra las tipografías disponibles y sale")
+    ap.add_argument("--fuentes-csv", default=os.path.join(aquí, "datos/fuentes.csv"))
     ap.add_argument("--ventana", default="",
                     help="tamaño COLUMNASxFILAS de «UMH · Base» (la sesión local); "
                          "por defecto, el más repetido en la hoja")
@@ -372,6 +433,15 @@ def main():
     ap.add_argument("--sin-globales", action="store_true",
                     help="no escribir el bloque «Host *» de opciones comunes")
     a = ap.parse_args()
+
+    fuentes = leer_fuentes(a.fuentes_csv)
+    if a.lista_fuentes:
+        # clave|nombre|tamaño|archivo|instalación|postscript: lo lee instalar-iterm2.sh
+        for k, d in fuentes.items():
+            print("|".join((k, d["nombre"], d["tamano"], d["archivo"],
+                            d["instalacion"], d["postscript"])))
+        return
+    clave_fuente, fuente = fuente_elegida(aquí, fuentes, a.fuente)
 
     try:
         filas, errores, avisos = inv.leer(a.csv)
@@ -401,8 +471,8 @@ def main():
         ventana = a.ventana
     else:
         ventana = Counter(f["ventana"] for f in activas).most_common(1)[0][0]
-    perfiles = ([perfil_base(a.fuente, maquina, ventana)]
-                + [perfil_de_fila(f, a.fuente) for f in activas])
+    perfiles = ([perfil_base(fuente["postscript"], fuente["tamano"], maquina, ventana)]
+                + [perfil_de_fila(f, fuente["postscript"]) for f in activas])
     if a.colores:
         os.makedirs(os.path.join(a.salida, "colores"), exist_ok=True)
         escribir_itermcolors(OSCURO, os.path.join(a.salida, "colores/UMH-Elegante-Oscuro.itermcolors"))
@@ -455,7 +525,8 @@ def main():
     print("%d perfiles · %d claves distintas%s"
           % (len(activas), len({f["clave"] for f in activas if f["clave"]}),
              (" · fuera por «incluir = no»: " + ", ".join(excluidas)) if excluidas else ""))
-    print("ventana de «UMH · Base»: %s · fuente %s %s" % (ventana, a.fuente, TAM_DEFECTO))
+    print("«UMH · Base»: ventana %s · fuente %s (%s) %s pt"
+          % (ventana, fuente["nombre"], clave_fuente, fuente["tamano"]))
     print("máquina local: %s" % (maquina or "sin nombre (bash instalar-iterm2.sh -m NOMBRE)"))
     print("\n  %s\n  %s" % (ruta_json, ruta_conf))
 

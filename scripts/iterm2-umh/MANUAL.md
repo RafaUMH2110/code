@@ -43,24 +43,48 @@ forma recomendada de trabajar a partir de unos pocos servidores.
 
 ## 1. Apariencia, color y tipografía
 
-### 1.1 Tipografía
+### 1.1 Tipografía: tres opciones en `datos/fuentes.csv`
+
+La tipografía y su tamaño se eligen para el perfil **«UMH · Base»**, y los demás
+perfiles la heredan. Las opciones están en un archivo, `datos/fuentes.csv`:
+
+| Clave | Fuente | Tamaño | Cuándo |
+|---|---|---|---|
+| `menlo` | Menlo Regular | 12 pt | La actual. Viene con macOS, `0` con barra, muy nítida sobre negro. Sin iconos Nerd |
+| `jetbrains` | JetBrainsMono Nerd Font Mono | 14 pt | La del planteamiento inicial. Más ancha y alta, con los iconos Nerd/Powerline (`oh-my-zsh`, `eza`, `lazygit`). Hay que instalarla con Homebrew |
+| `monaco` | Monaco | 12 pt | Elección propia. Viene con macOS como Menlo y es la más compacta: caben más columnas |
+
+Cómo elegir:
+
+```bash
+bash instalar-iterm2.sh -f jetbrains          # o -f menlo / -f monaco
+bash instalar-iterm2.sh                       # sin -f: muestra el menú y pregunta
+python3 generar_perfiles.py --fuente monaco --instalar   # cambiarla sin reinstalar todo
+python3 generar_perfiles.py --lista-fuentes   # ver las opciones
+```
+
+La elección se guarda en `datos/fuente.txt` (local a cada equipo, no se versiona), así
+que `generar_perfiles.py` la recuerda. Si falta la fuente, el instalador te dice cómo
+instalarla y te ofrece ejecutarlo. **Añadir una fuente:** copia una línea de
+`fuentes.csv`, cambia `clave`, `postscript` y `tamano`, y úsala con `-f`.
+
+El tamaño de cada perfil de servidor sale de la opción elegida, salvo que su fila del
+inventario tenga algo en `fuente_pt` (por ejemplo `18` para el aula). **Deja `fuente_pt`
+vacío en las filas normales:** un valor escrito en una fila gana sobre la fuente
+elegida, y la elección dejaría de notarse en ese perfil.
 
 | Parámetro | Valor | Por qué |
 |---|---|---|
-| Fuente | `Menlo Regular` 12 pt | Viene con macOS (no hay que instalar nada), `0` con barra y `1`/`l`/`I` bien diferenciados, y es la que se ve nítida con fondo negro |
 | Interlineado | 1.00 | Rejilla compacta, como en la Terminal de macOS: caben más filas |
 | Espaciado horizontal | 1.00 | Sin deformar la rejilla monoespaciada |
 | Negrita / cursiva | activadas | El resaltado de sintaxis en `vim`/`bat` se aprovecha |
 | Perfil de aula | 18 pt y tema claro | Legible desde el fondo del aula y en proyectores con poco contraste |
 
-> **Importante.** iTerm2 guarda la fuente por su **nombre PostScript** (`Menlo-Regular`),
-> no por el de familia («Menlo»). Si el nombre no existe, iTerm2 cae en silencio a
-> Monaco 12. El JSON debe decir `"Normal Font": "Menlo-Regular 12"`.
->
-> Menlo no incluye los iconos Powerline/Nerd (`oh-my-zsh` con `agnoster`, `eza --icons`,
-> `lazygit`…). Si algún día los quieres: instala `font-jetbrains-mono-nerd-font` con
-> Homebrew y genera con `python3 generar_perfiles.py --fuente JetBrainsMonoNFM-Regular`
-> (el tamaño por defecto, 12, se cambia en la columna `fuente_pt`).
+> **Importante.** iTerm2 guarda la fuente por su **nombre PostScript** (`Menlo-Regular`,
+> `JetBrainsMonoNFM-Regular`, `Monaco`), no por el de familia. Si el nombre no existe,
+> iTerm2 cae en silencio a Monaco 12. El JSON debe decir, por ejemplo,
+> `"Normal Font": "Menlo-Regular 12"`. Menlo y Monaco no incluyen los iconos
+> Powerline/Nerd.
 
 ### 1.2 Paleta «UMH Elegante Oscuro»
 
@@ -461,7 +485,7 @@ incluye `it2ssh`, que lo lleva consigo al conectar).
 open -a TextEdit "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 
 # Cambiar la fuente de todos los perfiles de golpe
-sed -i '' 's/Menlo-Regular 12/Menlo-Regular 13/g' \
+sed -i '' 's/Menlo-Regular 12/Menlo-Regular 13/g' \   # o mejor: cambia «tamano» en datos/fuentes.csv y regenera
   "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 
 # Copia de seguridad de los ajustes globales de iTerm2

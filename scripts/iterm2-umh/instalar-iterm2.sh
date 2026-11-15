@@ -2,7 +2,7 @@
 # =====================================================================
 #  instalar-iterm2.sh · Instala tema y perfiles de iTerm2 (macOS)
 #
-#  Uso:  bash instalar-iterm2.sh [-m NOMBRE] [--colores]
+#  Uso:  bash instalar-iterm2.sh [-m NOMBRE] [-f FUENTE] [--colores]
 #
 #    -m, --maquina NOMBRE   nombre de ESTA máquina («iMac despacho»,
 #                           «MacBook»). Se guarda en datos/maquina.txt y lo
@@ -12,6 +12,12 @@
 #                           en el authorized_keys de los servidores.
 #                           Si no se indica, se pregunta, proponiendo el
 #                           nombre que macOS tiene configurado.
+#    -f, --fuente CLAVE     tipografía de «UMH · Base» (los demás perfiles la
+#                           heredan), de las que hay en datos/fuentes.csv:
+#                           menlo (la de siempre), jetbrains o monaco. Se guarda
+#                           en datos/fuente.txt. Si no se indica, se muestra el
+#                           menú y se pregunta; sin terminal se mantiene la
+#                           última elegida (o menlo).
 #    --colores              importa además los presets de color
 #                           (colores/*.itermcolors) en Ajustes > Colores.
 #                           NO hace falta: los perfiles ya llevan sus colores.
@@ -37,12 +43,16 @@ pregunta() {                      # pregunta "texto" NOMBRE_DE_VARIABLE
 }
 
 MAQUINA=""
+FUENTE=""
 COLORES=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -m|--maquina)
       [[ -n "${2:-}" ]] || { echo "Falta el nombre después de $1"; exit 1; }
       MAQUINA="$2"; shift 2 ;;
+    -f|--fuente)
+      [[ -n "${2:-}" ]] || { echo "Falta la clave de la fuente después de $1"; exit 1; }
+      FUENTE="$2"; shift 2 ;;
     --colores) COLORES=1; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
     *) echo "Opción desconocida: $1"; echo; uso; exit 1 ;;
@@ -79,11 +89,65 @@ printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
 echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
-echo "==> 2/8 Fuente: Menlo Regular 12 (viene con macOS)"
-if [[ -e /System/Library/Fonts/Menlo.ttc ]]; then
-  echo "    OK, no hay que instalar nada."
+echo "==> 2/8 Tipografía de «UMH · Base»"
+FUENTES_CSV="$BASE/datos/fuentes.csv"
+FUENTE_TXT="$BASE/datos/fuente.txt"
+if [[ ! -f "$FUENTES_CSV" ]] || ! command -v python3 >/dev/null 2>&1; then
+  echo "    No encuentro datos/fuentes.csv o python3: se queda la tipografía por defecto."
 else
-  echo "    AVISO: no encuentro Menlo en /System/Library/Fonts."
+  LISTA="$(python3 "$BASE/generar_perfiles.py" --lista-fuentes)" \
+    || { echo "    datos/fuentes.csv tiene errores: corrígelos y repite."; exit 1; }
+  ACTUAL_F=""
+  [[ -f "$FUENTE_TXT" ]] && ACTUAL_F="$(tr -d '\r\n ' < "$FUENTE_TXT")"
+  PRIMERA="$(printf '%s\n' "$LISTA" | head -1 | cut -d'|' -f1)"
+  SUGERIDA="${ACTUAL_F:-$PRIMERA}"
+  if [[ -z "$FUENTE" ]]; then
+    if [[ -t 0 ]]; then
+      N=0
+      printf '%s\n' "$LISTA" | while IFS='|' read -r K NOM TAM ARCH INST PS; do
+        N=$((N+1)); MARCA=" "; [[ "$K" == "$SUGERIDA" ]] && MARCA="*"
+        printf '    %s %d) %-10s %s, %s pt\n' "$MARCA" "$N" "$K" "$NOM" "$TAM"
+      done
+      R=""
+      pregunta "    ¿Cuál? Número o clave [$SUGERIDA] " R
+      FUENTE="${R:-$SUGERIDA}"
+    else
+      FUENTE="$SUGERIDA"             # sin terminal interactiva: la de siempre
+    fi
+  fi
+  # número -> clave
+  if [[ "$FUENTE" =~ ^[0-9]+$ ]]; then
+    FUENTE="$(printf '%s\n' "$LISTA" | sed -n "${FUENTE}p" | cut -d'|' -f1)"
+  fi
+  FILA="$(printf '%s\n' "$LISTA" | awk -F'|' -v k="$FUENTE" 'k != "" && tolower($1) == tolower(k) {print; exit}')"
+  if [[ -z "$FILA" ]]; then
+    echo "    «$FUENTE» no es una opción. Claves: $(printf '%s\n' "$LISTA" | cut -d'|' -f1 | tr '\n' ' ')"
+    exit 1
+  fi
+  F_CLAVE="$(printf '%s' "$FILA" | cut -d'|' -f1)"
+  F_NOMBRE="$(printf '%s' "$FILA" | cut -d'|' -f2)"
+  F_TAM="$(printf '%s' "$FILA" | cut -d'|' -f3)"
+  F_ARCH="$(printf '%s' "$FILA" | cut -d'|' -f4)"
+  F_INST="$(printf '%s' "$FILA" | cut -d'|' -f5)"
+  F_PS="$(printf '%s' "$FILA" | cut -d'|' -f6)"
+  printf '%s\n' "$F_CLAVE" > "$FUENTE_TXT"
+  echo "    -> $F_NOMBRE, $F_TAM pt ('$F_CLAVE') guardada en datos/fuente.txt"
+  if [[ -n "$F_ARCH" && ! -e "$F_ARCH" ]]; then
+    echo "    La fuente no parece estar instalada (no existe $F_ARCH)."
+    if [[ -n "$F_INST" ]]; then
+      echo "    Para instalarla:  $F_INST"
+      if [[ -t 0 ]]; then
+        Q=""
+        pregunta "    ¿Ejecutarlo ahora? [s/N] " Q
+        if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+          bash -c "$F_INST" || echo "    No se pudo instalar: hazlo a mano y repite este paso."
+        fi
+      fi
+    else
+      echo "    Comprueba que la ruta de datos/fuentes.csv es la de tu macOS."
+    fi
+    echo "    Si no existe en el sistema, iTerm2 cae en silencio a Monaco 12."
+  fi
 fi
 
 echo "==> 3/8 Perfiles dinámicos de iTerm2"
@@ -125,9 +189,8 @@ if [[ -f "$DYN/UMH-Perfiles.json" ]]; then
   grep -m1 '"Normal Font"' "$DYN/UMH-Perfiles.json" | sed 's/^[[:space:]]*/    /'
   if grep -q '"Normal Font": "null' "$DYN/UMH-Perfiles.json"; then
     echo "    AVISO: la fuente quedó en «null». Repite: python3 generar_perfiles.py --instalar"
-  fi
-  if grep -q 'JetBrainsMono' "$DYN/UMH-Perfiles.json"; then
-    echo "    AVISO: el JSON instalado aún usa JetBrainsMono (versión antigua)."
+  elif [[ -n "${F_PS:-}" ]] && ! grep -q "\"Normal Font\": \"$F_PS $F_TAM\"" "$DYN/UMH-Perfiles.json"; then
+    echo "    AVISO: el JSON instalado no lleva la fuente elegida ($F_PS $F_TAM)."
     echo "    Regenéralo con: python3 generar_perfiles.py --instalar"
   fi
 else

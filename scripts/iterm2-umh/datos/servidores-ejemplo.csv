@@ -3,12 +3,12 @@
 # de la cabecera, no por su posición. La leyenda completa está en MANUAL.md.
 # Direcciones de documentación (RFC 5737 / RFC 2606): no corresponden a equipos reales.
 incluir,grupo,nombre,direccion,usuario,badge,color,tema,atajo,clave,tipo_clave,puerto,salto,alias_host,ventana,fuente_pt,confirmar,comando,generar_clave,notas
-si,UMH,servidor,servidor.example.es,usuario,servidor,azul,oscuro,1,id_ed25519_umh,ed25519,22,,,120x59,12,no,,si,Servidor de trabajo
-si,UMH,servidor-web,servidor.example.es,usuario,servidor · web,cian,oscuro,2,id_ed25519_umh,ed25519,22,,,120x59,12,no,cd /var/www/htdocs,si,Abre la sesión en la raíz web
-no,UMH,servidor-root,servidor.example.es,root,⚠ PRODUCCIÓN,rojo,aviso,,id_ed25519_umh_root,ed25519,22,,,120x59,12,si,,si,Mejor entrar como usuario normal y elevar con sudo
-si,LAB,equipo-lan,192.0.2.10,usuario,equipo · LAN,verde,oscuro,3,id_ed25519_lab,ed25519,22,,equipo,120x59,12,no,,si,La misma máquina por cable...
-si,LAB,equipo-wifi,192.0.2.11,usuario,equipo · wifi,verde,oscuro,4,id_ed25519_lab,ed25519,22,,equipo,120x59,12,no,,si,...y por WiFi: comparten alias_host y una sola huella
-si,LAB,equipo-otro-sistema,192.0.2.10,otro,otro sistema,violeta,oscuro,5,id_ed25519_lab,ed25519,22,,equipo-otro-sistema,120x59,12,no,,si,Arranque dual en la misma IP: alias propio porque sus claves de host son otras
-no,LAB,interna,198.51.100.5,usuario,interna,cian,oscuro,,id_ed25519_lab,ed25519,22,equipo-lan,,120x59,12,no,,si,EJEMPLO · se entra atravesando equipo-lan (ProxyJump)
-no,TALLER,plc-antiguo,192.0.2.50,admin,taller,violeta,oscuro,,id_rsa_taller,rsa,2222,,,100x30,12,no,,si,EJEMPLO · solo admite RSA y escucha en otro puerto
+si,UMH,servidor,servidor.example.es,usuario,servidor,azul,oscuro,1,id_ed25519_umh,ed25519,22,,,120x59,,no,,si,Servidor de trabajo
+si,UMH,servidor-web,servidor.example.es,usuario,servidor · web,cian,oscuro,2,id_ed25519_umh,ed25519,22,,,120x59,,no,cd /var/www/htdocs,si,Abre la sesión en la raíz web
+no,UMH,servidor-root,servidor.example.es,root,⚠ PRODUCCIÓN,rojo,aviso,,id_ed25519_umh_root,ed25519,22,,,120x59,,si,,si,Mejor entrar como usuario normal y elevar con sudo
+si,LAB,equipo-lan,192.0.2.10,usuario,equipo · LAN,verde,oscuro,3,id_ed25519_lab,ed25519,22,,equipo,120x59,,no,,si,La misma máquina por cable...
+si,LAB,equipo-wifi,192.0.2.11,usuario,equipo · wifi,verde,oscuro,4,id_ed25519_lab,ed25519,22,,equipo,120x59,,no,,si,...y por WiFi: comparten alias_host y una sola huella
+si,LAB,equipo-otro-sistema,192.0.2.10,otro,otro sistema,violeta,oscuro,5,id_ed25519_lab,ed25519,22,,equipo-otro-sistema,120x59,,no,,si,Arranque dual en la misma IP: alias propio porque sus claves de host son otras
+no,LAB,interna,198.51.100.5,usuario,interna,cian,oscuro,,id_ed25519_lab,ed25519,22,equipo-lan,,120x59,,no,,si,EJEMPLO · se entra atravesando equipo-lan (ProxyJump)
+no,TALLER,plc-antiguo,192.0.2.50,admin,taller,violeta,oscuro,,id_rsa_taller,rsa,2222,,,100x30,,no,,si,EJEMPLO · solo admite RSA y escucha en otro puerto
 no,AULA,proyector,local,,aula,ocre,claro,8,,ed25519,,,,100x26,18,no,,no,EJEMPLO · perfil local sin SSH para proyectar en clase

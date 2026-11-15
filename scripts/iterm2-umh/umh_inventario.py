@@ -43,7 +43,7 @@ _PALETA = ["#2C5AA0", "#1E6E74", "#3F7A45", "#7A3C8C", "#8A6A12", "#4A5260"]
 DEFECTOS = {
     "incluir": "si", "grupo": "UMH", "usuario": "rpuerto", "tema": "oscuro",
     "tipo_clave": "ed25519", "puerto": "22", "ventana": "120x59",
-    "fuente_pt": "12", "confirmar": "no", "generar_clave": "si",
+    "fuente_pt": "", "confirmar": "no", "generar_clave": "si",
 }
 
 _RE_NOMBRE  = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -167,7 +167,7 @@ def _normalizar(d: dict, nlinea: int, errores: list) -> dict:
     f["salto"] = g("salto")
     f["alias_host"] = g("alias_host")
     f["ventana"] = g("ventana") or DEFECTOS["ventana"]
-    f["fuente_pt"] = n("fuente_pt") or DEFECTOS["fuente_pt"]
+    f["fuente_pt"] = n("fuente_pt")      # vacío: el tamaño de la fuente elegida
     f["confirmar"] = _es_si(d.get("confirmar", ""), por_defecto=False)
     f["comando"] = g("comando")
     f["notas"] = g("notas")
@@ -197,7 +197,7 @@ def _normalizar(d: dict, nlinea: int, errores: list) -> dict:
             e("«puerto» no válido: %r" % f["puerto"])
     if not _RE_VENTANA.match(f["ventana"]):
         e("«ventana» debe ser COLUMNASxFILAS, p. ej. 120x59: %r" % f["ventana"])
-    if not f["fuente_pt"].isdigit() or not 6 <= int(f["fuente_pt"]) <= 96:
+    if f["fuente_pt"] and (not f["fuente_pt"].isdigit() or not 6 <= int(f["fuente_pt"]) <= 96):
         e("«fuente_pt» no válido: %r" % f["fuente_pt"])
     if len(f["atajo"]) > 1:
         e("«atajo» debe ser un solo carácter: %r" % f["atajo"])

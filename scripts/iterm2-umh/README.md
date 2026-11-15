@@ -19,7 +19,8 @@ una hoja de cálculo y se exporta como CSV.
 | `generar_perfiles.py` | Del CSV a `perfiles/UMH-Perfiles.json` (perfiles dinámicos de iTerm2) y `ssh/umh.conf` (para `~/.ssh/config.d/`). Valida el lote y no escribe nada si hay errores. Con `--instalar` lo pone en su sitio |
 | `generar_claves.py` | Crea una clave por cada valor distinto de la columna `clave`, la guarda en el Llavero de macOS, la copia a cada servidor con `ssh-copy-id` y comprueba que entra sin contraseña. `--solo` y `--grupo` para ir máquina a máquina |
 | `umh_inventario.py` | Módulo compartido: lee el CSV y lo valida. Los dos generadores entienden exactamente lo mismo por una hoja |
-| `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), instala los perfiles, ofrece la shell integration de iTerm2 y fija el perfil predeterminado (los temas se importan solo con `--colores`) |
+| `datos/fuentes.csv` | Las tres tipografías con su tamaño (`menlo`, `jetbrains`, `monaco`); se elige una para el perfil base con `-f` |
+| `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), qué tipografía usar (`-f jetbrains`), instala los perfiles, ofrece la shell integration de iTerm2 y fija el perfil predeterminado (los temas se importan solo con `--colores`) |
 | `diagnostico.sh` | Cuando iTerm2 no aplica la fuente o el tamaño: dice por qué (perfil predeterminado, nombre PostScript de la fuente, restauración de ventanas) |
 | `colores/*.itermcolors` | Tema «UMH Elegante» en sus dos variantes: oscuro para el día a día, claro para proyectar en clase |
 | `datos/servidores-ejemplo.csv` | Inventario de ejemplo con la leyenda de las columnas. Cópialo a `datos/servidores.csv` y edítalo |

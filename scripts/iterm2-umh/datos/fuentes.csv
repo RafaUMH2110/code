@@ -1,0 +1,16 @@
+# Tipografías para el perfil «UMH · Base», que heredan los demás perfiles.
+# Se elige una con:  bash instalar-iterm2.sh -f CLAVE   o   python3 generar_perfiles.py --fuente CLAVE
+# Columnas (se leen por el nombre de la cabecera):
+#   clave        nombre corto que se escribe en la orden
+#   nombre       el que ves en iTerm2 > Ajustes > Perfiles > Texto
+#   postscript   nombre PostScript EXACTO: si no existe, iTerm2 cae en silencio a Monaco 12
+#   tamano       puntos, 6 a 96
+#   archivo      ruta de la fuente, solo para comprobar que está instalada (~ vale)
+#   instalacion  orden para instalarla si falta (vacío = viene con macOS)
+#   notas        para qué sirve
+# Si una nota lleva comas, ponla entre comillas.
+# Para añadir una fuente: copia una línea al final, cambia los campos y usa su clave.
+clave,nombre,postscript,tamano,archivo,instalacion,notas
+menlo,Menlo Regular,Menlo-Regular,12,/System/Library/Fonts/Menlo.ttc,,La actual. Viene con macOS; 0 con barra y buena nitidez sobre negro. Sin iconos Powerline/Nerd.
+jetbrains,JetBrainsMono Nerd Font Mono,JetBrainsMonoNFM-Regular,14,~/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf,brew install --cask font-jetbrains-mono-nerd-font,"La que se planteó al principio. Más ancha y alta; incluye los iconos Nerd/Powerline de oh-my-zsh, eza y lazygit."
+monaco,Monaco,Monaco,12,/System/Library/Fonts/Monaco.ttf,,Elección propia: viene con macOS como Menlo y es la más compacta de las tres; caben más columnas en la misma ventana. Sin iconos Nerd.
