@@ -42,8 +42,8 @@ _PALETA = ["#2C5AA0", "#1E6E74", "#3F7A45", "#7A3C8C", "#8A6A12", "#4A5260"]
 
 DEFECTOS = {
     "incluir": "si", "grupo": "UMH", "usuario": "rpuerto", "tema": "oscuro",
-    "tipo_clave": "ed25519", "puerto": "22", "ventana": "120x34",
-    "fuente_pt": "14", "confirmar": "no", "generar_clave": "si",
+    "tipo_clave": "ed25519", "puerto": "22", "ventana": "120x59",
+    "fuente_pt": "12", "confirmar": "no", "generar_clave": "si",
 }
 
 _RE_NOMBRE  = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -196,7 +196,7 @@ def _normalizar(d: dict, nlinea: int, errores: list) -> dict:
         if not f["puerto"].isdigit() or not 1 <= int(f["puerto"]) <= 65535:
             e("«puerto» no válido: %r" % f["puerto"])
     if not _RE_VENTANA.match(f["ventana"]):
-        e("«ventana» debe ser COLUMNASxFILAS, p. ej. 120x34: %r" % f["ventana"])
+        e("«ventana» debe ser COLUMNASxFILAS, p. ej. 120x59: %r" % f["ventana"])
     if not f["fuente_pt"].isdigit() or not 6 <= int(f["fuente_pt"]) <= 96:
         e("«fuente_pt» no válido: %r" % f["fuente_pt"])
     if len(f["atajo"]) > 1:

@@ -47,52 +47,62 @@ forma recomendada de trabajar a partir de unos pocos servidores.
 
 | Parámetro | Valor | Por qué |
 |---|---|---|
-| Fuente | `JetBrainsMono Nerd Font Mono` 14 pt | Monoespaciada estricta, `0`/`O` y `1`/`l`/`I` muy diferenciados, incluye los iconos Powerline/Nerd que usan `oh-my-zsh`, `eza`, `lazygit`… |
-| Interlineado | 1.12 | Respira sin separar bloques; mejora la lectura de logs largos |
+| Fuente | `Menlo Regular` 12 pt | Viene con macOS (no hay que instalar nada), `0` con barra y `1`/`l`/`I` bien diferenciados, y es la que se ve nítida con fondo negro |
+| Interlineado | 1.00 | Rejilla compacta, como en la Terminal de macOS: caben más filas |
 | Espaciado horizontal | 1.00 | Sin deformar la rejilla monoespaciada |
 | Negrita / cursiva | activadas | El resaltado de sintaxis en `vim`/`bat` se aprovecha |
-| Ligaduras | desactivadas | La variante *Mono* de Nerd Fonts no las incluye por diseño; si las quieres usa la variante sin «Mono» |
 | Perfil de aula | 18 pt y tema claro | Legible desde el fondo del aula y en proyectores con poco contraste |
 
-Instalación de la fuente:
-
-```bash
-brew install --cask font-jetbrains-mono-nerd-font
-```
-
-> **Importante.** iTerm2 guarda la fuente por su **nombre PostScript**, no por el nombre
-> de familia. Si no coincide, iTerm2 cae silenciosamente a Monaco. Para comprobarlo:
+> **Importante.** iTerm2 guarda la fuente por su **nombre PostScript** (`Menlo-Regular`),
+> no por el de familia («Menlo»). Si el nombre no existe, iTerm2 cae en silencio a
+> Monaco 12. El JSON debe decir `"Normal Font": "Menlo-Regular 12"`.
 >
-> ```bash
-> mdls -name com_apple_ats_name_postscript \
->   ~/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf
-> ```
->
-> El valor esperado es `JetBrainsMonoNFM-Regular`. El script de instalación hace esta
-> comprobación y corrige el JSON automáticamente si tu versión de la fuente usa otro nombre.
+> Menlo no incluye los iconos Powerline/Nerd (`oh-my-zsh` con `agnoster`, `eza --icons`,
+> `lazygit`…). Si algún día los quieres: instala `font-jetbrains-mono-nerd-font` con
+> Homebrew y genera con `python3 generar_perfiles.py --fuente JetBrainsMonoNFM-Regular`
+> (el tamaño por defecto, 12, se cambia en la columna `fuente_pt`).
 
 ### 1.2 Paleta «UMH Elegante Oscuro»
 
-Fondo azul-carbón muy oscuro (`#11141A`) con texto gris cálido (`#D7DCE3`): contraste
-alto pero sin el blanco puro sobre negro puro, que cansa en sesiones largas. Los 16
-colores ANSI están desaturados de forma homogénea para que ninguno "salte" y todos
-mantengan legibilidad sobre el fondo.
+Fondo **negro puro** (`#000000`) con texto casi blanco (`#F2F2F2`): el máximo contraste
+sin llegar al blanco puro, que reservamos para la negrita (`#FFFFFF`). Los 16 colores
+ANSI están ajustados para ser nítidos sobre negro; el verde del *prompt* es `#5FD068`.
 
 | Elemento | Color | Elemento | Color |
 |---|---|---|---|
-| Fondo | `#11141A` | Rojo / brillante | `#D4696A` / `#E68A8B` |
-| Texto | `#D7DCE3` | Verde / brillante | `#86B38A` / `#A3CCA6` |
-| Cursor (barra, parpadeo) | `#D8B06A` | Amarillo / brillante | `#D8B06A` / `#EDCB8A` |
-| Selección | `#2E3950` | Azul / brillante | `#7FA5D9` / `#A0C0E8` |
-| Enlaces | `#7FB8D9` | Magenta / brillante | `#B38AC4` / `#CBA8D8` |
-| Negrita | `#EDF0F4` | Cian / brillante | `#6FB5B8` / `#92CDD0` |
+| Fondo | `#000000` | Rojo / brillante | `#E5696B` / `#FF8A8C` |
+| Texto | `#F2F2F2` | Verde / brillante | `#5FD068` / `#86E88E` |
+| Cursor (barra, parpadeo) | `#E6E6E6` | Amarillo / brillante | `#E8C05A` / `#F5D98A` |
+| Selección | `#2B3A55` | Azul / brillante | `#6FA3F0` / `#9CC2FF` |
+| Enlaces | `#7FB8F0` | Magenta / brillante | `#C58AE0` / `#DDAAF2` |
+| Negrita | `#FFFFFF` | Cian / brillante | `#5CC8CC` / `#8EE3E6` |
 
-La variante clara (`#FBFAF7` sobre `#23262B`) usa los mismos tonos oscurecidos para
-mantener legibilidad con luz ambiente alta.
+El perfil de aviso (`tema = aviso`) usa la misma paleta con fondo rojo muy oscuro
+(`#1A0A0C`). La variante clara (`#FBFAF7` sobre `#23262B`) es para el proyector.
 
-Importar a mano: doble clic en el `.itermcolors` → *Ajustes › Perfiles › Colores ›
-Color Presets…* y elegir el preset. Los perfiles de este paquete ya traen los colores
-incrustados, así que esto sólo hace falta si quieres aplicarlos a otros perfiles tuyos.
+Los perfiles ya traen los colores incrustados: **no hace falta importar nada**. Los
+`.itermcolors` solo sirven si quieres aplicar la paleta a otros perfiles tuyos
+(Ajustes › Perfiles › Colores › Color Presets…). El instalador ya no los abre en cada
+ejecución —era lo que provocaba el aviso «¿Añadir preset duplicado?»—; se importan solo
+con `bash instalar-iterm2.sh --colores`. Para regenerarlos tras cambiar una paleta:
+`python3 generar_perfiles.py --colores`.
+
+### 1.2b Tamaño de la ventana
+
+Cada perfil de servidor toma `ventana` (columnas`x`filas) de su fila de la hoja. El
+perfil **«UMH · Base»** —el predeterminado, el que abre ⌘N en local— toma el valor
+**más repetido** de la columna (o el de `--ventana 120x59`). Antes llevaba 120x34 fijo,
+por eso la ventana local no coincidía con la hoja.
+
+Cosas que hacen que no coincida aunque el perfil esté bien:
+
+- `Columns`/`Rows` solo se aplican a **ventanas nuevas** (⌘N), no a pestañas (⌘T), ni
+  en pantalla completa, ni a ventanas restauradas al arrancar.
+- Si pides más filas de las que caben en la pantalla, iTerm2 recorta la ventana. Con
+  Menlo 12 e interlineado 1.00, 59 filas ocupan unos 850 px.
+- Cambiar el tamaño de la fuente (⌘+ / ⌘−) redimensiona la ventana.
+
+`bash diagnostico.sh` comprueba los ajustes de restauración de ventanas.
 
 ### 1.3 Ajustes globales de la aplicación (GUI)
 
@@ -449,7 +459,7 @@ incluye `it2ssh`, que lo lleva consigo al conectar).
 open -a TextEdit "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 
 # Cambiar la fuente de todos los perfiles de golpe
-sed -i '' 's/JetBrainsMonoNFM-Regular 14/JetBrainsMonoNFM-Regular 15/g' \
+sed -i '' 's/Menlo-Regular 12/Menlo-Regular 13/g' \
   "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 
 # Copia de seguridad de los ajustes globales de iTerm2
@@ -488,13 +498,14 @@ defaults write com.googlecode.iterm2 "Default Bookmark Guid" \
 O por GUI: *Ajustes › Perfiles*, seleccionar **UMH · Base** ›
 *Other Actions… › Set as Default*.
 
-**2b. El perfil dice `"Normal Font": "null 14"`.** Le ocurrió al instalador en su
-primera versión: consultaba `mdls` justo después de instalar la fuente, cuando Spotlight
-todavía no la había indexado, y `mdls` devuelve `(null)`. Reparación directa:
+**2b. El perfil dice `"Normal Font": "null 12"` (o `null 14`).** Le ocurrió al instalador
+en su primera versión, cuando la fuente (entonces JetBrainsMono) se consultaba con `mdls`
+antes de que Spotlight la indexara. Con Menlo ya no se consulta nada, pero si lo ves,
+repara con:
 
 ```bash
 DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
-sed -i '' 's/"null \([0-9]\{1,2\}\)"/"JetBrainsMonoNFM-Regular \1"/g' "$DYN"
+sed -i '' 's/"null \([0-9]\{1,2\}\)"/"Menlo-Regular \1"/g' "$DYN"
 grep -n '"Normal Font"' "$DYN"
 ```
 
@@ -503,14 +514,14 @@ su nombre PostScript; si no existe, **cae a Monaco sin avisar**. Comprueba el re
 sustitúyelo:
 
 ```bash
-mdls -raw -name com_apple_ats_name_postscript \
-  ~/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf
+# para una fuente instalada en ~/Library/Fonts (Menlo no hace falta):
+mdls -raw -name com_apple_ats_name_postscript ~/Library/Fonts/<ARCHIVO>.ttf
 
-sed -i '' 's/JetBrainsMonoNFM-Regular/<NOMBRE_REAL>/g' \
+sed -i '' 's/Menlo-Regular/<NOMBRE_REAL>/g' \
   "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
 ```
 
-El valor debe quedar como `"Normal Font": "<NOMBRE_REAL> 14"` — nombre, espacio,
+El valor debe quedar como `"Normal Font": "<NOMBRE_REAL> 12"` — nombre, espacio,
 tamaño, en la misma cadena.
 
 **3. `Columns`/`Rows` sólo se aplican a ventanas nuevas.** `⌘T` (pestaña nueva) hereda

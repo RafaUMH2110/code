@@ -2,7 +2,7 @@
 # =====================================================================
 #  instalar-iterm2.sh · Instala tema y perfiles de iTerm2 (macOS)
 #
-#  Uso:  bash instalar-iterm2.sh [-m NOMBRE]
+#  Uso:  bash instalar-iterm2.sh [-m NOMBRE] [--colores]
 #
 #    -m, --maquina NOMBRE   nombre de ESTA máquina («iMac despacho»,
 #                           «MacBook»). Se guarda en datos/maquina.txt y lo
@@ -12,6 +12,11 @@
 #                           en el authorized_keys de los servidores.
 #                           Si no se indica, se pregunta, proponiendo el
 #                           nombre que macOS tiene configurado.
+#    --colores              importa además los presets de color
+#                           (colores/*.itermcolors) en Ajustes > Colores.
+#                           NO hace falta: los perfiles ya llevan sus colores.
+#                           iTerm2 pregunta «¿Añadir preset duplicado?» si ya
+#                           los tenías, por eso solo se hace cuando se pide.
 #    -h, --ayuda            esta ayuda
 #
 #  El shebang hace que se ejecute con bash aunque tu shell sea zsh (el de
@@ -32,11 +37,13 @@ pregunta() {                      # pregunta "texto" NOMBRE_DE_VARIABLE
 }
 
 MAQUINA=""
+COLORES=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -m|--maquina)
       [[ -n "${2:-}" ]] || { echo "Falta el nombre después de $1"; exit 1; }
       MAQUINA="$2"; shift 2 ;;
+    --colores) COLORES=1; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
     *) echo "Opción desconocida: $1"; echo; uso; exit 1 ;;
   esac
@@ -72,13 +79,11 @@ printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
 echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
-echo "==> 2/7 Fuente monoespaciada (JetBrainsMono Nerd Font)"
-if command -v brew >/dev/null 2>&1; then
-  brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 \
-    || brew install --cask font-jetbrains-mono-nerd-font
+echo "==> 2/7 Fuente: Menlo Regular 12 (viene con macOS)"
+if [[ -e /System/Library/Fonts/Menlo.ttc ]]; then
+  echo "    OK, no hay que instalar nada."
 else
-  echo "    Homebrew no encontrado. Instala la fuente a mano desde"
-  echo "    https://www.nerdfonts.com  (variante 'Nerd Font Mono')"
+  echo "    AVISO: no encuentro Menlo en /System/Library/Fonts."
 fi
 
 echo "==> 3/7 Perfiles dinámicos de iTerm2"
@@ -115,41 +120,29 @@ else
   echo "      python3 generar_perfiles.py --instalar"
 fi
 
-echo "==> 4/7 Comprobar el nombre PostScript real de la fuente"
-# Devuelve el nombre PostScript, o nada si no se puede determinar.
-# OJO: mdls devuelve "(null)" si Spotlight aún no ha indexado el archivo;
-# ese valor NUNCA debe escribirse en el perfil.
-ps_name_of() {
-  mdls -raw -name com_apple_ats_name_postscript "$1" 2>/dev/null \
-    | tr -d '()"' | tr -s ' \t\n,' '\n' \
-    | grep -E '^[A-Za-z0-9][A-Za-z0-9._-]+$' \
-    | grep -vix 'null' | head -1
-}
-FONT_TTF="$HOME/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf"
-ESPERADO="JetBrainsMonoNFM-Regular"
-PS_NAME=""
-if [[ -f "$FONT_TTF" ]]; then
-  mdimport -i "$FONT_TTF" >/dev/null 2>&1 || true   # fuerza el indexado
-  for _ in 1 2 3; do
-    PS_NAME="$(ps_name_of "$FONT_TTF")"
-    [[ -n "$PS_NAME" ]] && break
-    sleep 1
-  done
-fi
-if [[ -z "$PS_NAME" ]]; then
-  echo "    No se pudo leer el nombre PostScript (Spotlight aún indexando)."
-  echo "    Se deja '$ESPERADO', que es el correcto para esta fuente."
-  echo "    Verifícalo luego con: bash scripts/diagnostico.sh"
-elif [[ "$PS_NAME" == "$ESPERADO" ]]; then
-  echo "    OK ($ESPERADO)"
+echo "==> 4/7 Comprobar la fuente de los perfiles instalados"
+if [[ -f "$DYN/UMH-Perfiles.json" ]]; then
+  grep -m1 '"Normal Font"' "$DYN/UMH-Perfiles.json" | sed 's/^[[:space:]]*/    /'
+  if grep -q '"Normal Font": "null' "$DYN/UMH-Perfiles.json"; then
+    echo "    AVISO: la fuente quedó en «null». Repite: python3 generar_perfiles.py --instalar"
+  fi
+  if grep -q 'JetBrainsMono' "$DYN/UMH-Perfiles.json"; then
+    echo "    AVISO: el JSON instalado aún usa JetBrainsMono (versión antigua)."
+    echo "    Regenéralo con: python3 generar_perfiles.py --instalar"
+  fi
 else
-  echo "    Tu versión usa otro nombre: $PS_NAME -> ajustando el perfil instalado"
-  /usr/bin/sed -i '' "s/$ESPERADO/$PS_NAME/g" "$DYN/UMH-Perfiles.json"
+  echo "    (aún no hay perfiles instalados)"
 fi
 
-echo "==> 5/7 Presets de color (se abren para que iTerm2 los importe)"
-open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
-open "$BASE/colores/UMH-Elegante-Claro.itermcolors"  || true
+echo "==> 5/7 Presets de color"
+if [[ "$COLORES" == "1" ]]; then
+  echo "    Se abren para que iTerm2 los importe (si ya estaban, te preguntará)."
+  open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
+  open "$BASE/colores/UMH-Elegante-Claro.itermcolors"  || true
+else
+  echo "    No se importan: los perfiles ya llevan sus colores."
+  echo "    (Si los quieres en Ajustes > Colores: bash instalar-iterm2.sh --colores)"
+fi
 
 echo "==> 6/7 Carpetas y permisos de SSH"
 mkdir -p "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
@@ -157,7 +150,7 @@ chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 [[ -f "$HOME/.ssh/config" ]] && chmod 600 "$HOME/.ssh/config"
 echo "    Carpetas listas. La configuración SSH de cada servidor la escribe"
 echo "    el generador, que respeta tu ~/.ssh/config y solo le añade un Include:"
-echo "      python3 scripts/generar_perfiles.py --instalar"
+echo "      python3 generar_perfiles.py --instalar"
 
 echo "==> 7/7: fijar UMH · Base como perfil predeterminado"
 GUID_BASE="415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # uuid5 de "UMH · Base"
@@ -182,9 +175,11 @@ fi
 cat <<'FIN'
 
 
-Listo. Siguiente paso:
-  python3 scripts/generar_perfiles.py --instalar
-  python3 scripts/generar_claves.py --dry-run
+Listo. Siguiente paso (desde esta carpeta):
+  python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/umh.conf
+  python3 generar_claves.py --dry-run        # ver qué claves se crearían
 En iTerm2: Ajustes > Perfiles  ->  verás los perfiles "UMH · ...".
-Marca "UMH · Local (iMac)" como predeterminado si no lo está.
+«UMH · Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja.
+Si ya tenías ventanas abiertas, ciérralas y abre una nueva con ⌘N: el tamaño
+solo se aplica a ventanas nuevas.
 FIN

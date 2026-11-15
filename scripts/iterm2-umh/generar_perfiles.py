@@ -27,6 +27,8 @@ import os
 import re
 import shutil
 import platform
+import plistlib
+from collections import Counter
 import sys
 import uuid
 from datetime import datetime
@@ -35,7 +37,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import umh_inventario as inv
 
 BASE = "UMH · Base"
-FUENTE_DEFECTO = "JetBrainsMonoNFM-Regular"
+FUENTE_DEFECTO = "Menlo-Regular"          # viene con macOS: no hay que instalar nada
+TAM_DEFECTO = inv.DEFECTOS["fuente_pt"]   # 12; una sola fuente de verdad
+VENTANA_DEFECTO = inv.DEFECTOS["ventana"]
 DYN = os.path.expanduser(
     "~/Library/Application Support/iTerm2/DynamicProfiles")
 # iTerm2 carga TODOS los archivos de DynamicProfiles: una copia de seguridad
@@ -44,14 +48,14 @@ COPIAS = os.path.expanduser("~/.iterm2-umh-copias")
 
 # ------------------------------------------------------------------ paletas
 OSCURO = {
-    "background": "#11141A", "foreground": "#D7DCE3", "bold": "#EDF0F4",
-    "link": "#7FB8D9", "selection": "#2E3950", "selected_text": "#EDF0F4",
-    "cursor": "#D8B06A", "cursor_text": "#11141A", "cursor_guide": "#1A2030",
-    "badge": "#D4696A",
-    "ansi": ["#2A2F3A", "#D4696A", "#86B38A", "#D8B06A",
-             "#7FA5D9", "#B38AC4", "#6FB5B8", "#C9CFD8",
-             "#4A5260", "#E68A8B", "#A3CCA6", "#EDCB8A",
-             "#A0C0E8", "#CBA8D8", "#92CDD0", "#EDF0F4"],
+    "background": "#000000", "foreground": "#F2F2F2", "bold": "#FFFFFF",
+    "link": "#7FB8F0", "selection": "#2B3A55", "selected_text": "#FFFFFF",
+    "cursor": "#E6E6E6", "cursor_text": "#000000", "cursor_guide": "#1C1C1C",
+    "badge": "#E5696B",
+    "ansi": ["#2B2B2B", "#E5696B", "#5FD068", "#E8C05A",
+             "#6FA3F0", "#C58AE0", "#5CC8CC", "#D8D8D8",
+             "#6E6E6E", "#FF8A8C", "#86E88E", "#F5D98A",
+             "#9CC2FF", "#DDAAF2", "#8EE3E6", "#FFFFFF"],
 }
 CLARO = {
     "background": "#FBFAF7", "foreground": "#23262B", "bold": "#000000",
@@ -63,7 +67,7 @@ CLARO = {
              "#6B727C", "#C9453E", "#4C8F52", "#9B7A1A",
              "#3A6BB5", "#8C4A9E", "#27818A", "#23262B"],
 }
-AVISO = dict(OSCURO, background="#1A1113", cursor_text="#1A1113",
+AVISO = dict(OSCURO, background="#1A0A0C", cursor_text="#1A0A0C",
              cursor_guide="#2A1518")
 PALETAS = {"oscuro": OSCURO, "claro": CLARO, "aviso": AVISO}
 
@@ -93,6 +97,11 @@ def colores(p):
     return d
 
 
+def escribir_itermcolors(paleta, ruta):
+    with open(ruta, "wb") as f:
+        plistlib.dump(colores(paleta), f, fmt=plistlib.FMT_XML, sort_keys=True)
+
+
 def guid(nombre):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "umh-iterm2:" + nombre))
 
@@ -110,15 +119,16 @@ def nombre_maquina(raiz, indicado=""):
     return ""
 
 
-def perfil_base(fuente, maquina=""):
+def perfil_base(fuente, maquina="", ventana=VENTANA_DEFECTO, tam=TAM_DEFECTO):
+    cols, rows = inv._RE_VENTANA.match(ventana).groups()
     p = {
         "Name": BASE,
         "Guid": guid(BASE),
-        "Normal Font": "%s 14" % fuente,
-        "Non Ascii Font": "%s 14" % fuente,
+        "Normal Font": "%s %s" % (fuente, tam),
+        "Non Ascii Font": "%s %s" % (fuente, tam),
         "Use Non-ASCII Font": False,
         "Horizontal Spacing": 1.0,
-        "Vertical Spacing": 1.12,
+        "Vertical Spacing": 1.0,
         "Use Bold Font": True,
         "Use Italic Font": True,
         "ASCII Anti Aliased": True,
@@ -129,8 +139,8 @@ def perfil_base(fuente, maquina=""):
         "Draw Powerline Glyphs": True,
         "Unicode Version": 9,
         "Ambiguous Double Width": False,
-        "Columns": 120,
-        "Rows": 34,
+        "Columns": int(cols),
+        "Rows": int(rows),
         "Transparency": 0.0,
         "Blur": False,
         "Scrollback Lines": 50000,
@@ -163,7 +173,7 @@ def perfil_base(fuente, maquina=""):
     return p
 
 
-def perfil_de_fila(f, fuente):
+def perfil_de_fila(f, fuente, tam=TAM_DEFECTO):
     nombre = "%s · %s" % (f["grupo"], f["nombre"])
     cols, rows = inv._RE_VENTANA.match(f["ventana"]).groups()
     p = {
@@ -175,7 +185,7 @@ def perfil_de_fila(f, fuente):
         "Use Tab Color": True,
         "Tab Color": comp(f["color_hex"]),
     }
-    if f["fuente_pt"] != "14":
+    if f["fuente_pt"] != tam:
         p["Normal Font"] = "%s %s" % (fuente, f["fuente_pt"])
         p["Non Ascii Font"] = p["Normal Font"]
     if f["tema"] != "oscuro":
@@ -221,7 +231,7 @@ PLANTILLA = {
         "Badge Max Width": 0.3,
         "Badge Max Height": 0.12,
         "Columns": 120,
-        "Rows": 34,
+        "Rows": 59,
         "Use Tab Color": True,
         "Tab Color": comp("#4A5260"),
     },
@@ -349,6 +359,11 @@ def main():
     ap.add_argument("--salida", default=aquí)
     ap.add_argument("--fuente", default=FUENTE_DEFECTO,
                     help="nombre PostScript de la tipografía (sin el tamaño)")
+    ap.add_argument("--ventana", default="",
+                    help="tamaño COLUMNASxFILAS de «UMH · Base» (la sesión local); "
+                         "por defecto, el más repetido en la hoja")
+    ap.add_argument("--colores", action="store_true",
+                    help="regenera colores/*.itermcolors desde las paletas")
     ap.add_argument("--maquina", default="",
                     help="nombre de este ordenador para el distintivo de las "
                          "sesiones locales; por defecto, datos/maquina.txt")
@@ -378,8 +393,21 @@ def main():
         sys.exit("ERROR: ninguna fila tiene «incluir» = si.")
 
     maquina = nombre_maquina(aquí, a.maquina)
-    perfiles = ([perfil_base(a.fuente, maquina)]
+    # «UMH · Base» es lo que abre ⌘N: lleva el tamaño que más se repite en la
+    # hoja (o el de --ventana), para que no discrepe de lo que se ha pedido.
+    if a.ventana:
+        if not inv._RE_VENTANA.match(a.ventana):
+            sys.exit("ERROR: --ventana debe ser COLUMNASxFILAS, p. ej. 120x59")
+        ventana = a.ventana
+    else:
+        ventana = Counter(f["ventana"] for f in activas).most_common(1)[0][0]
+    perfiles = ([perfil_base(a.fuente, maquina, ventana)]
                 + [perfil_de_fila(f, a.fuente) for f in activas])
+    if a.colores:
+        os.makedirs(os.path.join(a.salida, "colores"), exist_ok=True)
+        escribir_itermcolors(OSCURO, os.path.join(a.salida, "colores/UMH-Elegante-Oscuro.itermcolors"))
+        escribir_itermcolors(CLARO, os.path.join(a.salida, "colores/UMH-Elegante-Claro.itermcolors"))
+        print("Presets de color regenerados en colores/")
     doc = {"Profiles": perfiles, "_PLANTILLA": PLANTILLA}
 
     ruta_json = os.path.join(a.salida, "perfiles/UMH-Perfiles.json")
@@ -427,6 +455,7 @@ def main():
     print("%d perfiles · %d claves distintas%s"
           % (len(activas), len({f["clave"] for f in activas if f["clave"]}),
              (" · fuera por «incluir = no»: " + ", ".join(excluidas)) if excluidas else ""))
+    print("ventana de «UMH · Base»: %s · fuente %s %s" % (ventana, a.fuente, TAM_DEFECTO))
     print("máquina local: %s" % (maquina or "sin nombre (bash instalar-iterm2.sh -m NOMBRE)"))
     print("\n  %s\n  %s" % (ruta_json, ruta_conf))
 
