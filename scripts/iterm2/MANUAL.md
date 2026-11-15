@@ -8,7 +8,8 @@ perfiles dinámicos para cada servidor y acceso SSH sin contraseña mediante cla
 iterm2/
 ├── inventario.py            lee y valida el inventario (lo usan los dos generadores)
 ├── generar_perfiles.py          -> perfiles/Perfiles-Servidores.json  +  ssh/servidores.conf
-├── generar_claves.py            claves, Llavero de macOS y ssh-copy-id
+├── generar_claves.py            claves, Llavero de macOS y copia a los servidores
+├── limpiar_ssh.py               limpia ~/.ssh (copia previa)
 ├── instalar-iterm2.sh           fuente, temas y perfil predeterminado (primera vez)
 ├── diagnostico.sh               por qué iTerm2 no aplica algo
 ├── colores/
@@ -449,6 +450,59 @@ ssh-keygen -R servidor.umh.es                 # olvidar una clave de host cambia
 | `Permission denied (publickey)` con `PasswordAuthentication no` | La clave no llegó al servidor; entra desde otra sesión ya abierta |
 | `Agent admitted failure to sign` | La clave no está en el agente: `ssh-add --apple-use-keychain …` |
 
+### 3.9 Empezar de cero: `~/.ssh` limpio y claves nuevas
+
+Dos pasos, en este orden. Los dos enseñan primero qué van a hacer (sin
+`--aplicar` / con `--dry-run` no tocan nada).
+
+**1. Limpiar este ordenador** con `limpiar_ssh.py`. Antes de tocar nada copia
+`~/.ssh` entero a `~/.iterm2-copias/ssh-FECHA`: lo quitado se recupera de ahí.
+
+```bash
+python3 limpiar_ssh.py                                   # el plan
+python3 limpiar_ssh.py --aplicar --claves-sobrantes       # hacerlo
+```
+
+| Qué | Por defecto | Opción |
+|---|---|---|
+| `known_hosts` | quita las entradas de los servidores del inventario (nombre, dirección, `[dirección]:puerto`) | `--known-hosts todo` lo vacía; `no` no lo toca |
+| Restos | `known_hosts.old`, `*.bak*`, `*.old`, `*~`, `*.retirado-*` | — |
+| Sockets de `cm/` | se borran | — |
+| Claves que no están en la columna `clave` | se listan | `--claves-sobrantes` las quita |
+
+Las claves del inventario no se tocan aquí. **Ojo con `--claves-sobrantes`:**
+la clave de GitHub u otra que uses fuera del inventario es «sobrante». Mira la
+lista del plan antes; si está, déjalas o añádela al inventario.
+
+**2. Cambiar las claves del inventario** con `generar_claves.py --regenerar`:
+
+```bash
+python3 generar_claves.py --regenerar --dry-run
+python3 generar_claves.py --regenerar
+```
+
+Para cada clave: aparta la antigua como `<clave>.antigua`, crea la nueva (pide
+passphrase), la instala en cada servidor **entrando con la antigua** (o con la
+contraseña si la antigua ya no vale), comprueba que la nueva entra y solo
+entonces borra la pública antigua del `authorized_keys` de ese servidor. Las
+líneas de otros ordenadores no se tocan. Cuando todos los servidores de una
+clave han ido bien, la antigua sale de `~/.ssh` y queda en
+`~/.iterm2-copias/claves-antiguas-FECHA`.
+
+- Como `known_hosts` está recién limpio, usa `StrictHostKeyChecking=accept-new`:
+  acepta la huella de un servidor que no conocía, pero sigue rechazando una
+  huella que haya *cambiado*.
+- Si un servidor falla (apagado, el otro sistema de un arranque dual), su
+  `.antigua` se queda. Repite `--regenerar` cuando esté accesible: retoma solo
+  las pendientes y no vuelve a cambiar las que ya terminaron.
+- No admite `--solo` ni `--grupo`: una clave nueva deja fuera a todos los
+  servidores que compartían la antigua.
+- Las filas con `incluir = no` que comparten clave con otras no reciben la
+  nueva (el script avisa). Si quieres conservarlas, pon `incluir = si` antes.
+- Si la misma clave privada está copiada en otro ordenador tuyo, ese ordenador
+  pierde el acceso: cada ordenador debe tener sus claves (por eso el comentario
+  lleva el nombre de la máquina).
+
 ---
 
 ## 4. Complementos que encajan bien
@@ -591,7 +645,7 @@ se exporta la pestaña `Servidores` como CSV, y dos scripts hacen el resto.
 datos/servidores.csv            el inventario exportado de tu hoja
 inventario.py               lectura y validación (lo usan los dos scripts)
 generar_perfiles.py             -> perfiles/Perfiles-Servidores.json  +  ssh/servidores.conf
-generar_claves.py               -> claves, Llavero y ssh-copy-id
+generar_claves.py               -> claves, Llavero y copia a los servidores
 ```
 
 ```bash

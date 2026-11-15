@@ -17,7 +17,8 @@ una hoja de cálculo y se exporta como CSV.
 | Fichero | Para qué sirve |
 |---|---|
 | `generar_perfiles.py` | Del CSV a `perfiles/Perfiles-Servidores.json` (perfiles dinámicos de iTerm2) y `ssh/servidores.conf` (para `~/.ssh/config.d/`). Valida el lote y no escribe nada si hay errores. Con `--instalar` lo pone en su sitio |
-| `generar_claves.py` | Crea una clave por cada valor distinto de la columna `clave`, la guarda en el Llavero de macOS, la copia a cada servidor con `ssh-copy-id` y comprueba que entra sin contraseña. `--solo` y `--grupo` para ir máquina a máquina |
+| `generar_claves.py` | Crea una clave por cada valor distinto de la columna `clave`, la guarda en el Llavero de macOS, la copia a cada servidor (sin duplicar líneas) y comprueba que entra sin contraseña. `--solo` y `--grupo` para ir máquina a máquina; `--regenerar` las cambia todas por nuevas |
+| `limpiar_ssh.py` | Deja `~/.ssh` limpio con copia completa previa: entradas de `known_hosts` de los servidores del inventario, restos y, con `--claves-sobrantes`, las claves que no están en la hoja. Después, `generar_claves.py --regenerar` cambia todas las claves por otras nuevas sin quedarte fuera (MANUAL §3.9) |
 | `inventario.py` | Módulo compartido: lee el CSV y lo valida. Los dos generadores entienden exactamente lo mismo por una hoja |
 | `datos/fuentes.csv` | Las tres tipografías con su tamaño (`menlo`, `jetbrains`, `monaco`); se elige una para el perfil base con `-f` |
 | `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), qué tipografía usar (`-f jetbrains`), instala los perfiles, ofrece la shell integration de iTerm2 y los ejecutables de `ls` en rojo, y fija el perfil predeterminado (los temas se importan solo con `--colores`) |
@@ -36,6 +37,13 @@ python3 generar_perfiles.py                  # genera y valida, sin instalar
 python3 generar_perfiles.py --instalar       # perfiles + ~/.ssh/config.d/servidores.conf
 python3 generar_claves.py --dry-run          # qué haría con las claves
 python3 generar_claves.py                    # crear, guardar y repartir
+```
+
+Para empezar de cero con `~/.ssh` limpio y todas las claves nuevas (MANUAL §3.9):
+
+```bash
+python3 limpiar_ssh.py --aplicar --claves-sobrantes   # mira antes el plan sin --aplicar
+python3 generar_claves.py --regenerar                 # mira antes con --dry-run
 ```
 
 El nombre que le das al equipo se guarda en `datos/maquina.txt` y lo usan los dos
