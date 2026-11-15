@@ -18,7 +18,7 @@ Los filtros --solo y --grupo existen sobre todo para máquinas de arranque
 dual: la pública hay que copiarla con cada sistema arrancado, porque cada uno
 tiene su propio authorized_keys.
 
-Ejecuta primero generar_perfiles.py --instalar: con ~/.ssh/config.d/umh.conf
+Ejecuta primero generar_perfiles.py --instalar: con ~/.ssh/config.d/servidores.conf
 puesto, este script usa los alias (y con ellos el puerto, el usuario y los
 saltos) en vez de repetir los datos.
 """
@@ -34,7 +34,7 @@ import sys
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import umh_inventario as inv
+import inventario as inv
 
 SSH = os.path.expanduser("~/.ssh")
 ES_MAC = platform.system() == "Darwin"
@@ -52,7 +52,7 @@ def correr(cmd, dry, interactivo=True):
 
 
 def alias_resuelve(nombre, direccion):
-    """¿Está instalado ~/.ssh/config.d/umh.conf y el alias apunta donde debe?"""
+    """¿Está instalado ~/.ssh/config.d/servidores.conf y el alias apunta donde debe?"""
     try:
         r = subprocess.run(["ssh", "-G", nombre], capture_output=True, text=True,
                            timeout=15)
@@ -168,7 +168,7 @@ def main():
                                    "" if usa_alias else "  [sin alias: uso usuario@dirección]"))
         if not usa_alias and f["salto"]:
             print("   OMITIDA: necesita el salto por %r y eso solo funciona con "
-                  "~/.ssh/config.d/umh.conf instalado." % f["salto"])
+                  "~/.ssh/config.d/servidores.conf instalado." % f["salto"])
             resultados.append((f["nombre"], "omitida (falta el config)"))
             continue
         if hay_copy_id:

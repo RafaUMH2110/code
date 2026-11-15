@@ -24,11 +24,11 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `MANUAL.md`, `README.md`, `vscode-ejemplo/` | Manual detallado, resumen y ejemplos de `launch.json` / `tasks.json` |
 | `mantenimiento-repos/` | `auditar-repos.sh` | Revisa los repos de `RafaUMH2110` (secretos, ramas sin integrar, ficheros grandes y duplicados, workflows, enlaces rotos) sin modificar nada. Ver su README y el artifact de mantenimiento |
 | | `README.md` | Guía de uso y de la rutina de mantenimiento |
-| `iterm2-umh/` | `generar_perfiles.py` | Del inventario de servidores en CSV a los perfiles dinámicos de iTerm2 y a `~/.ssh/config.d/umh.conf` (valida antes de escribir; `--instalar` lo coloca) |
+| `iterm2-umh/` | `generar_perfiles.py` | Del inventario de servidores en CSV a los perfiles dinámicos de iTerm2 y a `~/.ssh/config.d/servidores.conf` (valida antes de escribir; `--instalar` lo coloca) |
 | | `generar_claves.py` | Crea las claves SSH del inventario, las guarda en el Llavero de macOS, las reparte con `ssh-copy-id` y comprueba el acceso sin contraseña (`--solo`, `--grupo`, `--dry-run`) |
-| | `umh_inventario.py` | Módulo compartido que lee y valida el CSV |
+| | `inventario.py` | Módulo compartido que lee y valida el CSV |
 | | `instalar-iterm2.sh`, `diagnostico.sh` | Perfiles, shell integration opcional y perfil predeterminado; y diagnóstico de por qué iTerm2 no aplica algo |
-| | `colores/`, `datos/`, `ejemplos/`, `MANUAL.md` | Tema «UMH Elegante» (oscuro y claro), inventario de ejemplo, salidas de muestra y la guía completa. Ver su [README](iterm2-umh/README.md) |
+| | `colores/`, `datos/`, `ejemplos/`, `MANUAL.md` | Tema «Elegante» (oscuro y claro), inventario de ejemplo, salidas de muestra y la guía completa. Ver su [README](iterm2-umh/README.md) |
 | `mover-repo/` | `instrucciones-mover-repo.md` | Guía para mover un repo de GitHub a una subcarpeta de otro conservando el historial |
 
 Los scripts `instalar-todo*.sh` sustituyeron a los de la antigua carpeta `clonar-actualizar/`, que ya no existe (siguen en el historial de Git).

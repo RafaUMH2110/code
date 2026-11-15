@@ -9,14 +9,14 @@ a partir del inventario en CSV.
     python3 scripts/generar_perfiles.py --csv otra_hoja.csv
 
 Produce:
-    perfiles/UMH-Perfiles.json   un perfil «UMH · Base» + un hijo por fila
-    ssh/umh.conf                 fragmento para ~/.ssh/config.d/
+    perfiles/Perfiles-Servidores.json   un perfil «Base» + un hijo por fila
+    ssh/servidores.conf                 fragmento para ~/.ssh/config.d/
 
 Con --instalar copia el JSON a la carpeta DynamicProfiles de iTerm2 (que lo
-recarga al instante) y umh.conf a ~/.ssh/config.d/, añadiendo si falta la
+recarga al instante) y servidores.conf a ~/.ssh/config.d/, añadiendo si falta la
 línea «Include config.d/*.conf» al principio de ~/.ssh/config.
 
-NO renombres el perfil «UMH · Base»: su identificador se deriva del nombre y
+NO renombres el perfil «Base»: su identificador se deriva del nombre y
 es el que iTerm2 tiene guardado como perfil predeterminado.
 """
 from __future__ import annotations
@@ -36,16 +36,16 @@ import uuid
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import umh_inventario as inv
+import inventario as inv
 
-BASE = "UMH · Base"
+BASE = "Base"
 FUENTE_DEFECTO = "menlo"      # clave en datos/fuentes.csv
 VENTANA_DEFECTO = inv.DEFECTOS["ventana"]
 DYN = os.path.expanduser(
     "~/Library/Application Support/iTerm2/DynamicProfiles")
 # iTerm2 carga TODOS los archivos de DynamicProfiles: una copia de seguridad
 # dentro de esa carpeta son perfiles duplicados y avisos al abrir cada ventana.
-COPIAS = os.path.expanduser("~/.iterm2-umh-copias")
+COPIAS = os.path.expanduser("~/.iterm2-copias")
 
 # ------------------------------------------------------------------ paletas
 OSCURO = {
@@ -104,7 +104,7 @@ def escribir_itermcolors(paleta, ruta):
 
 
 def guid(nombre):
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, "umh-iterm2:" + nombre))
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, "iterm2:" + nombre))
 
 
 # ------------------------------------------------------------------ perfiles
@@ -242,7 +242,7 @@ def perfil_de_fila(f, fuente):
         "Use Tab Color": True,
         "Tab Color": comp(f["color_hex"]),
     }
-    if f["fuente_pt"]:      # vacío: hereda la fuente y el tamaño de «UMH · Base»
+    if f["fuente_pt"]:      # vacío: hereda la fuente y el tamaño de «Base»
         p["Normal Font"] = "%s %s" % (fuente, f["fuente_pt"])
         p["Non Ascii Font"] = p["Normal Font"]
     if f["tema"] != "oscuro":
@@ -368,7 +368,7 @@ PLANTILLA_SSH = """
 #     HostName        servidor.example.es
 #     User            usuario
 #     Port            22
-#     IdentityFile    ~/.ssh/id_ed25519_umh
+#     IdentityFile    ~/.ssh/id_ed25519_servidores
 #     IdentitiesOnly  yes
 #     HostKeyAlias    nombre-de-la-maquina    # si llega por varias IP
 #     CheckHostIP     no                      # acompaña a HostKeyAlias
@@ -386,6 +386,39 @@ def guardar_copia(ruta, sello):
     destino = os.path.join(COPIAS, "%s.bak-%s" % (os.path.basename(ruta), sello))
     shutil.copy2(ruta, destino)
     return destino
+
+
+# Nombres de versiones anteriores del kit. Se retiran al instalar: si se quedaran,
+# iTerm2 cargaría también el perfil antiguo (los dos archivos de DynamicProfiles
+# se cargan) y ssh leería dos veces los mismos «Host».
+ANTIGUOS_COPIAS = os.path.expanduser("~/.iterm2-umh-copias")
+ANTIGUOS_JSON = "UMH-Perfiles.json"
+ANTIGUOS_CONF = "umh.conf"
+
+
+def retirar_antiguos(ssh_dir, sello):
+    """Mueve a COPIAS los archivos con el nombre antiguo. Devuelve lo retirado."""
+    os.makedirs(COPIAS, exist_ok=True)
+    if os.path.isdir(ANTIGUOS_COPIAS):
+        for n in os.listdir(ANTIGUOS_COPIAS):
+            destino = os.path.join(COPIAS, n)
+            if not os.path.exists(destino):
+                shutil.move(os.path.join(ANTIGUOS_COPIAS, n), destino)
+        try:
+            os.rmdir(ANTIGUOS_COPIAS)
+        except OSError:
+            pass
+    retirados = []
+    candidatos = [os.path.join(ssh_dir, "config.d", ANTIGUOS_CONF)]
+    if os.path.isdir(DYN):
+        candidatos += [os.path.join(DYN, n) for n in sorted(os.listdir(DYN))
+                       if n == ANTIGUOS_JSON or n.startswith(ANTIGUOS_JSON + ".bak-")]
+    for ruta in candidatos:
+        if os.path.isfile(ruta):
+            destino = os.path.join(COPIAS, "%s.retirado-%s" % (os.path.basename(ruta), sello))
+            shutil.move(ruta, destino)
+            retirados.append(ruta)
+    return retirados
 
 
 def asegurar_include(ruta_config):
@@ -415,13 +448,13 @@ def main():
     ap.add_argument("--csv", default=os.path.join(aquí, "datos/servidores.csv"))
     ap.add_argument("--salida", default=aquí)
     ap.add_argument("--fuente", default="",
-                    help="clave de la tipografía de «UMH · Base» en datos/fuentes.csv "
+                    help="clave de la tipografía de «Base» en datos/fuentes.csv "
                          "(menlo, jetbrains, monaco...); por defecto, datos/fuente.txt")
     ap.add_argument("--lista-fuentes", action="store_true",
                     help="muestra las tipografías disponibles y sale")
     ap.add_argument("--fuentes-csv", default=os.path.join(aquí, "datos/fuentes.csv"))
     ap.add_argument("--ventana", default="",
-                    help="tamaño COLUMNASxFILAS de «UMH · Base» (la sesión local); "
+                    help="tamaño COLUMNASxFILAS de «Base» (la sesión local); "
                          "por defecto, el más repetido en la hoja")
     ap.add_argument("--colores", action="store_true",
                     help="regenera colores/*.itermcolors desde las paletas")
@@ -463,7 +496,7 @@ def main():
         sys.exit("ERROR: ninguna fila tiene «incluir» = si.")
 
     maquina = nombre_maquina(aquí, a.maquina)
-    # «UMH · Base» es lo que abre ⌘N: lleva el tamaño que más se repite en la
+    # «Base» es lo que abre ⌘N: lleva el tamaño que más se repite en la
     # hoja (o el de --ventana), para que no discrepe de lo que se ha pedido.
     if a.ventana:
         if not inv._RE_VENTANA.match(a.ventana):
@@ -475,19 +508,19 @@ def main():
                 + [perfil_de_fila(f, fuente["postscript"]) for f in activas])
     if a.colores:
         os.makedirs(os.path.join(a.salida, "colores"), exist_ok=True)
-        escribir_itermcolors(OSCURO, os.path.join(a.salida, "colores/UMH-Elegante-Oscuro.itermcolors"))
-        escribir_itermcolors(CLARO, os.path.join(a.salida, "colores/UMH-Elegante-Claro.itermcolors"))
+        escribir_itermcolors(OSCURO, os.path.join(a.salida, "colores/Elegante-Oscuro.itermcolors"))
+        escribir_itermcolors(CLARO, os.path.join(a.salida, "colores/Elegante-Claro.itermcolors"))
         print("Presets de color regenerados en colores/")
     doc = {"Profiles": perfiles, "_PLANTILLA": PLANTILLA}
 
-    ruta_json = os.path.join(a.salida, "perfiles/UMH-Perfiles.json")
+    ruta_json = os.path.join(a.salida, "perfiles/Perfiles-Servidores.json")
     os.makedirs(os.path.dirname(ruta_json), exist_ok=True)
     with open(ruta_json, "w", encoding="utf-8") as f:
         json.dump(doc, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
     cabecera = ("# =====================================================================\n"
-                "#  ~/.ssh/config.d/umh.conf · GENERADO POR generar_perfiles.py\n"
+                "#  ~/.ssh/config.d/servidores.conf · GENERADO POR generar_perfiles.py\n"
                 "#  Fuente: %s\n"
                 "#  Fecha:  %s\n"
                 "#  No lo edites a mano: se sobrescribe en cada ejecución.\n"
@@ -506,7 +539,7 @@ def main():
     if not a.sin_globales:
         partes.append(GLOBALES)
 
-    ruta_conf = os.path.join(a.salida, "ssh/umh.conf")
+    ruta_conf = os.path.join(a.salida, "ssh/servidores.conf")
     os.makedirs(os.path.dirname(ruta_conf), exist_ok=True)
     with open(ruta_conf, "w", encoding="utf-8") as f:
         f.write("\n".join(partes).rstrip() + "\n")
@@ -525,7 +558,7 @@ def main():
     print("%d perfiles · %d claves distintas%s"
           % (len(activas), len({f["clave"] for f in activas if f["clave"]}),
              (" · fuera por «incluir = no»: " + ", ".join(excluidas)) if excluidas else ""))
-    print("«UMH · Base»: ventana %s · fuente %s (%s) %s pt"
+    print("«Base»: ventana %s · fuente %s (%s) %s pt"
           % (ventana, fuente["nombre"], clave_fuente, fuente["tamano"]))
     print("máquina local: %s" % (maquina or "sin nombre (bash instalar-iterm2.sh -m NOMBRE)"))
     print("\n  %s\n  %s" % (ruta_json, ruta_conf))
@@ -540,7 +573,7 @@ def main():
     destino_json = None
     if es_mac:
         os.makedirs(DYN, exist_ok=True)
-        destino_json = os.path.join(DYN, "UMH-Perfiles.json")
+        destino_json = os.path.join(DYN, "Perfiles-Servidores.json")
         if os.path.exists(destino_json):
             guardar_copia(destino_json, sello)
         shutil.copy2(ruta_json, destino_json)
@@ -551,12 +584,13 @@ def main():
     os.chmod(ssh_dir, 0o700)
     os.chmod(os.path.join(ssh_dir, "config.d"), 0o700)
     os.chmod(os.path.join(ssh_dir, "cm"), 0o700)
-    destino_conf = os.path.join(ssh_dir, "config.d/umh.conf")
+    destino_conf = os.path.join(ssh_dir, "config.d/servidores.conf")
     if os.path.exists(destino_conf):
         guardar_copia(destino_conf, sello)
     shutil.copy2(ruta_conf, destino_conf)
     os.chmod(destino_conf, 0o600)
     añadido = asegurar_include(os.path.join(ssh_dir, "config"))
+    retirados = retirar_antiguos(ssh_dir, sello)
 
     print("\nInstalado:")
     if destino_json:
@@ -567,8 +601,10 @@ def main():
     print("  %s" % destino_conf)
     print("  ~/.ssh/config: %s" % ("añadida la línea Include" if añadido
                                    else "ya tenía la línea Include"))
+    for r in retirados:
+        print("  retirado el archivo con el nombre antiguo: %s" % r)
     if os.path.isdir(COPIAS):
-        print("  copias de seguridad en ~/.iterm2-umh-copias")
+        print("  copias de seguridad en ~/.iterm2-copias")
     print("\nComprueba una conexión con:  ssh -G %s | head -5" % activas[0]["nombre"])
 
 

@@ -8,7 +8,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
   exit 1
 fi
 
-DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 
 echo "=============================================================="
 echo " 1. ¿Están cargados los perfiles?"
@@ -27,15 +27,15 @@ echo " 2. ¿Qué perfil usa iTerm2 al abrir una ventana nueva?"
 echo "=============================================================="
 ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null)"
 echo "GUID predeterminado actual : ${ACTUAL:-(ninguno: usa el perfil 'Default')}"
-echo "GUID de UMH · Base         : 415d01c5-71c8-5639-bd7e-0d90e99b4a0f"
-if [[ "$ACTUAL" == "415d01c5-71c8-5639-bd7e-0d90e99b4a0f" ]]; then
+echo "GUID de Base         : b3b5bdea-5dee-5710-91d0-aed1796442e6"
+if [[ "$ACTUAL" == "b3b5bdea-5dee-5710-91d0-aed1796442e6" ]]; then
   echo ">> CORRECTO"
 else
-  echo ">> ESTA ES LA CAUSA MÁS PROBABLE: el predeterminado NO es el perfil UMH · Base."
+  echo ">> ESTA ES LA CAUSA MÁS PROBABLE: el predeterminado NO es el perfil Base."
   echo "   Arreglo (cierra iTerm2 antes):"
   echo "     osascript -e 'quit app \"iTerm\"'; sleep 3"
   echo "     defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" \\"
-  echo "       -string \"415d01c5-71c8-5639-bd7e-0d90e99b4a0f\""
+  echo "       -string \"b3b5bdea-5dee-5710-91d0-aed1796442e6\""
 fi
 
 echo
@@ -73,5 +73,5 @@ echo "  Recuerda: Columns/Rows se aplican al abrir una VENTANA nueva (⌘N),"
 echo "  no una pestaña nueva (⌘T), que hereda el tamaño de la ventana actual."
 echo "  Y en pantalla completa o ventana maximizada nunca se aplican."
 echo "  Si la ventana pedida no cabe en la pantalla, iTerm2 la recorta."
-echo "  El tamaño de «UMH · Base» (lo que abre ⌘N) sale del valor más repetido de"
+echo "  El tamaño de «Base» (lo que abre ⌘N) sale del valor más repetido de"
 echo "  la columna «ventana»; se cambia con: python3 generar_perfiles.py --ventana 120x59 --instalar"

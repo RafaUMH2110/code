@@ -5,22 +5,22 @@ perfiles dinámicos para cada servidor y acceso SSH sin contraseña mediante cla
 (lo que coloquialmente llamamos "certificados").
 
 ```
-iterm2-umh/
-├── umh_inventario.py            lee y valida el inventario (lo usan los dos generadores)
-├── generar_perfiles.py          -> perfiles/UMH-Perfiles.json  +  ssh/umh.conf
+iterm2/
+├── inventario.py            lee y valida el inventario (lo usan los dos generadores)
+├── generar_perfiles.py          -> perfiles/Perfiles-Servidores.json  +  ssh/servidores.conf
 ├── generar_claves.py            claves, Llavero de macOS y ssh-copy-id
 ├── instalar-iterm2.sh           fuente, temas y perfil predeterminado (primera vez)
 ├── diagnostico.sh               por qué iTerm2 no aplica algo
 ├── colores/
-│   ├── UMH-Elegante-Oscuro.itermcolors     tema principal
-│   └── UMH-Elegante-Claro.itermcolors      tema para proyector/aula
+│   ├── Elegante-Oscuro.itermcolors     tema principal
+│   └── Elegante-Claro.itermcolors      tema para proyector/aula
 ├── datos/
 │   ├── servidores-ejemplo.csv   inventario de ejemplo, listo para copiar
 │   ├── servidores.csv           el tuyo (no se versiona)
 │   └── maquina.txt              cómo se llama este ordenador (no se versiona)
 ├── ejemplos/
-│   ├── UMH-Perfiles.json        lo que sale del inventario de ejemplo
-│   └── umh.conf                 idem, para ~/.ssh/config.d/
+│   ├── Perfiles-Servidores.json        lo que sale del inventario de ejemplo
+│   └── servidores.conf                 idem, para ~/.ssh/config.d/
 └── MANUAL.md                    este documento
 ```
 
@@ -30,7 +30,7 @@ Los perfiles y la configuración SSH de tu inventario se generan en `perfiles/` 
 Instalación rápida:
 
 ```bash
-cd iterm2-umh
+cd iterm2
 bash instalar-iterm2.sh -m "iMac despacho"   # fuente, temas, predeterminado
 python3 generar_perfiles.py --instalar    # perfiles + ~/.ssh/config.d
 python3 generar_claves.py --dry-run       # ver qué haría con las claves
@@ -45,7 +45,7 @@ forma recomendada de trabajar a partir de unos pocos servidores.
 
 ### 1.1 Tipografía: tres opciones en `datos/fuentes.csv`
 
-La tipografía y su tamaño se eligen para el perfil **«UMH · Base»**, y los demás
+La tipografía y su tamaño se eligen para el perfil **«Base»**, y los demás
 perfiles la heredan. Las opciones están en un archivo, `datos/fuentes.csv`:
 
 | Clave | Fuente | Tamaño | Cuándo |
@@ -86,7 +86,7 @@ elegida, y la elección dejaría de notarse en ese perfil.
 > `"Normal Font": "Menlo-Regular 12"`. Menlo y Monaco no incluyen los iconos
 > Powerline/Nerd.
 
-### 1.2 Paleta «UMH Elegante Oscuro»
+### 1.2 Paleta «Elegante Oscuro»
 
 Fondo **negro puro** (`#000000`) con texto casi blanco (`#F2F2F2`): el máximo contraste
 sin llegar al blanco puro, que reservamos para la negrita (`#FFFFFF`). Los 16 colores
@@ -114,7 +114,7 @@ con `bash instalar-iterm2.sh --colores`. Para regenerarlos tras cambiar una pale
 ### 1.2b Tamaño de la ventana
 
 Cada perfil de servidor toma `ventana` (columnas`x`filas) de su fila de la hoja. El
-perfil **«UMH · Base»** —el predeterminado, el que abre ⌘N en local— toma el valor
+perfil **«Base»** —el predeterminado, el que abre ⌘N en local— toma el valor
 **más repetido** de la columna (o el de `--ventana 120x59`). Antes llevaba 120x34 fijo,
 por eso la ventana local no coincidía con la hoja.
 
@@ -192,9 +192,9 @@ inventario. Con el inventario de ejemplo sale esto:
 
 | Perfil | Comando | Color de pestaña | Distintivo | Atajo |
 |---|---|---|---|---|
-| **UMH · Base** | shell local (plantilla y predeterminado) | gris | — | — |
-| UMH · servidor | `ssh servidor` | azul | `servidor` | `⌥⌘1` |
-| UMH · servidor-web | `ssh servidor-web` | cian | `servidor · web` | `⌥⌘2` |
+| **Base** | shell local (plantilla y predeterminado) | gris | — | — |
+| SERVIDORES · servidor | `ssh servidor` | azul | `servidor` | `⌥⌘1` |
+| SERVIDORES · servidor-web | `ssh servidor-web` | cian | `servidor · web` | `⌥⌘2` |
 | LAB · equipo-lan | `ssh equipo-lan` | verde | `equipo · LAN` | `⌥⌘3` |
 | LAB · equipo-wifi | `ssh equipo-wifi` | verde | `equipo · wifi` | `⌥⌘4` |
 | LAB · equipo-otro-sistema | `ssh equipo-otro-sistema` | violeta | `otro sistema` | `⌥⌘5` |
@@ -220,7 +220,7 @@ Para un servidor nuevo basta este bloque dentro de `"Profiles": [ … ]`:
 {
   "Name": "TALLER · plc-antiguo",
   "Guid": "pon-aqui-un-identificador-unico",
-  "Dynamic Profile Parent Name": "UMH · Base",
+  "Dynamic Profile Parent Name": "Base",
   "Custom Command": "Yes",
   "Command": "ssh plc-antiguo",
   "Badge Text": "taller",
@@ -286,10 +286,10 @@ este propósito.
 
 ```bash
 # Clave moderna recomendada (rápida, corta, segura)
-ssh-keygen -t ed25519 -a 100 -C "imac-usuario-202611" -f ~/.ssh/id_ed25519_umh
+ssh-keygen -t ed25519 -a 100 -C "imac-usuario-202611" -f ~/.ssh/id_ed25519_servidores
 
 # Sólo si algún equipo antiguo no admite Ed25519
-ssh-keygen -t rsa -b 4096 -a 100 -C "imac-usuario-rsa" -f ~/.ssh/id_rsa_umh
+ssh-keygen -t rsa -b 4096 -a 100 -C "imac-usuario-rsa" -f ~/.ssh/id_rsa_servidores
 ```
 
 | Opción | Para qué |
@@ -305,7 +305,7 @@ hay pérdida de comodidad y la clave robada no sirve de nada.
 ### 3.3 Copiar la clave pública al servidor
 
 ```bash
-ssh-copy-id -i ~/.ssh/id_ed25519_umh.pub usuario@servidor.umh.es
+ssh-copy-id -i ~/.ssh/id_ed25519_servidores.pub usuario@servidor.umh.es
 ```
 
 Es la última vez que escribes la contraseña. Si `ssh-copy-id` no estuviese disponible:
@@ -313,7 +313,7 @@ Es la última vez que escribes la contraseña. Si `ssh-copy-id` no estuviese dis
 ```bash
 ssh usuario@servidor.umh.es \
   'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys' \
-  < ~/.ssh/id_ed25519_umh.pub
+  < ~/.ssh/id_ed25519_servidores.pub
 ```
 
 Verificación inmediata — si pide contraseña, la clave no está activa:
@@ -325,7 +325,7 @@ ssh -o PasswordAuthentication=no usuario@servidor.umh.es 'hostname; whoami'
 ### 3.4 Agente y Llavero de macOS
 
 ```bash
-ssh-add --apple-use-keychain ~/.ssh/id_ed25519_umh   # guarda la passphrase
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519_servidores   # guarda la passphrase
 ssh-add -l                                           # claves cargadas ahora
 ```
 
@@ -334,13 +334,13 @@ recarga la clave sola tras cada reinicio y no vuelve a preguntar.
 
 ### 3.5 `~/.ssh/config`: el archivo que ahorra más tiempo
 
-Extracto de lo que genera (`ssh/umh.conf`):
+Extracto de lo que genera (`ssh/servidores.conf`):
 
 ```ssh-config
 Host servidor
     HostName        servidor.umh.es
     User            usuario
-    IdentityFile    ~/.ssh/id_ed25519_umh
+    IdentityFile    ~/.ssh/id_ed25519_servidores
     IdentitiesOnly  yes
 
 Host *
@@ -373,8 +373,8 @@ Permisos obligatorios (SSH se niega a trabajar si están abiertos):
 
 ```bash
 chmod 700 ~/.ssh
-chmod 600 ~/.ssh/config ~/.ssh/id_ed25519_umh
-chmod 644 ~/.ssh/id_ed25519_umh.pub
+chmod 600 ~/.ssh/config ~/.ssh/id_ed25519_servidores
+chmod 644 ~/.ssh/id_ed25519_servidores.pub
 ```
 
 ### 3.6 Lado servidor
@@ -410,26 +410,26 @@ cada servidor nuevo, y los accesos **caducan solos**.
 
 ```bash
 # 1) Crear la CA (en un sitio seguro, idealmente fuera del equipo de trabajo)
-ssh-keygen -t ed25519 -f ~/.ssh/ca_umh -C "CA SSH UMH"
+ssh-keygen -t ed25519 -f ~/.ssh/ca_servidores -C "CA SSH servidores"
 
 # 2) Firmar tu clave pública: identidad "usuario", válida 52 semanas
-ssh-keygen -s ~/.ssh/ca_umh -I usuario -n usuario -V +52w \
-           ~/.ssh/id_ed25519_umh.pub
-#    -> genera ~/.ssh/id_ed25519_umh-cert.pub
+ssh-keygen -s ~/.ssh/ca_servidores -I usuario -n usuario -V +52w \
+           ~/.ssh/id_ed25519_servidores.pub
+#    -> genera ~/.ssh/id_ed25519_servidores-cert.pub
 
 # 3) Inspeccionar lo firmado
-ssh-keygen -L -f ~/.ssh/id_ed25519_umh-cert.pub
+ssh-keygen -L -f ~/.ssh/id_ed25519_servidores-cert.pub
 ```
 
-En el servidor, copiar `ca_umh.pub` y declararlo en `/etc/ssh/sshd_config`:
+En el servidor, copiar `ca_servidores.pub` y declararlo en `/etc/ssh/sshd_config`:
 
 ```ssh-config
-TrustedUserCAKeys /etc/ssh/ca_umh.pub
+TrustedUserCAKeys /etc/ssh/ca_servidores.pub
 RevokedKeys       /etc/ssh/revoked_keys
 ```
 
-Y en el cliente, `CertificateFile ~/.ssh/id_ed25519_umh-cert.pub` (ya aparece de
-ejemplo en la plantilla de `ssh/umh.conf`).
+Y en el cliente, `CertificateFile ~/.ssh/id_ed25519_servidores-cert.pub` (ya aparece de
+ejemplo en la plantilla de `ssh/servidores.conf`).
 
 ### 3.8 Diagnóstico
 
@@ -437,7 +437,7 @@ ejemplo en la plantilla de `ssh/umh.conf`).
 ssh -v servidor       # qué clave ofrece y por qué se rechaza
 ssh -vvv servidor     # detalle completo
 ssh-add -l            # ¿está la clave en el agente?
-ssh-keygen -lf ~/.ssh/id_ed25519_umh.pub   # huella, para comparar con el servidor
+ssh-keygen -lf ~/.ssh/id_ed25519_servidores.pub   # huella, para comparar con el servidor
 ssh-keygen -R servidor.umh.es                 # olvidar una clave de host cambiada
 ```
 
@@ -456,7 +456,7 @@ ssh-keygen -R servidor.umh.es                 # olvidar una clave de host cambia
 **Shell integration de iTerm2** — marcas de prompt (`⌘↑`/`⌘↓` salta entre comandos),
 historial de comandos y descarga de archivos con clic derecho. `instalar-iterm2.sh` la
 instala si respondes `s` en el paso 7/9: descarga el archivo, guarda una copia de tu
-`~/.zshrc` en `~/.iterm2-umh-copias` y añade la línea solo si no estaba. A mano:
+`~/.zshrc` en `~/.iterm2-copias` y añade la línea solo si no estaba. A mano:
 
 ```bash
 curl -L https://iterm2.com/shell_integration/zsh \
@@ -469,8 +469,8 @@ incluye `it2ssh`, que lo lleva consigo al conectar).
 
 **Ejecutables en rojo (`ls`)** — `colores-ls.sh` define `LSCOLORS` (macOS/BSD) y
 `LS_COLORS` (GNU/Linux) para que los ejecutables salgan en rojo. `instalar-iterm2.sh` lo
-ofrece en el paso 8/9: copia el archivo a `~/.umh_colores_ls.sh` y añade una línea a
-`~/.zshrc` (con copia previa en `~/.iterm2-umh-copias`). El rojo es el ANSI 1 de la
+ofrece en el paso 8/9: copia el archivo a `~/.colores_ls.sh` y añade una línea a
+`~/.zshrc` (con copia previa en `~/.iterm2-copias`). El rojo es el ANSI 1 de la
 paleta (§1.2), así que cambia con ella. Para otro color, edita las dos líneas marcadas
 con `<<` en `colores-ls.sh` (la tabla de letras está en el propio archivo) y repite el
 instalador. En un servidor Linux el instalador no actúa: lleva el archivo tú con
@@ -494,22 +494,22 @@ ssh SERVIDOR 'cat >> ~/.bashrc' < colores-ls.sh
 
 ```bash
 # Editar perfiles (se recargan al guardar)
-open -a TextEdit "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+open -a TextEdit "$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 
 # Cambiar la fuente de todos los perfiles de golpe
 sed -i '' 's/Menlo-Regular 12/Menlo-Regular 13/g' \   # o mejor: cambia «tamano» en datos/fuentes.csv y regenera
-  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 
 # Copia de seguridad de los ajustes globales de iTerm2
 cp ~/Library/Preferences/com.googlecode.iterm2.plist ~/Backups/
 ```
 
-Recomendación: guarda `iterm2-umh/` completo en un repositorio y enlaza el JSON en
+Recomendación: guarda la carpeta `iterm2/` completa en un repositorio y enlaza el JSON en
 lugar de copiarlo, para tener una sola fuente de verdad:
 
 ```bash
-ln -sf ~/repos/dotfiles/iterm2-umh/perfiles/UMH-Perfiles.json \
-  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+ln -sf ~/repos/dotfiles/iterm2/perfiles/Perfiles-Servidores.json \
+  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 ```
 
 ---
@@ -523,17 +523,17 @@ bash diagnostico.sh
 Las cuatro causas, por orden de frecuencia:
 
 **1. iTerm2 sigue abriendo el perfil antiguo.** Si ves `80×25` y `Monaco 12`, son los
-valores de fábrica: la ventana no usa ningún perfil `UMH`. Un perfil **dinámico no
+valores de fábrica: la ventana no usa ninguno de los perfiles de este kit. Un perfil **dinámico no
 puede marcarse como predeterminado desde su JSON**; el predeterminado vive en los
 ajustes de la aplicación. Dos formas de arreglarlo:
 
 ```bash
 osascript -e 'quit app "iTerm"'; sleep 3      # imprescindible: cerrar iTerm2
 defaults write com.googlecode.iterm2 "Default Bookmark Guid" \
-  -string "415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # UMH · Base
+  -string "b3b5bdea-5dee-5710-91d0-aed1796442e6"   # Base
 ```
 
-O por GUI: *Ajustes › Perfiles*, seleccionar **UMH · Base** ›
+O por GUI: *Ajustes › Perfiles*, seleccionar **Base** ›
 *Other Actions… › Set as Default*.
 
 **2b. El perfil dice `"Normal Font": "null 12"` (o `null 14`).** Le ocurrió al instalador
@@ -542,7 +542,7 @@ antes de que Spotlight la indexara. Con Menlo ya no se consulta nada, pero si lo
 repara con:
 
 ```bash
-DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 sed -i '' 's/"null \([0-9]\{1,2\}\)"/"Menlo-Regular \1"/g' "$DYN"
 grep -n '"Normal Font"' "$DYN"
 ```
@@ -556,7 +556,7 @@ sustitúyelo:
 mdls -raw -name com_apple_ats_name_postscript ~/Library/Fonts/<ARCHIVO>.ttf
 
 sed -i '' 's/Menlo-Regular/<NOMBRE_REAL>/g' \
-  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/UMH-Perfiles.json"
+  "$HOME/Library/Application Support/iTerm2/DynamicProfiles/Perfiles-Servidores.json"
 ```
 
 El valor debe quedar como `"Normal Font": "<NOMBRE_REAL> 12"` — nombre, espacio,
@@ -589,8 +589,8 @@ se exporta la pestaña `Servidores` como CSV, y dos scripts hacen el resto.
 
 ```
 datos/servidores.csv            el inventario exportado de tu hoja
-umh_inventario.py               lectura y validación (lo usan los dos scripts)
-generar_perfiles.py             -> perfiles/UMH-Perfiles.json  +  ssh/umh.conf
+inventario.py               lectura y validación (lo usan los dos scripts)
+generar_perfiles.py             -> perfiles/Perfiles-Servidores.json  +  ssh/servidores.conf
 generar_claves.py               -> claves, Llavero y ssh-copy-id
 ```
 
@@ -621,18 +621,18 @@ filas con distinto `alias_host` y alguna sin ninguno.
 
 ### 7.3 Lo que genera
 
-**`perfiles/UMH-Perfiles.json`**: el perfil `UMH · Base` con la tipografía y el
+**`perfiles/Perfiles-Servidores.json`**: el perfil `Base` con la tipografía y el
 comportamiento, y un hijo por fila llamado `GRUPO · nombre`, que solo declara lo que
 cambia (ventana, color de pestaña, distintivo, atajo, tema, comando). Al final, fuera
 del array `Profiles`, una clave `_PLANTILLA` con un bloque listo para copiar: JSON no
 admite comentarios, y una entrada dentro de `Profiles` aparecería como un perfil
 fantasma, mientras que iTerm2 ignora las claves que no conoce.
 
-> **No renombres `UMH · Base`.** Su identificador se deriva del nombre, y es el que
+> **No renombres `Base`.** Su identificador se deriva del nombre, y es el que
 > iTerm2 tiene guardado como perfil predeterminado: si cambia el nombre, cambia el
 > GUID y vuelves a abrir ventanas con el perfil de fábrica.
 
-**`ssh/umh.conf`**, que se instala en `~/.ssh/config.d/umh.conf`. Tu `~/.ssh/config`
+**`ssh/servidores.conf`**, que se instala en `~/.ssh/config.d/servidores.conf`. Tu `~/.ssh/config`
 no se sobrescribe: solo se le añade, al principio, `Include config.d/*.conf`. Al
 principio porque SSH se queda con el **primer** valor de cada opción. El archivo
 generado lleva su propio bloque `Host plantilla` comentado y, al final, el `Host *`
@@ -680,7 +680,7 @@ tomas de `-m "iMac despacho"`— y lo guarda en `datos/maquina.txt`. Propone el 
 que macOS ya tiene configurado (`scutil --get ComputerName`). Los dos generadores lo
 leen de ahí y lo usan para dos cosas:
 
-- **Distintivo de las sesiones locales.** Va en el perfil `UMH · Base`, que es el
+- **Distintivo de las sesiones locales.** Va en el perfil `Base`, que es el
   shell local. No lo heredan los perfiles de servidor, porque cada uno declara su
   propio distintivo. Así una ventana local se distingue de un `ssh` de un vistazo.
 - **Comentario de las claves SSH.** `ssh-keygen -C "id_ed25519_lab iMac despacho
@@ -700,7 +700,7 @@ perfiles más, con los mismos GUID y los mismos nombres que el original, y iTerm
 de cada choque al abrir ventana. Peor: un perfil que creías borrado sigue vivo, y si es
 el predeterminado, sigue siendo el que abre `⌘N`.
 
-Por eso las copias van a `~/.iterm2-umh-copias/`, fuera de esa carpeta. Si tienes
+Por eso las copias van a `~/.iterm2-copias/`, fuera de esa carpeta. Si tienes
 copias antiguas dentro, `instalar-iterm2.sh` las aparta solo, y avisa (sin tocarlos) de
 cualquier otro archivo que encuentre ahí, que puede ser de otra herramienta.
 
@@ -710,7 +710,7 @@ Para mirarlo a mano:
 ls -la ~/Library/Application\ Support/iTerm2/DynamicProfiles/
 ```
 
-Solo debería haber `UMH-Perfiles.json`.
+Solo debería haber `Perfiles-Servidores.json`.
 
 ### 7.7 El ciclo de trabajo
 

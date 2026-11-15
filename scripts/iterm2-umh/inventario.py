@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-umh_inventario.py · Lectura y validación del inventario de servidores.
+inventario.py · Lectura y validación del inventario de servidores.
 
 Lo usan generar_perfiles.py y generar_claves.py, para que ambos entiendan
 exactamente lo mismo por un CSV.
@@ -41,7 +41,7 @@ COLORES = {
 _PALETA = ["#2C5AA0", "#1E6E74", "#3F7A45", "#7A3C8C", "#8A6A12", "#4A5260"]
 
 DEFECTOS = {
-    "incluir": "si", "grupo": "UMH", "usuario": "rpuerto", "tema": "oscuro",
+    "incluir": "si", "grupo": "GENERAL", "usuario": "rpuerto", "tema": "oscuro",
     "tipo_clave": "ed25519", "puerto": "22", "ventana": "120x59",
     "fuente_pt": "", "confirmar": "no", "generar_clave": "si",
 }

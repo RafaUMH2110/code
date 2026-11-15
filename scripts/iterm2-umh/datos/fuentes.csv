@@ -1,4 +1,4 @@
-# Tipografías para el perfil «UMH · Base», que heredan los demás perfiles.
+# Tipografías para el perfil «Base», que heredan los demás perfiles.
 # Se elige una con:  bash instalar-iterm2.sh -f CLAVE   o   python3 generar_perfiles.py --fuente CLAVE
 # Columnas (se leen por el nombre de la cabecera):
 #   clave        nombre corto que se escribe en la orden

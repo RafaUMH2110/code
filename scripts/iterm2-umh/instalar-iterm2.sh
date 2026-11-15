@@ -12,7 +12,7 @@
 #                           en el authorized_keys de los servidores.
 #                           Si no se indica, se pregunta, proponiendo el
 #                           nombre que macOS tiene configurado.
-#    -f, --fuente CLAVE     tipografía de «UMH · Base» (los demás perfiles la
+#    -f, --fuente CLAVE     tipografía de «Base» (los demás perfiles la
 #                           heredan), de las que hay en datos/fuentes.csv:
 #                           menlo (la de siempre), jetbrains o monaco. Se guarda
 #                           en datos/fuente.txt. Si no se indica, se muestra el
@@ -65,7 +65,12 @@ DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
 # Las copias de seguridad NUNCA van dentro de DynamicProfiles: iTerm2 carga
 # todos los archivos de esa carpeta, así que una copia del mismo archivo son
 # perfiles repetidos y avisos al abrir cada ventana.
-COPIAS="$HOME/.iterm2-umh-copias"
+COPIAS="$HOME/.iterm2-copias"
+# Nombres de versiones anteriores del kit (se migran más abajo)
+V_JSON="UMH-Perfiles.json"
+V_COPIAS="$HOME/.iterm2-umh-copias"
+V_LS="$HOME/.umh_colores_ls.sh"
+if [[ -d "$V_COPIAS" && ! -e "$COPIAS" ]]; then mv "$V_COPIAS" "$COPIAS"; fi
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
@@ -89,7 +94,7 @@ printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
 echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
-echo "==> 2/9 Tipografía de «UMH · Base»"
+echo "==> 2/9 Tipografía de «Base»"
 FUENTES_CSV="$BASE/datos/fuentes.csv"
 FUENTE_TXT="$BASE/datos/fuente.txt"
 if [[ ! -f "$FUENTES_CSV" ]] || ! command -v python3 >/dev/null 2>&1; then
@@ -155,13 +160,13 @@ mkdir -p "$DYN" "$COPIAS"
 
 # Copias de seguridad antiguas que quedaron dentro de la carpeta: iTerm2 las
 # carga como perfiles más, con los mismos GUID, y de ahí los avisos repetidos.
-SOBRAN="$(find "$DYN" -maxdepth 1 -type f -name 'UMH-Perfiles.json.bak-*' 2>/dev/null)"
+SOBRAN="$(find "$DYN" -maxdepth 1 -type f \( -name 'Perfiles-Servidores.json.bak-*' -o -name "$V_JSON.bak-*" \) 2>/dev/null)"
 if [[ -n "$SOBRAN" ]]; then
   printf '%s\n' "$SOBRAN" | while IFS= read -r f; do
     [[ -n "$f" ]] && mv "$f" "$COPIAS/" && echo "    Aparto $(basename "$f") (iTerm2 lo cargaba como perfiles duplicados)"
   done
 fi
-AJENOS="$(find "$DYN" -maxdepth 1 -type f ! -name 'UMH-Perfiles.json' 2>/dev/null | sort)"
+AJENOS="$(find "$DYN" -maxdepth 1 -type f ! -name 'Perfiles-Servidores.json' ! -name "$V_JSON" 2>/dev/null | sort)"
 if [[ -n "$AJENOS" ]]; then
   echo "    AVISO: hay más archivos en DynamicProfiles, y iTerm2 también los carga."
   echo "    Si ves perfiles repetidos, míralos; no los toco porque pueden no ser míos:"
@@ -171,16 +176,20 @@ fi
 PERFILES_HECHOS=0
 if [[ -f "$BASE/datos/servidores.csv" ]] && command -v python3 >/dev/null 2>&1; then
   echo "    Hay inventario: regenero los perfiles para que lleven el nombre nuevo"
-  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
+  [[ -f "$DYN/Perfiles-Servidores.json" ]] && cp "$DYN/Perfiles-Servidores.json" "$COPIAS/Perfiles-Servidores.json.bak-$STAMP"
   if python3 "$BASE/generar_perfiles.py" --instalar; then
     PERFILES_HECHOS=1
   else
     echo "    El inventario tiene errores: corrígelos y repite generar_perfiles.py"
   fi
-elif [[ -f "$BASE/perfiles/UMH-Perfiles.json" ]]; then
-  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
-  cp "$BASE/perfiles/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json"
-  echo "    -> $DYN/UMH-Perfiles.json  (iTerm2 lo recarga al instante)"
+elif [[ -f "$BASE/perfiles/Perfiles-Servidores.json" ]]; then
+  [[ -f "$DYN/Perfiles-Servidores.json" ]] && cp "$DYN/Perfiles-Servidores.json" "$COPIAS/Perfiles-Servidores.json.bak-$STAMP"
+  cp "$BASE/perfiles/Perfiles-Servidores.json" "$DYN/Perfiles-Servidores.json"
+  echo "    -> $DYN/Perfiles-Servidores.json  (iTerm2 lo recarga al instante)"
+  if [[ -f "$DYN/$V_JSON" ]]; then
+    mv "$DYN/$V_JSON" "$COPIAS/$V_JSON.retirado-$STAMP"
+    echo "    Retirado $V_JSON (nombre antiguo; copia en $COPIAS)"
+  fi
   echo "    OJO: el distintivo con el nombre de la máquina sale al regenerar:"
   echo "      python3 generar_perfiles.py --instalar"
 else
@@ -189,11 +198,11 @@ else
 fi
 
 echo "==> 4/9 Comprobar la fuente de los perfiles instalados"
-if [[ -f "$DYN/UMH-Perfiles.json" ]]; then
-  grep -m1 '"Normal Font"' "$DYN/UMH-Perfiles.json" | sed 's/^[[:space:]]*/    /'
-  if grep -q '"Normal Font": "null' "$DYN/UMH-Perfiles.json"; then
+if [[ -f "$DYN/Perfiles-Servidores.json" ]]; then
+  grep -m1 '"Normal Font"' "$DYN/Perfiles-Servidores.json" | sed 's/^[[:space:]]*/    /'
+  if grep -q '"Normal Font": "null' "$DYN/Perfiles-Servidores.json"; then
     echo "    AVISO: la fuente quedó en «null». Repite: python3 generar_perfiles.py --instalar"
-  elif [[ -n "${F_PS:-}" ]] && ! grep -q "\"Normal Font\": \"$F_PS $F_TAM\"" "$DYN/UMH-Perfiles.json"; then
+  elif [[ -n "${F_PS:-}" ]] && ! grep -q "\"Normal Font\": \"$F_PS $F_TAM\"" "$DYN/Perfiles-Servidores.json"; then
     echo "    AVISO: el JSON instalado no lleva la fuente elegida ($F_PS $F_TAM)."
     echo "    Regenéralo con: python3 generar_perfiles.py --instalar"
   fi
@@ -204,8 +213,8 @@ fi
 echo "==> 5/9 Presets de color"
 if [[ "$COLORES" == "1" ]]; then
   echo "    Se abren para que iTerm2 los importe (si ya estaban, te preguntará)."
-  open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
-  open "$BASE/colores/UMH-Elegante-Claro.itermcolors"  || true
+  open "$BASE/colores/Elegante-Oscuro.itermcolors" || true
+  open "$BASE/colores/Elegante-Claro.itermcolors"  || true
 else
   echo "    No se importan: los perfiles ya llevan sus colores."
   echo "    (Si los quieres en Ajustes > Colores: bash instalar-iterm2.sh --colores)"
@@ -254,12 +263,23 @@ else
 fi
 
 echo "==> 8/9 Ejecutables en rojo en «ls» (opcional)"
-# colores-ls.sh se copia a ~/.umh_colores_ls.sh y se carga desde ~/.zshrc.
-LS_ARCHIVO="$HOME/.umh_colores_ls.sh"
-LS_LINEA='test -e "${HOME}/.umh_colores_ls.sh" && source "${HOME}/.umh_colores_ls.sh"'
+# colores-ls.sh se copia a ~/.colores_ls.sh y se carga desde ~/.zshrc.
+LS_ARCHIVO="$HOME/.colores_ls.sh"
+LS_LINEA='test -e "${HOME}/.colores_ls.sh" && source "${HOME}/.colores_ls.sh"'
+# Versión anterior: ~/.umh_colores_ls.sh. Se sustituye por el nombre nuevo.
+if [[ -f "$V_LS" ]]; then
+  if grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+    cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+    sed 's/umh_colores_ls/colores_ls/g' "$HOME/.zshrc" > "$HOME/.zshrc.nuevo" \
+      && mv "$HOME/.zshrc.nuevo" "$HOME/.zshrc"
+  fi
+  rm -f "$V_LS"
+  [[ -f "$AQUI/colores-ls.sh" ]] && cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+  echo "    Migrado el nombre antiguo (~/.umh_colores_ls.sh -> ~/.colores_ls.sh)."
+fi
 if [[ ! -f "$AQUI/colores-ls.sh" ]]; then
   echo "    No encuentro colores-ls.sh junto al instalador: omitido."
-elif [[ -f "$LS_ARCHIVO" ]] && grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+elif [[ -f "$LS_ARCHIVO" ]] && grep -qs 'colores_ls' "$HOME/.zshrc" 2>/dev/null; then
   cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
   echo "    Ya estaba activado: archivo actualizado."
 elif [[ ! -t 0 ]]; then
@@ -269,7 +289,7 @@ else
   pregunta "    ¿Activarlo? Copia colores-ls.sh a ~ y añade una línea a ~/.zshrc [s/N] " Q
   if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
     cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
-    if ! grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+    if ! grep -qs 'colores_ls' "$HOME/.zshrc" 2>/dev/null; then
       [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
       printf '\n# Ejecutables en rojo en ls (añadido por instalar-iterm2.sh)\n%s\n' "$LS_LINEA" >> "$HOME/.zshrc"
       echo "    Línea añadida a ~/.zshrc (copia previa en $COPIAS)."
@@ -280,8 +300,8 @@ else
   fi
 fi
 
-echo "==> 9/9 Fijar UMH · Base como perfil predeterminado"
-GUID_BASE="415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # uuid5 de "UMH · Base"
+echo "==> 9/9 Fijar Base como perfil predeterminado"
+GUID_BASE="b3b5bdea-5dee-5710-91d0-aed1796442e6"   # uuid5 de "iterm2:Base"
 ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null || true)"
 if [[ "$ACTUAL" == "$GUID_BASE" ]]; then
   echo "    Ya era el predeterminado."
@@ -295,7 +315,7 @@ else
     defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "$GUID_BASE"
     echo "    Hecho. Vuelve a abrir iTerm2."
   else
-    echo "    Omitido. Hazlo en Ajustes > Perfiles > UMH · Base"
+    echo "    Omitido. Hazlo en Ajustes > Perfiles > Base"
     echo "    > Other Actions... > Set as Default."
   fi
 fi
@@ -304,17 +324,17 @@ echo
 echo
 echo "Listo."
 if [[ "$PERFILES_HECHOS" == "1" ]]; then
-  echo "  Perfiles y ~/.ssh/config.d/umh.conf: ya instalados (no hace falta generar_perfiles.py)."
+  echo "  Perfiles y ~/.ssh/config.d/servidores.conf: ya instalados (no hace falta generar_perfiles.py)."
   echo "  Solo si cambias el inventario: exporta el CSV a datos/servidores.csv y ejecuta"
   echo "    python3 generar_perfiles.py --instalar"
 else
   echo "  Falta generar los perfiles. Copia tu inventario a datos/servidores.csv y ejecuta:"
-  echo "    python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/umh.conf"
+  echo "    python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/servidores.conf"
 fi
 echo "  Claves SSH (aparte, este script no las crea):"
 echo "    python3 generar_claves.py --dry-run        # ver qué claves se crearían"
 echo "    python3 generar_claves.py                  # crearlas y copiarlas a los servidores"
-echo "En iTerm2: Ajustes > Perfiles  ->  verás los perfiles \"UMH · ...\"."
-echo "«UMH · Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja."
+echo "En iTerm2: Ajustes > Perfiles  ->  verás los perfiles (el predeterminado es «Base»)."
+echo "«Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja."
 echo "Si ya tenías ventanas abiertas, ciérralas y abre una nueva con ⌘N: el tamaño"
 echo "solo se aplica a ventanas nuevas."

@@ -1,4 +1,4 @@
-# iterm2-umh — iTerm2: tema, perfiles por servidor y SSH con claves
+# iterm2 — iTerm2: tema, perfiles por servidor y SSH con claves
 
 **Autor:** Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es
 *Generado con IA · Revisado por el autor*
@@ -16,13 +16,13 @@ una hoja de cálculo y se exporta como CSV.
 
 | Fichero | Para qué sirve |
 |---|---|
-| `generar_perfiles.py` | Del CSV a `perfiles/UMH-Perfiles.json` (perfiles dinámicos de iTerm2) y `ssh/umh.conf` (para `~/.ssh/config.d/`). Valida el lote y no escribe nada si hay errores. Con `--instalar` lo pone en su sitio |
+| `generar_perfiles.py` | Del CSV a `perfiles/Perfiles-Servidores.json` (perfiles dinámicos de iTerm2) y `ssh/servidores.conf` (para `~/.ssh/config.d/`). Valida el lote y no escribe nada si hay errores. Con `--instalar` lo pone en su sitio |
 | `generar_claves.py` | Crea una clave por cada valor distinto de la columna `clave`, la guarda en el Llavero de macOS, la copia a cada servidor con `ssh-copy-id` y comprueba que entra sin contraseña. `--solo` y `--grupo` para ir máquina a máquina |
-| `umh_inventario.py` | Módulo compartido: lee el CSV y lo valida. Los dos generadores entienden exactamente lo mismo por una hoja |
+| `inventario.py` | Módulo compartido: lee el CSV y lo valida. Los dos generadores entienden exactamente lo mismo por una hoja |
 | `datos/fuentes.csv` | Las tres tipografías con su tamaño (`menlo`, `jetbrains`, `monaco`); se elige una para el perfil base con `-f` |
 | `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), qué tipografía usar (`-f jetbrains`), instala los perfiles, ofrece la shell integration de iTerm2 y los ejecutables de `ls` en rojo, y fija el perfil predeterminado (los temas se importan solo con `--colores`) |
 | `diagnostico.sh` | Cuando iTerm2 no aplica la fuente o el tamaño: dice por qué (perfil predeterminado, nombre PostScript de la fuente, restauración de ventanas) |
-| `colores/*.itermcolors` | Tema «UMH Elegante» en sus dos variantes: oscuro para el día a día, claro para proyectar en clase |
+| `colores/*.itermcolors` | Tema «Elegante» en sus dos variantes: oscuro para el día a día, claro para proyectar en clase |
 | `datos/servidores-ejemplo.csv` | Inventario de ejemplo con la leyenda de las columnas. Cópialo a `datos/servidores.csv` y edítalo |
 | `ejemplos/` | Lo que produce el inventario de ejemplo, para verlo sin ejecutar nada |
 | `MANUAL.md` | Guía completa: apariencia y tipografía, perfiles dinámicos, SSH con claves, certificados firmados por una CA, resolución de problemas y el inventario en CSV |
@@ -33,7 +33,7 @@ una hoja de cálculo y se exporta como CSV.
 bash instalar-iterm2.sh -m "iMac despacho"   # solo la primera vez en este equipo
 cp datos/servidores-ejemplo.csv datos/servidores.csv   # y edítalo
 python3 generar_perfiles.py                  # genera y valida, sin instalar
-python3 generar_perfiles.py --instalar       # perfiles + ~/.ssh/config.d/umh.conf
+python3 generar_perfiles.py --instalar       # perfiles + ~/.ssh/config.d/servidores.conf
 python3 generar_claves.py --dry-run          # qué haría con las claves
 python3 generar_claves.py                    # crear, guardar y repartir
 ```
@@ -45,7 +45,7 @@ servidores cuando lo leas dentro de dos años. Sin `-m` se pregunta, proponiendo
 nombre que macOS ya tiene configurado.
 
 `generar_perfiles.py --instalar` **no sobrescribe tu `~/.ssh/config`**: escribe
-`~/.ssh/config.d/umh.conf` y solo añade, al principio de tu config, la línea
+`~/.ssh/config.d/servidores.conf` y solo añade, al principio de tu config, la línea
 `Include config.d/*.conf` (al principio porque SSH se queda con el primer valor de
 cada opción).
 
