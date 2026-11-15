@@ -89,6 +89,27 @@ def blob_de(pub):
     return partes[1] if len(partes) >= 2 else ""
 
 
+def cargar_en_agente(ruta, dry):
+    """Mete una clave privada en el agente SSH.
+
+    Por qué hace falta antes de apartar la antigua: el Llavero de macOS
+    guarda la passphrase asociada a la RUTA del archivo. En cuanto la clave
+    se renombra a «.antigua», el Llavero ya no la reconoce y ssh pediría la
+    passphrase en cada servidor. El agente, en cambio, guarda la clave en
+    memoria: da igual cómo se llame después el archivo. ssh usa la del
+    agente si encuentra al lado la pública correspondiente (.pub).
+
+    Devuelve True si la clave quedó en el agente."""
+    if ES_MAC:
+        # Con la ruta original el Llavero da la passphrase sin preguntar
+        rc = correr(["ssh-add", "--apple-use-keychain", ruta], dry)
+        if rc != 0:
+            rc = correr(["ssh-add", "-K", ruta], dry)       # macOS antiguo
+    else:
+        rc = correr(["ssh-add", ruta], dry)
+    return rc == 0
+
+
 def ssh_base(f, destino, usa_alias, regenerar):
     """ssh hacia el servidor anulando RemoteCommand/RequestTTY del config
     (con ellos, ssh no admite un comando propio)."""
@@ -210,10 +231,20 @@ def main():
             # Una ejecución anterior se quedó a medias: la antigua sigue apartada
             antiguas[clave] = blob_de(vieja + ".pub")
             print(" · %s: retomo (la antigua ya estaba apartada)" % clave)
+            # El Llavero no la conoce con este nombre: se pide la passphrase
+            # una sola vez para el agente, en vez de una vez por servidor.
+            if not cargar_en_agente(vieja, a.dry_run):
+                print("   (no se cargó: en cada servidor te pedirá su passphrase; si no\n"
+                      "    la recuerdas, pulsa Enter y entrarás con la contraseña)")
         elif a.regenerar and os.path.exists(ruta):
             antiguas[clave] = blob_de(ruta + ".pub")
-            # Sigue en el agente a propósito: así se entra con ella a cada
-            # servidor sin volver a escribir su passphrase. Sale al final.
+            # Primero al agente, con su nombre de siempre (el Llavero la
+            # reconoce y no pregunta). Desde ahí se entra a cada servidor
+            # para instalar la nueva. Sale del agente al terminar.
+            print(" · %s: la cargo en el agente para entrar con ella" % clave)
+            if not cargar_en_agente(ruta, a.dry_run):
+                print("   (no se cargó: en cada servidor te pedirá su passphrase; si no\n"
+                      "    la recuerdas, pulsa Enter y entrarás con la contraseña)")
             print(" · %s: aparto la antigua como %s.antigua" % (clave, clave))
             if not a.dry_run:
                 os.rename(ruta, vieja)

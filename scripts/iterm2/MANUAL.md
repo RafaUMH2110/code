@@ -491,6 +491,11 @@ líneas de otros ordenadores no se tocan. Cuando todos los servidores de una
 clave han ido bien, la antigua sale de `~/.ssh` y queda en
 `~/.iterm2-copias/claves-antiguas-FECHA`.
 
+- Antes de apartar la antigua la carga en el agente: el Llavero guarda la
+  passphrase según la *ruta* del archivo y, ya renombrada a `.antigua`, no la
+  reconocería. Si retomas una regeneración a medias, te pide la passphrase
+  antigua **una vez** (no una por servidor). Si no la recuerdas, pulsa Enter:
+  en cada servidor entrarás con su contraseña.
 - Como `known_hosts` está recién limpio, usa `StrictHostKeyChecking=accept-new`:
   acepta la huella de un servidor que no conocía, pero sigue rechazando una
   huella que haya *cambiado*.
