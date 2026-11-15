@@ -60,7 +60,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
 
-echo "==> 1/7 Nombre de esta máquina"
+echo "==> 1/8 Nombre de esta máquina"
 POR_DEFECTO="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
 if [[ -z "$MAQUINA" ]]; then
   if [[ -t 0 ]]; then
@@ -79,14 +79,14 @@ printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
 echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
-echo "==> 2/7 Fuente: Menlo Regular 12 (viene con macOS)"
+echo "==> 2/8 Fuente: Menlo Regular 12 (viene con macOS)"
 if [[ -e /System/Library/Fonts/Menlo.ttc ]]; then
   echo "    OK, no hay que instalar nada."
 else
   echo "    AVISO: no encuentro Menlo en /System/Library/Fonts."
 fi
 
-echo "==> 3/7 Perfiles dinámicos de iTerm2"
+echo "==> 3/8 Perfiles dinámicos de iTerm2"
 mkdir -p "$DYN" "$COPIAS"
 
 # Copias de seguridad antiguas que quedaron dentro de la carpeta: iTerm2 las
@@ -120,7 +120,7 @@ else
   echo "      python3 generar_perfiles.py --instalar"
 fi
 
-echo "==> 4/7 Comprobar la fuente de los perfiles instalados"
+echo "==> 4/8 Comprobar la fuente de los perfiles instalados"
 if [[ -f "$DYN/UMH-Perfiles.json" ]]; then
   grep -m1 '"Normal Font"' "$DYN/UMH-Perfiles.json" | sed 's/^[[:space:]]*/    /'
   if grep -q '"Normal Font": "null' "$DYN/UMH-Perfiles.json"; then
@@ -134,7 +134,7 @@ else
   echo "    (aún no hay perfiles instalados)"
 fi
 
-echo "==> 5/7 Presets de color"
+echo "==> 5/8 Presets de color"
 if [[ "$COLORES" == "1" ]]; then
   echo "    Se abren para que iTerm2 los importe (si ya estaban, te preguntará)."
   open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
@@ -144,7 +144,7 @@ else
   echo "    (Si los quieres en Ajustes > Colores: bash instalar-iterm2.sh --colores)"
 fi
 
-echo "==> 6/7 Carpetas y permisos de SSH"
+echo "==> 6/8 Carpetas y permisos de SSH"
 mkdir -p "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 [[ -f "$HOME/.ssh/config" ]] && chmod 600 "$HOME/.ssh/config"
@@ -152,7 +152,41 @@ echo "    Carpetas listas. La configuración SSH de cada servidor la escribe"
 echo "    el generador, que respeta tu ~/.ssh/config y solo le añade un Include:"
 echo "      python3 generar_perfiles.py --instalar"
 
-echo "==> 7/7: fijar UMH · Base como perfil predeterminado"
+echo "==> 7/8 Shell integration de iTerm2 (opcional)"
+# Marcas de prompt (⌘↑/⌘↓ salta entre comandos), historial y descargas con clic
+# derecho. Es un archivo que se descarga y se carga desde ~/.zshrc.
+SI_ARCHIVO="$HOME/.iterm2_shell_integration.zsh"
+SI_LINEA='test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"'
+if [[ -f "$SI_ARCHIVO" ]] && grep -qs 'iterm2_shell_integration' "$HOME/.zshrc" 2>/dev/null; then
+  echo "    Ya está instalada: no toco nada."
+elif [[ ! -t 0 ]]; then
+  echo "    Omitido (sin terminal interactiva). Se puede repetir este script."
+else
+  Q=""
+  pregunta "    ¿Instalarla? Descarga un archivo de iterm2.com y añade una línea a ~/.zshrc [s/N] " Q
+  if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+    if ! command -v curl >/dev/null 2>&1; then
+      echo "    No hay curl: omitido."
+    elif curl -fsSL --max-time 30 https://iterm2.com/shell_integration/zsh -o "$SI_ARCHIVO.tmp" \
+         && [[ -s "$SI_ARCHIVO.tmp" ]] && grep -q 'iTerm2' "$SI_ARCHIVO.tmp"; then
+      mv "$SI_ARCHIVO.tmp" "$SI_ARCHIVO"
+      if ! grep -qs 'iterm2_shell_integration' "$HOME/.zshrc" 2>/dev/null; then
+        [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+        printf '\n# iTerm2 shell integration (añadido por instalar-iterm2.sh)\n%s\n' "$SI_LINEA" >> "$HOME/.zshrc"
+        echo "    Línea añadida a ~/.zshrc (copia previa en $COPIAS)."
+      fi
+      echo "    Instalada. Abre una pestaña nueva para activarla."
+    else
+      rm -f "$SI_ARCHIVO.tmp"
+      echo "    No se pudo descargar (¿sin conexión?). No he cambiado nada."
+      echo "    Puedes hacerlo a mano: está en MANUAL.md, apartado 4."
+    fi
+  else
+    echo "    Omitida."
+  fi
+fi
+
+echo "==> 8/8 Fijar UMH · Base como perfil predeterminado"
 GUID_BASE="415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # uuid5 de "UMH · Base"
 ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null || true)"
 if [[ "$ACTUAL" == "$GUID_BASE" ]]; then

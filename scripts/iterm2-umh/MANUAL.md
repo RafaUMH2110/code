@@ -430,7 +430,9 @@ ssh-keygen -R servidor.umh.es                 # olvidar una clave de host cambia
 ## 4. Complementos que encajan bien
 
 **Shell integration de iTerm2** — marcas de prompt (`⌘↑`/`⌘↓` salta entre comandos),
-historial de comandos y descarga de archivos con clic derecho:
+historial de comandos y descarga de archivos con clic derecho. `instalar-iterm2.sh` la
+instala si respondes `s` en el paso 7/8: descarga el archivo, guarda una copia de tu
+`~/.zshrc` en `~/.iterm2-umh-copias` y añade la línea solo si no estaba. A mano:
 
 ```bash
 curl -L https://iterm2.com/shell_integration/zsh \

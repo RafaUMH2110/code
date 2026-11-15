@@ -27,7 +27,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | `iterm2-umh/` | `generar_perfiles.py` | Del inventario de servidores en CSV a los perfiles dinámicos de iTerm2 y a `~/.ssh/config.d/umh.conf` (valida antes de escribir; `--instalar` lo coloca) |
 | | `generar_claves.py` | Crea las claves SSH del inventario, las guarda en el Llavero de macOS, las reparte con `ssh-copy-id` y comprueba el acceso sin contraseña (`--solo`, `--grupo`, `--dry-run`) |
 | | `umh_inventario.py` | Módulo compartido que lee y valida el CSV |
-| | `instalar-iterm2.sh`, `diagnostico.sh` | Tipografía, temas y perfil predeterminado; y diagnóstico de por qué iTerm2 no aplica algo |
+| | `instalar-iterm2.sh`, `diagnostico.sh` | Perfiles, shell integration opcional y perfil predeterminado; y diagnóstico de por qué iTerm2 no aplica algo |
 | | `colores/`, `datos/`, `ejemplos/`, `MANUAL.md` | Tema «UMH Elegante» (oscuro y claro), inventario de ejemplo, salidas de muestra y la guía completa. Ver su [README](iterm2-umh/README.md) |
 | `mover-repo/` | `instrucciones-mover-repo.md` | Guía para mover un repo de GitHub a una subcarpeta de otro conservando el historial |
 
