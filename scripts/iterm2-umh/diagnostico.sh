@@ -37,16 +37,21 @@ echo
 echo "=============================================================="
 echo " 3. Nombre PostScript REAL de las fuentes instaladas"
 echo "=============================================================="
-N=0
-for f in "$HOME/Library/Fonts"/JetBrainsMono*Mono-Regular.ttf \
-         "$HOME/Library/Fonts"/JetBrainsMono*.ttf; do
-  [[ -f "$f" ]] || continue
-  PS="$(mdls -raw -name com_apple_ats_name_postscript "$f" 2>/dev/null)"
-  printf '  %-45s -> %s\n' "$(basename "$f")" "${PS:-?}"
-  N=$((N+1))
-  [[ $N -ge 6 ]] && { echo "  (...)"; break; }
-done
-[[ $N -eq 0 ]] && echo "  No hay ninguna JetBrainsMono instalada en ~/Library/Fonts"
+# El patrón va entre comillas para que lo expanda find y no el shell: un glob
+# sin resultados aborta el script en zsh, en vez de quedarse literal.
+LISTA="$(find "$HOME/Library/Fonts" -maxdepth 1 -name 'JetBrainsMono*.ttf' 2>/dev/null | sort | head -6)"
+if [[ -z "$LISTA" ]]; then
+  echo "  No hay ninguna JetBrainsMono instalada en ~/Library/Fonts"
+else
+  printf '%s\n' "$LISTA" | while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    PS="$(mdls -raw -name com_apple_ats_name_postscript "$f" 2>/dev/null \
+          | tr -d '()"' | tr -s ' \t\n,' '\n' \
+          | grep -E '^[A-Za-z0-9][A-Za-z0-9._-]+$' | grep -vix 'null' | head -1)"
+    printf '  %-45s -> %s\n' "$(basename "$f")" "${PS:-?}"
+  done
+  echo "  (si tienes más variantes instaladas, solo muestro las primeras)"
+fi
 echo
 echo "  El JSON debe llevar EXACTAMENTE ese nombre + espacio + tamaño,"
 echo "  p.ej.  \"Normal Font\": \"JetBrainsMonoNFM-Regular 14\""

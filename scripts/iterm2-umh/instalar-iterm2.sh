@@ -13,10 +13,23 @@
 #                           Si no se indica, se pregunta, proponiendo el
 #                           nombre que macOS tiene configurado.
 #    -h, --ayuda            esta ayuda
+#
+#  El shebang hace que se ejecute con bash aunque tu shell sea zsh (el de
+#  Darwin). Está escrito para funcionar igual si lo lanzas con «zsh
+#  instalar-iterm2.sh»: nada de «read -p» ni de globs sin resultado, que
+#  zsh trata de otra manera.
 # =====================================================================
 set -euo pipefail
 
-uso() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "${BASH_SOURCE[0]}"; }
+ESTE="${BASH_SOURCE[0]:-$0}"      # bash da BASH_SOURCE; zsh, $0
+
+uso() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$ESTE"; }
+
+# read -p no es portable: zsh lo usa para leer del coproceso
+pregunta() {                      # pregunta "texto" NOMBRE_DE_VARIABLE
+  printf '%s' "$1" >&2
+  IFS= read -r "$2" || true
+}
 
 MAQUINA=""
 while [[ $# -gt 0 ]]; do
@@ -29,7 +42,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AQUI="$(cd "$(dirname "$ESTE")" && pwd)"
 if [[ -d "$AQUI/colores" ]]; then BASE="$AQUI"; else BASE="$(cd "$AQUI/.." && pwd)"; fi
 DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -40,7 +53,8 @@ echo "==> 1/7 Nombre de esta máquina"
 POR_DEFECTO="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
 if [[ -z "$MAQUINA" ]]; then
   if [[ -t 0 ]]; then
-    read -r -p "    ¿Cómo llamas a este equipo? [$POR_DEFECTO] " R || true
+    R=""
+    pregunta "    ¿Cómo llamas a este equipo? [$POR_DEFECTO] " R
     MAQUINA="${R:-$POR_DEFECTO}"
   else
     MAQUINA="$POR_DEFECTO"       # sin terminal interactiva: el de macOS
@@ -125,7 +139,8 @@ if [[ "$ACTUAL" == "$GUID_BASE" ]]; then
   echo "    Ya era el predeterminado."
 else
   echo "    Esto REQUIERE cerrar iTerm2 (perderás las sesiones abiertas)."
-  read -r -p "    ¿Cerrar iTerm2 y fijarlo ahora? [s/N] " Q || true
+  Q=""
+  pregunta "    ¿Cerrar iTerm2 y fijarlo ahora? [s/N] " Q
   if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
     osascript -e 'quit app "iTerm"' 2>/dev/null || true
     sleep 3

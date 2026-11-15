@@ -61,3 +61,8 @@ mismo criterio que el repositorio aplica a `.env` y `.env.example`.
 macOS con iTerm2 3.x, Python 3 y, para instalar la tipografía automáticamente,
 Homebrew (`brew install --cask font-jetbrains-mono-nerd-font`). Los scripts no
 instalan dependencias de Python: usan solo la biblioteca estándar.
+
+Los `.sh` llevan shebang de bash, así que se ejecutan con bash aunque tu shell sea
+zsh, el de Darwin. Están escritos para funcionar igual si los lanzas con
+`zsh instalar-iterm2.sh`: sin `read -p` y sin globs que puedan quedarse sin
+resultados, que es donde zsh y bash se separan.
