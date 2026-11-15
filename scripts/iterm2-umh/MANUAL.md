@@ -16,7 +16,8 @@ iterm2-umh/
 │   └── UMH-Elegante-Claro.itermcolors      tema para proyector/aula
 ├── datos/
 │   ├── servidores-ejemplo.csv   inventario de ejemplo, listo para copiar
-│   └── servidores.csv           el tuyo (no se versiona)
+│   ├── servidores.csv           el tuyo (no se versiona)
+│   └── maquina.txt              cómo se llama este ordenador (no se versiona)
 ├── ejemplos/
 │   ├── UMH-Perfiles.json        lo que sale del inventario de ejemplo
 │   └── umh.conf                 idem, para ~/.ssh/config.d/
@@ -30,7 +31,7 @@ Instalación rápida:
 
 ```bash
 cd iterm2-umh
-bash instalar-iterm2.sh                  # fuente, temas, predeterminado
+bash instalar-iterm2.sh -m "iMac despacho"   # fuente, temas, predeterminado
 python3 generar_perfiles.py --instalar    # perfiles + ~/.ssh/config.d
 python3 generar_claves.py --dry-run       # ver qué haría con las claves
 ```
@@ -617,7 +618,26 @@ tiene su propio `authorized_keys`, así que la pública hay que copiarla con ese
 arrancado. Un fallo en esas máquinas suele significar solo que ahora está arrancado el
 otro sistema.
 
-### 7.5 El ciclo de trabajo
+### 7.5 El nombre de esta máquina
+
+`instalar-iterm2.sh` pregunta cómo llamas al ordenador en el que lo ejecutas —o lo
+tomas de `-m "iMac despacho"`— y lo guarda en `datos/maquina.txt`. Propone el nombre
+que macOS ya tiene configurado (`scutil --get ComputerName`). Los dos generadores lo
+leen de ahí y lo usan para dos cosas:
+
+- **Distintivo de las sesiones locales.** Va en el perfil `UMH · Base`, que es el
+  shell local. No lo heredan los perfiles de servidor, porque cada uno declara su
+  propio distintivo. Así una ventana local se distingue de un `ssh` de un vistazo.
+- **Comentario de las claves SSH.** `ssh-keygen -C "id_ed25519_lab iMac despacho
+  2026-11"`. Ese comentario viaja con la pública al `authorized_keys` del servidor,
+  y es lo único que te dirá, dentro de dos años, de qué ordenador salió cada línea y
+  cuál puedes borrar sin miedo.
+
+Para cambiarlo, vuelve a ejecutar el instalador con `-m`, o edita `datos/maquina.txt`
+y regenera los perfiles. El archivo no se versiona: cada ordenador tiene el suyo, y es
+justo lo que distingue al del despacho del portátil cuando los dos usan este repo.
+
+### 7.6 El ciclo de trabajo
 
 ```bash
 # 1. editar la hoja y exportar la pestaña Servidores como CSV

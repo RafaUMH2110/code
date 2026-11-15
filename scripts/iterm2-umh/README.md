@@ -19,7 +19,7 @@ una hoja de cálculo y se exporta como CSV.
 | `generar_perfiles.py` | Del CSV a `perfiles/UMH-Perfiles.json` (perfiles dinámicos de iTerm2) y `ssh/umh.conf` (para `~/.ssh/config.d/`). Valida el lote y no escribe nada si hay errores. Con `--instalar` lo pone en su sitio |
 | `generar_claves.py` | Crea una clave por cada valor distinto de la columna `clave`, la guarda en el Llavero de macOS, la copia a cada servidor con `ssh-copy-id` y comprueba que entra sin contraseña. `--solo` y `--grupo` para ir máquina a máquina |
 | `umh_inventario.py` | Módulo compartido: lee el CSV y lo valida. Los dos generadores entienden exactamente lo mismo por una hoja |
-| `instalar-iterm2.sh` | Primera vez: instala la tipografía, importa los temas y fija el perfil predeterminado |
+| `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), instala la tipografía, importa los temas y fija el perfil predeterminado |
 | `diagnostico.sh` | Cuando iTerm2 no aplica la fuente o el tamaño: dice por qué (perfil predeterminado, nombre PostScript de la fuente, restauración de ventanas) |
 | `colores/*.itermcolors` | Tema «UMH Elegante» en sus dos variantes: oscuro para el día a día, claro para proyectar en clase |
 | `datos/servidores-ejemplo.csv` | Inventario de ejemplo con la leyenda de las columnas. Cópialo a `datos/servidores.csv` y edítalo |
@@ -29,13 +29,19 @@ una hoja de cálculo y se exporta como CSV.
 ## Uso rápido
 
 ```bash
-bash instalar-iterm2.sh                      # solo la primera vez
+bash instalar-iterm2.sh -m "iMac despacho"   # solo la primera vez en este equipo
 cp datos/servidores-ejemplo.csv datos/servidores.csv   # y edítalo
 python3 generar_perfiles.py                  # genera y valida, sin instalar
 python3 generar_perfiles.py --instalar       # perfiles + ~/.ssh/config.d/umh.conf
 python3 generar_claves.py --dry-run          # qué haría con las claves
 python3 generar_claves.py                    # crear, guardar y repartir
 ```
+
+El nombre que le das al equipo se guarda en `datos/maquina.txt` y lo usan los dos
+generadores: sale como distintivo en las sesiones locales y como comentario de las
+claves SSH que se creen aquí, para distinguirlas en el `authorized_keys` de los
+servidores cuando lo leas dentro de dos años. Sin `-m` se pregunta, proponiendo el
+nombre que macOS ya tiene configurado.
 
 `generar_perfiles.py --instalar` **no sobrescribe tu `~/.ssh/config`**: escribe
 `~/.ssh/config.d/umh.conf` y solo añade, al principio de tu config, la línea
@@ -46,7 +52,7 @@ cada opción).
 
 `datos/servidores.csv`, `perfiles/` y `ssh/` están en el `.gitignore` de esta carpeta:
 llevan direcciones internas, nombres de usuario y el mapa de qué clave abre qué
-máquina. Aquí solo se versiona `datos/servidores-ejemplo.csv`, con direcciones de
+máquina. `datos/maquina.txt` tampoco: cada ordenador tiene el suyo. Aquí solo se versiona `datos/servidores-ejemplo.csv`, con direcciones de
 documentación (RFC 5737 y RFC 2606) que no corresponden a ningún equipo real. Es el
 mismo criterio que el repositorio aplica a `.env` y `.env.example`.
 

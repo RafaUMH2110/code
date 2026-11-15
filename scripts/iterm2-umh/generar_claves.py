@@ -77,7 +77,8 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="enseña los comandos y no ejecuta nada")
     ap.add_argument("--solo-claves", action="store_true", help="crear las claves y no copiarlas")
     ap.add_argument("--comentario", default="",
-                    help="comentario de la clave (por defecto: equipo y mes)")
+                    help="nombre de este ordenador para el comentario de la "
+                         "clave; por defecto, datos/maquina.txt")
     a = ap.parse_args()
 
     try:
@@ -109,8 +110,17 @@ def main():
         os.chmod(SSH, 0o700)
         os.chmod(os.path.join(SSH, "cm"), 0o700)
 
-    comentario = a.comentario or "%s-%s" % (platform.node().split(".")[0],
-                                            datetime.now().strftime("%Y%m"))
+    # El comentario identifica DE QUÉ ORDENADOR es la clave cuando dentro de
+    # dos años leas el authorized_keys del servidor.
+    maquina = a.comentario
+    if not maquina:
+        ruta = os.path.join(aquí, "datos", "maquina.txt")
+        if os.path.isfile(ruta):
+            with open(ruta, encoding="utf-8") as fh:
+                maquina = fh.read().strip()
+    if not maquina:
+        maquina = platform.node().split(".")[0]
+    comentario = "%s %s" % (maquina, datetime.now().strftime("%Y-%m"))
 
     # ------------------------------------------------- 1. crear las claves
     claves = {}

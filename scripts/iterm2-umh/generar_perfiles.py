@@ -94,7 +94,19 @@ def guid(nombre):
 
 
 # ------------------------------------------------------------------ perfiles
-def perfil_base(fuente):
+def nombre_maquina(raiz, indicado=""):
+    """El nombre de este ordenador: lo que se pasó por la línea de órdenes, o
+    lo que instalar-iterm2.sh dejó en datos/maquina.txt."""
+    if indicado:
+        return indicado.strip()
+    ruta = os.path.join(raiz, "datos", "maquina.txt")
+    if os.path.isfile(ruta):
+        with open(ruta, encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
+
+
+def perfil_base(fuente, maquina=""):
     p = {
         "Name": BASE,
         "Guid": guid(BASE),
@@ -137,6 +149,12 @@ def perfil_base(fuente):
         "Custom Directory": "Recycle",
         "Custom Command": "No",
     }
+    if maquina:
+        # Solo se ve en las sesiones locales: cada perfil hijo declara su
+        # propio «Badge Text», así que ninguno hereda este.
+        p["Badge Text"] = maquina
+        p["Badge Max Width"] = 0.25
+        p["Badge Max Height"] = 0.08
     p.update(colores(OSCURO))
     return p
 
@@ -308,6 +326,9 @@ def main():
     ap.add_argument("--salida", default=aquí)
     ap.add_argument("--fuente", default=FUENTE_DEFECTO,
                     help="nombre PostScript de la tipografía (sin el tamaño)")
+    ap.add_argument("--maquina", default="",
+                    help="nombre de este ordenador para el distintivo de las "
+                         "sesiones locales; por defecto, datos/maquina.txt")
     ap.add_argument("--instalar", action="store_true",
                     help="copia el resultado a iTerm2 y a ~/.ssh/config.d/")
     ap.add_argument("--sin-globales", action="store_true",
@@ -333,7 +354,9 @@ def main():
     if not activas:
         sys.exit("ERROR: ninguna fila tiene «incluir» = si.")
 
-    perfiles = [perfil_base(a.fuente)] + [perfil_de_fila(f, a.fuente) for f in activas]
+    maquina = nombre_maquina(aquí, a.maquina)
+    perfiles = ([perfil_base(a.fuente, maquina)]
+                + [perfil_de_fila(f, a.fuente) for f in activas])
     doc = {"Profiles": perfiles, "_PLANTILLA": PLANTILLA}
 
     ruta_json = os.path.join(a.salida, "perfiles/UMH-Perfiles.json")
@@ -381,6 +404,7 @@ def main():
     print("%d perfiles · %d claves distintas%s"
           % (len(activas), len({f["clave"] for f in activas if f["clave"]}),
              (" · fuera por «incluir = no»: " + ", ".join(excluidas)) if excluidas else ""))
+    print("máquina local: %s" % (maquina or "sin nombre (bash instalar-iterm2.sh -m NOMBRE)"))
     print("\n  %s\n  %s" % (ruta_json, ruta_conf))
 
     if not a.instalar:

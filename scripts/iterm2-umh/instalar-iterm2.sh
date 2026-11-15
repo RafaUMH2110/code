@@ -1,9 +1,33 @@
 #!/usr/bin/env bash
 # =====================================================================
-#  instalar-iterm2.sh · Instala tema, perfiles y config SSH (macOS)
-#  Uso:  bash scripts/instalar-iterm2.sh
+#  instalar-iterm2.sh · Instala tema y perfiles de iTerm2 (macOS)
+#
+#  Uso:  bash instalar-iterm2.sh [-m NOMBRE]
+#
+#    -m, --maquina NOMBRE   nombre de ESTA máquina («iMac despacho»,
+#                           «MacBook»). Se guarda en datos/maquina.txt y lo
+#                           usan los generadores: aparece como distintivo en
+#                           las sesiones locales y como comentario de las
+#                           claves SSH que se creen aquí, para distinguirlas
+#                           en el authorized_keys de los servidores.
+#                           Si no se indica, se pregunta, proponiendo el
+#                           nombre que macOS tiene configurado.
+#    -h, --ayuda            esta ayuda
 # =====================================================================
 set -euo pipefail
+
+uso() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "${BASH_SOURCE[0]}"; }
+
+MAQUINA=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--maquina)
+      [[ -n "${2:-}" ]] || { echo "Falta el nombre después de $1"; exit 1; }
+      MAQUINA="$2"; shift 2 ;;
+    -h|--ayuda|--help) uso; exit 0 ;;
+    *) echo "Opción desconocida: $1"; echo; uso; exit 1 ;;
+  esac
+done
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -d "$AQUI/colores" ]]; then BASE="$AQUI"; else BASE="$(cd "$AQUI/.." && pwd)"; fi
@@ -12,7 +36,25 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
 
-echo "==> 1/6 Fuente monoespaciada (JetBrainsMono Nerd Font)"
+echo "==> 1/7 Nombre de esta máquina"
+POR_DEFECTO="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+if [[ -z "$MAQUINA" ]]; then
+  if [[ -t 0 ]]; then
+    read -r -p "    ¿Cómo llamas a este equipo? [$POR_DEFECTO] " R || true
+    MAQUINA="${R:-$POR_DEFECTO}"
+  else
+    MAQUINA="$POR_DEFECTO"       # sin terminal interactiva: el de macOS
+  fi
+fi
+# Se guarda sin espacios al principio ni al final y en una sola línea
+MAQUINA="$(printf '%s' "$MAQUINA" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+[[ -n "$MAQUINA" ]] || { echo "    El nombre no puede quedar vacío."; exit 1; }
+mkdir -p "$BASE/datos"
+printf '%s\n' "$MAQUINA" > "$BASE/datos/maquina.txt"
+echo "    -> «$MAQUINA» guardado en datos/maquina.txt"
+echo "       (distintivo de las sesiones locales y comentario de las claves)"
+
+echo "==> 2/7 Fuente monoespaciada (JetBrainsMono Nerd Font)"
 if command -v brew >/dev/null 2>&1; then
   brew list --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 \
     || brew install --cask font-jetbrains-mono-nerd-font
@@ -21,13 +63,18 @@ else
   echo "    https://www.nerdfonts.com  (variante 'Nerd Font Mono')"
 fi
 
-echo "==> 2/6 Perfiles dinámicos de iTerm2"
+echo "==> 3/7 Perfiles dinámicos de iTerm2"
 mkdir -p "$DYN"
-[[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json.bak-$STAMP"
-cp "$BASE/perfiles/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json"
-echo "    -> $DYN/UMH-Perfiles.json  (iTerm2 lo recarga al instante)"
+if [[ -f "$BASE/perfiles/UMH-Perfiles.json" ]]; then
+  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json.bak-$STAMP"
+  cp "$BASE/perfiles/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json"
+  echo "    -> $DYN/UMH-Perfiles.json  (iTerm2 lo recarga al instante)"
+else
+  echo "    Todavía no hay perfiles generados. Cuando tengas tu inventario:"
+  echo "      python3 generar_perfiles.py --instalar"
+fi
 
-echo "==> 3/6 Comprobar el nombre PostScript real de la fuente"
+echo "==> 4/7 Comprobar el nombre PostScript real de la fuente"
 # Devuelve el nombre PostScript, o nada si no se puede determinar.
 # OJO: mdls devuelve "(null)" si Spotlight aún no ha indexado el archivo;
 # ese valor NUNCA debe escribirse en el perfil.
@@ -59,11 +106,11 @@ else
   /usr/bin/sed -i '' "s/$ESPERADO/$PS_NAME/g" "$DYN/UMH-Perfiles.json"
 fi
 
-echo "==> 4/6 Presets de color (se abren para que iTerm2 los importe)"
+echo "==> 5/7 Presets de color (se abren para que iTerm2 los importe)"
 open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
 open "$BASE/colores/UMH-Elegante-Claro.itermcolors"  || true
 
-echo "==> 5/6 Carpetas y permisos de SSH"
+echo "==> 6/7 Carpetas y permisos de SSH"
 mkdir -p "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 [[ -f "$HOME/.ssh/config" ]] && chmod 600 "$HOME/.ssh/config"
@@ -71,7 +118,7 @@ echo "    Carpetas listas. La configuración SSH de cada servidor la escribe"
 echo "    el generador, que respeta tu ~/.ssh/config y solo le añade un Include:"
 echo "      python3 scripts/generar_perfiles.py --instalar"
 
-echo "==> 6/6: fijar UMH · Base como perfil predeterminado"
+echo "==> 7/7: fijar UMH · Base como perfil predeterminado"
 GUID_BASE="415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # uuid5 de "UMH · Base"
 ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null || true)"
 if [[ "$ACTUAL" == "$GUID_BASE" ]]; then
