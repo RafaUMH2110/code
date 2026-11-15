@@ -1,0 +1,15 @@
+// =====================================================================
+//  iterm2.code-workspace · Doble clic y VS Code abre el kit listo
+// ---------------------------------------------------------------------
+//  Abre ESTA carpeta como raíz, así las tareas (.vscode/tasks.json) y la
+//  depuración (.vscode/launch.json) aparecen aunque el kit esté dentro
+//  de un repositorio más grande.
+//
+//  Después:  ⌘⇧B  comprueba todo sin tocar nada
+//            ⌘⇧P -> «Tasks: Run Task»  para el resto de pasos
+// =====================================================================
+{
+  "folders": [
+    { "path": "." }
+  ]
+}

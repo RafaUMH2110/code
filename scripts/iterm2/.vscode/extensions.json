@@ -1,0 +1,21 @@
+// =====================================================================
+//  extensions.json · Extensiones que VS Code propone al abrir el kit
+// ---------------------------------------------------------------------
+//  Ninguna es obligatoria para usar las tareas: hacen falta para depurar
+//  (Python) y ayudan a leer y revisar (CSV, shell, SSH).
+// =====================================================================
+{
+  "recommendations": [
+    // Python: autocompletado, análisis y el intérprete
+    "ms-python.python",
+    // Depurador de Python que usa launch.json (F5)
+    "ms-python.debugpy",
+    // El CSV de la hoja con una columna de cada color: se ve qué valor
+    // va en qué columna sin contar comas
+    "mechatroner.rainbow-csv",
+    // Revisa los .sh y avisa de errores típicos de bash antes de ejecutar
+    "timonwong.shellcheck",
+    // Colorea ~/.ssh/config y servidores.conf
+    "jamief.vscode-ssh-config-enhanced"
+  ]
+}

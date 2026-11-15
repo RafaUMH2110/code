@@ -1,0 +1,57 @@
+// =====================================================================
+//  settings.json · Ajustes de VS Code SOLO para esta carpeta
+// ---------------------------------------------------------------------
+//  Objetivo: que al abrir el kit se vea lo importante y nada más, y que
+//  los archivos se guarden como esperan los scripts (UTF-8, LF).
+// =====================================================================
+{
+  // -------------------------------------------------------------------
+  //  Menos ruido en el explorador: lo generado y lo local se esconde.
+  //  (Siguen existiendo; solo no distraen.)
+  // -------------------------------------------------------------------
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.DS_Store": true
+  },
+  // Que la búsqueda (⌘⇧F) no encuentre dos veces lo mismo: perfiles/ y
+  // ssh/ son copias generadas de lo que dice la hoja.
+  "search.exclude": {
+    "perfiles/**": true,
+    "ssh/**": true,
+    "ejemplos/**": true
+  },
+
+  // -------------------------------------------------------------------
+  //  Formato de archivo: los .sh con CRLF fallan en bash («\r: command
+  //  not found»), y el CSV lo leen los scripts como UTF-8.
+  // -------------------------------------------------------------------
+  "files.eol": "\n",
+  "files.encoding": "utf8",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  // En Markdown dos espacios al final son un salto de línea: no tocarlos
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+
+  // -------------------------------------------------------------------
+  //  .itermcolors es un plist XML, pero VS Code no lo sabe por la
+  //  extensión: así se colorea y se puede plegar.
+  // -------------------------------------------------------------------
+  "files.associations": {
+    "*.itermcolors": "xml"
+  },
+
+  // -------------------------------------------------------------------
+  //  Python: el de macOS basta (los scripts solo usan la biblioteca
+  //  estándar, no hace falta entorno virtual).
+  // -------------------------------------------------------------------
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "python.terminal.activateEnvironment": false,
+
+  // -------------------------------------------------------------------
+  //  Terminal: abre en la carpeta del kit, con zsh como el resto del Mac.
+  // -------------------------------------------------------------------
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.defaultProfile.osx": "zsh"
+}

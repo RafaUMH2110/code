@@ -27,6 +27,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | `iterm2/` | `generar_perfiles.py` | Del inventario de servidores en CSV a los perfiles dinámicos de iTerm2 y a `~/.ssh/config.d/servidores.conf` (valida antes de escribir; `--instalar` lo coloca) |
 | | `generar_claves.py` | Crea las claves SSH del inventario, las guarda en el Llavero de macOS, las reparte con `ssh-copy-id` y comprueba el acceso sin contraseña (`--solo`, `--grupo`, `--dry-run`) |
 | | `limpiar_ssh.py` | Limpia `~/.ssh` (known_hosts, restos, claves sobrantes) con copia previa; con `generar_claves.py --regenerar`, claves nuevas sin perder el acceso |
+| | `iterm2.code-workspace`, `.vscode/` | Tareas de VS Code numeradas en orden de uso (⌘⇧B comprueba todo sin cambiar nada) y depuración con F5 |
 | | `inventario.py` | Módulo compartido que lee y valida el CSV |
 | | `instalar-iterm2.sh`, `diagnostico.sh` | Perfiles, shell integration opcional y perfil predeterminado; y diagnóstico de por qué iTerm2 no aplica algo |
 | | `colores/`, `datos/`, `ejemplos/`, `MANUAL.md` | Tema «Elegante» (oscuro y claro), inventario de ejemplo, salidas de muestra y la guía completa. Ver su [README](iterm2/README.md) |

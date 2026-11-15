@@ -12,6 +12,8 @@ iterm2/
 ├── limpiar_ssh.py               limpia ~/.ssh (copia previa)
 ├── instalar-iterm2.sh           fuente, temas y perfil predeterminado (primera vez)
 ├── diagnostico.sh               por qué iTerm2 no aplica algo
+├── iterm2.code-workspace        doble clic: abre el kit en VS Code
+├── .vscode/                     tareas (⌘⇧B, Run Task) y depuración (F5)
 ├── colores/
 │   ├── Elegante-Oscuro.itermcolors     tema principal
 │   └── Elegante-Claro.itermcolors      tema para proyector/aula
@@ -783,3 +785,42 @@ ssh -G nuevo-host | head -5                          # comprobar lo que resuelve
 Universidad Miguel Hernández de Elche · r.puerto@umh.es*
 
 *Generado con IA · Revisado por el autor*
+
+---
+
+## 8. Desde VS Code
+
+Para no tener que recordar opciones ni el orden de los pasos, el kit trae su
+configuración de VS Code. Haz doble clic en `iterm2.code-workspace` (abre esta
+carpeta como raíz aunque esté dentro del repo).
+
+| Atajo | Qué hace |
+|---|---|
+| `⌘⇧B` | **0. Comprobar todo**: valida la hoja, enseña los perfiles, el plan de limpieza de `~/.ssh` y lo que haría con las claves. No toca nada |
+| `⌘⇧P` → *Tasks: Run Task* | El resto de pasos, numerados en el orden de trabajo |
+| `F5` | Depurar un script paso a paso (todas las configuraciones son de solo lectura) |
+
+Las tareas van en el orden en que se usan:
+
+| N.º | Tareas | Cuándo |
+|---|---|---|
+| 1 | Instalar (normal, eligiendo la tipografía en un menú, o con los temas de color) | La primera vez en cada Mac |
+| 2 | Perfiles: generar y validar · ⚠ instalar · probar con el ejemplo · ver tipografías | Después de cada cambio en la hoja |
+| 3 | `~/.ssh`: ver el plan · ⚠ limpiar · ⚠ limpiar también claves sobrantes | Para empezar de cero (§3.9) |
+| 4 | Claves: dry-run · ⚠ crear y repartir · ⚠ un servidor · regenerar (dry-run) · ⚠ regenerar | Claves nuevas o cambiarlas todas |
+| 5 | Diagnóstico de iTerm2 | Cuando no se aplica la fuente o el tamaño |
+
+Reglas que siguen todas:
+
+- **⚠ = cambia algo.** Cada tarea con ⚠ tiene justo antes su pareja que solo
+  enseña qué haría. Primero se mira, luego se hace.
+- **Las opciones se eligen en un menú**, no se escriben: la tipografía, qué
+  quitar de `known_hosts` (solo la hoja, todo o nada) y el nombre del servidor
+  para `--solo`.
+- **Las tareas que preguntan** (passphrase, contraseña, «¿instalar? [s/N]»)
+  ponen el cursor en el terminal: contesta directamente.
+
+VS Code propone al abrir la carpeta las extensiones de `.vscode/extensions.json`
+(Python y su depurador, Rainbow CSV para leer la hoja, ShellCheck). Para usar
+las tareas no hace falta ninguna.
+

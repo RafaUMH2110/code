@@ -23,6 +23,7 @@ una hoja de cálculo y se exporta como CSV.
 | `datos/fuentes.csv` | Las tres tipografías con su tamaño (`menlo`, `jetbrains`, `monaco`); se elige una para el perfil base con `-f` |
 | `instalar-iterm2.sh` | Primera vez en un ordenador: pregunta cómo se llama (`-m "iMac despacho"`), qué tipografía usar (`-f jetbrains`), instala los perfiles, ofrece la shell integration de iTerm2 y los ejecutables de `ls` en rojo, y fija el perfil predeterminado (los temas se importan solo con `--colores`) |
 | `diagnostico.sh` | Cuando iTerm2 no aplica la fuente o el tamaño: dice por qué (perfil predeterminado, nombre PostScript de la fuente, restauración de ventanas) |
+| `iterm2.code-workspace`, `.vscode/` | Todo desde VS Code: doble clic en el workspace, `⌘⇧B` comprueba sin tocar nada y *Run Task* lista los pasos numerados en orden, cada uno con su versión de ensayo (MANUAL §8) |
 | `colores/*.itermcolors` | Tema «Elegante» en sus dos variantes: oscuro para el día a día, claro para proyectar en clase |
 | `datos/servidores-ejemplo.csv` | Inventario de ejemplo con la leyenda de las columnas. Cópialo a `datos/servidores.csv` y edítalo |
 | `ejemplos/` | Lo que produce el inventario de ejemplo, para verlo sin ejecutar nada |
