@@ -1,0 +1,8 @@
+# El inventario real y lo que se genera de él NO se versionan:
+# llevan direcciones internas, usuarios y el mapa de claves de cada máquina.
+# Se versiona solo datos/servidores-ejemplo.csv.
+datos/servidores.csv
+datos/*.csv
+!datos/servidores-ejemplo.csv
+perfiles/
+ssh/

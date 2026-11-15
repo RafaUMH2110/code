@@ -15,7 +15,7 @@ code/
 ├── linux/
 │   └── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
 ├── generador-apps/             ← generador de apps web con IA (el mismo en los tres sistemas)
-├── scripts/                    ← instaladores, informes del colector, mantenimiento de repos
+├── scripts/                    ← instaladores, informes del colector, mantenimiento de repos, iTerm2
 └── telemetria/                 ← scripts Python de la estación meteorológica
 ```
 
@@ -66,7 +66,7 @@ Abre `code.code-workspace` (menú *Archivo → Abrir workspace desde archivo*): 
 | Carpeta | Contenido |
 |---|---|
 | [`telemetria/`](telemetria/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): consulta simple, clientes síncronos, monitor asíncrono, GUIs Tkinter y puente MQTT. Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/README.md). |
-| [`scripts/`](scripts/) | Instaladores para clonar los repos y desplegar las apps en Apache (con opción de instalar el colector TeleMet), informes del colector por SSH, auditoría de los repos de `RafaUMH2110` y la guía para mover repos. Ver su [README](scripts/README.md). |
+| [`scripts/`](scripts/) | Instaladores para clonar los repos y desplegar las apps en Apache (con opción de instalar el colector TeleMet), informes del colector por SSH, auditoría de los repos de `RafaUMH2110`, la guía para mover repos y la configuración de iTerm2 con perfiles por servidor y SSH por clave. Ver su [README](scripts/README.md). |
 
 ## Notas Rápidas: diferencias entre plataformas
 
