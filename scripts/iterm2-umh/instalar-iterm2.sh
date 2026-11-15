@@ -45,6 +45,10 @@ done
 AQUI="$(cd "$(dirname "$ESTE")" && pwd)"
 if [[ -d "$AQUI/colores" ]]; then BASE="$AQUI"; else BASE="$(cd "$AQUI/.." && pwd)"; fi
 DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+# Las copias de seguridad NUNCA van dentro de DynamicProfiles: iTerm2 carga
+# todos los archivos de esa carpeta, así que una copia del mismo archivo son
+# perfiles repetidos y avisos al abrir cada ventana.
+COPIAS="$HOME/.iterm2-umh-copias"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
@@ -78,11 +82,34 @@ else
 fi
 
 echo "==> 3/7 Perfiles dinámicos de iTerm2"
-mkdir -p "$DYN"
-if [[ -f "$BASE/perfiles/UMH-Perfiles.json" ]]; then
-  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json.bak-$STAMP"
+mkdir -p "$DYN" "$COPIAS"
+
+# Copias de seguridad antiguas que quedaron dentro de la carpeta: iTerm2 las
+# carga como perfiles más, con los mismos GUID, y de ahí los avisos repetidos.
+SOBRAN="$(find "$DYN" -maxdepth 1 -type f -name 'UMH-Perfiles.json.bak-*' 2>/dev/null)"
+if [[ -n "$SOBRAN" ]]; then
+  printf '%s\n' "$SOBRAN" | while IFS= read -r f; do
+    [[ -n "$f" ]] && mv "$f" "$COPIAS/" && echo "    Aparto $(basename "$f") (iTerm2 lo cargaba como perfiles duplicados)"
+  done
+fi
+AJENOS="$(find "$DYN" -maxdepth 1 -type f ! -name 'UMH-Perfiles.json' 2>/dev/null | sort)"
+if [[ -n "$AJENOS" ]]; then
+  echo "    AVISO: hay más archivos en DynamicProfiles, y iTerm2 también los carga."
+  echo "    Si ves perfiles repetidos, míralos; no los toco porque pueden no ser míos:"
+  printf '%s\n' "$AJENOS" | while IFS= read -r f; do [[ -n "$f" ]] && echo "      $(basename "$f")"; done
+fi
+
+if [[ -f "$BASE/datos/servidores.csv" ]] && command -v python3 >/dev/null 2>&1; then
+  echo "    Hay inventario: regenero los perfiles para que lleven el nombre nuevo"
+  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
+  python3 "$BASE/generar_perfiles.py" --instalar \
+    || echo "    El inventario tiene errores: corrígelos y repite generar_perfiles.py"
+elif [[ -f "$BASE/perfiles/UMH-Perfiles.json" ]]; then
+  [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
   cp "$BASE/perfiles/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json"
   echo "    -> $DYN/UMH-Perfiles.json  (iTerm2 lo recarga al instante)"
+  echo "    OJO: el distintivo con el nombre de la máquina sale al regenerar:"
+  echo "      python3 generar_perfiles.py --instalar"
 else
   echo "    Todavía no hay perfiles generados. Cuando tengas tu inventario:"
   echo "      python3 generar_perfiles.py --instalar"

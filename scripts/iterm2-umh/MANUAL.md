@@ -643,7 +643,27 @@ Para cambiarlo, vuelve a ejecutar el instalador con `-m`, o edita `datos/maquina
 y regenera los perfiles. El archivo no se versiona: cada ordenador tiene el suyo, y es
 justo lo que distingue al del despacho del portátil cuando los dos usan este repo.
 
-### 7.6 El ciclo de trabajo
+### 7.6 Copias de seguridad, y por qué no van en DynamicProfiles
+
+**iTerm2 carga todos los archivos de `~/Library/Application Support/iTerm2/DynamicProfiles/`**,
+sea cual sea su extensión. Una copia de seguridad dejada ahí se carga como un juego de
+perfiles más, con los mismos GUID y los mismos nombres que el original, y iTerm2 avisa
+de cada choque al abrir ventana. Peor: un perfil que creías borrado sigue vivo, y si es
+el predeterminado, sigue siendo el que abre `⌘N`.
+
+Por eso las copias van a `~/.iterm2-umh-copias/`, fuera de esa carpeta. Si tienes
+copias antiguas dentro, `instalar-iterm2.sh` las aparta solo, y avisa (sin tocarlos) de
+cualquier otro archivo que encuentre ahí, que puede ser de otra herramienta.
+
+Para mirarlo a mano:
+
+```bash
+ls -la ~/Library/Application\ Support/iTerm2/DynamicProfiles/
+```
+
+Solo debería haber `UMH-Perfiles.json`.
+
+### 7.7 El ciclo de trabajo
 
 ```bash
 # 1. editar la hoja y exportar la pestaña Servidores como CSV

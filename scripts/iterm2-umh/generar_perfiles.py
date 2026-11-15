@@ -38,6 +38,9 @@ BASE = "UMH · Base"
 FUENTE_DEFECTO = "JetBrainsMonoNFM-Regular"
 DYN = os.path.expanduser(
     "~/Library/Application Support/iTerm2/DynamicProfiles")
+# iTerm2 carga TODOS los archivos de DynamicProfiles: una copia de seguridad
+# dentro de esa carpeta son perfiles duplicados y avisos al abrir cada ventana.
+COPIAS = os.path.expanduser("~/.iterm2-umh-copias")
 
 # ------------------------------------------------------------------ paletas
 OSCURO = {
@@ -310,6 +313,14 @@ PLANTILLA_SSH = """
 
 
 # ----------------------------------------------------------------- instalación
+def guardar_copia(ruta, sello):
+    """Copia de seguridad, siempre FUERA de la carpeta de la que se copia."""
+    os.makedirs(COPIAS, exist_ok=True)
+    destino = os.path.join(COPIAS, "%s.bak-%s" % (os.path.basename(ruta), sello))
+    shutil.copy2(ruta, destino)
+    return destino
+
+
 def asegurar_include(ruta_config):
     linea = "Include config.d/*.conf"
     if os.path.exists(ruta_config):
@@ -317,8 +328,7 @@ def asegurar_include(ruta_config):
             texto = f.read()
         if re.search(r"^\s*Include\s+config\.d/\*\.conf\s*$", texto, re.M):
             return False
-        copia = ruta_config + ".bak-" + datetime.now().strftime("%Y%m%d-%H%M%S")
-        shutil.copy2(ruta_config, copia)
+        guardar_copia(ruta_config, datetime.now().strftime("%Y%m%d-%H%M%S"))
         with open(ruta_config, "w", encoding="utf-8") as f:
             f.write("# Añadido por generar_perfiles.py: tiene que ir al principio,\n"
                     "# porque SSH se queda con el primer valor de cada opción.\n"
@@ -432,7 +442,7 @@ def main():
         os.makedirs(DYN, exist_ok=True)
         destino_json = os.path.join(DYN, "UMH-Perfiles.json")
         if os.path.exists(destino_json):
-            shutil.copy2(destino_json, destino_json + ".bak-" + sello)
+            guardar_copia(destino_json, sello)
         shutil.copy2(ruta_json, destino_json)
 
     ssh_dir = os.path.expanduser("~/.ssh")
@@ -443,7 +453,7 @@ def main():
     os.chmod(os.path.join(ssh_dir, "cm"), 0o700)
     destino_conf = os.path.join(ssh_dir, "config.d/umh.conf")
     if os.path.exists(destino_conf):
-        shutil.copy2(destino_conf, destino_conf + ".bak-" + sello)
+        guardar_copia(destino_conf, sello)
     shutil.copy2(ruta_conf, destino_conf)
     os.chmod(destino_conf, 0o600)
     añadido = asegurar_include(os.path.join(ssh_dir, "config"))
@@ -457,6 +467,8 @@ def main():
     print("  %s" % destino_conf)
     print("  ~/.ssh/config: %s" % ("añadida la línea Include" if añadido
                                    else "ya tenía la línea Include"))
+    if os.path.isdir(COPIAS):
+        print("  copias de seguridad en ~/.iterm2-umh-copias")
     print("\nComprueba una conexión con:  ssh -G %s | head -5" % activas[0]["nombre"])
 
 
