@@ -47,11 +47,11 @@ if [[ -z "$MAQUINA" ]]; then
   fi
 fi
 # Se guarda sin espacios al principio ni al final y en una sola línea
-MAQUINA="$(printf '%s' "$MAQUINA" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-[[ -n "$MAQUINA" ]] || { echo "    El nombre no puede quedar vacío."; exit 1; }
+MAQUINA="$(printf '%s' "${MAQUINA}" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+[[ -n "${MAQUINA}" ]] || { echo "    El nombre no puede quedar vacío."; exit 1; }
 mkdir -p "$BASE/datos"
-printf '%s\n' "$MAQUINA" > "$BASE/datos/maquina.txt"
-echo "    -> «$MAQUINA» guardado en datos/maquina.txt"
+printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
+echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
 echo "==> 2/7 Fuente monoespaciada (JetBrainsMono Nerd Font)"
