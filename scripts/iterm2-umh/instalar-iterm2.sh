@@ -70,7 +70,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
 
-echo "==> 1/8 Nombre de esta máquina"
+echo "==> 1/9 Nombre de esta máquina"
 POR_DEFECTO="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
 if [[ -z "$MAQUINA" ]]; then
   if [[ -t 0 ]]; then
@@ -89,7 +89,7 @@ printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
 echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
 echo "       (distintivo de las sesiones locales y comentario de las claves)"
 
-echo "==> 2/8 Tipografía de «UMH · Base»"
+echo "==> 2/9 Tipografía de «UMH · Base»"
 FUENTES_CSV="$BASE/datos/fuentes.csv"
 FUENTE_TXT="$BASE/datos/fuente.txt"
 if [[ ! -f "$FUENTES_CSV" ]] || ! command -v python3 >/dev/null 2>&1; then
@@ -150,7 +150,7 @@ else
   fi
 fi
 
-echo "==> 3/8 Perfiles dinámicos de iTerm2"
+echo "==> 3/9 Perfiles dinámicos de iTerm2"
 mkdir -p "$DYN" "$COPIAS"
 
 # Copias de seguridad antiguas que quedaron dentro de la carpeta: iTerm2 las
@@ -188,7 +188,7 @@ else
   echo "      python3 generar_perfiles.py --instalar"
 fi
 
-echo "==> 4/8 Comprobar la fuente de los perfiles instalados"
+echo "==> 4/9 Comprobar la fuente de los perfiles instalados"
 if [[ -f "$DYN/UMH-Perfiles.json" ]]; then
   grep -m1 '"Normal Font"' "$DYN/UMH-Perfiles.json" | sed 's/^[[:space:]]*/    /'
   if grep -q '"Normal Font": "null' "$DYN/UMH-Perfiles.json"; then
@@ -201,7 +201,7 @@ else
   echo "    (aún no hay perfiles instalados)"
 fi
 
-echo "==> 5/8 Presets de color"
+echo "==> 5/9 Presets de color"
 if [[ "$COLORES" == "1" ]]; then
   echo "    Se abren para que iTerm2 los importe (si ya estaban, te preguntará)."
   open "$BASE/colores/UMH-Elegante-Oscuro.itermcolors" || true
@@ -211,7 +211,7 @@ else
   echo "    (Si los quieres en Ajustes > Colores: bash instalar-iterm2.sh --colores)"
 fi
 
-echo "==> 6/8 Carpetas y permisos de SSH"
+echo "==> 6/9 Carpetas y permisos de SSH"
 mkdir -p "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
 [[ -f "$HOME/.ssh/config" ]] && chmod 600 "$HOME/.ssh/config"
@@ -219,7 +219,7 @@ echo "    Carpetas listas. La configuración SSH de cada servidor la escribe"
 echo "    el generador, que respeta tu ~/.ssh/config y solo le añade un Include:"
 echo "      python3 generar_perfiles.py --instalar"
 
-echo "==> 7/8 Shell integration de iTerm2 (opcional)"
+echo "==> 7/9 Shell integration de iTerm2 (opcional)"
 # Marcas de prompt (⌘↑/⌘↓ salta entre comandos), historial y descargas con clic
 # derecho. Es un archivo que se descarga y se carga desde ~/.zshrc.
 SI_ARCHIVO="$HOME/.iterm2_shell_integration.zsh"
@@ -253,7 +253,34 @@ else
   fi
 fi
 
-echo "==> 8/8 Fijar UMH · Base como perfil predeterminado"
+echo "==> 8/9 Ejecutables en rojo en «ls» (opcional)"
+# colores-ls.sh se copia a ~/.umh_colores_ls.sh y se carga desde ~/.zshrc.
+LS_ARCHIVO="$HOME/.umh_colores_ls.sh"
+LS_LINEA='test -e "${HOME}/.umh_colores_ls.sh" && source "${HOME}/.umh_colores_ls.sh"'
+if [[ ! -f "$AQUI/colores-ls.sh" ]]; then
+  echo "    No encuentro colores-ls.sh junto al instalador: omitido."
+elif [[ -f "$LS_ARCHIVO" ]] && grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+  cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+  echo "    Ya estaba activado: archivo actualizado."
+elif [[ ! -t 0 ]]; then
+  echo "    Omitido (sin terminal interactiva). Se puede repetir este script."
+else
+  Q=""
+  pregunta "    ¿Activarlo? Copia colores-ls.sh a ~ y añade una línea a ~/.zshrc [s/N] " Q
+  if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+    cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+    if ! grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+      [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+      printf '\n# Ejecutables en rojo en ls (añadido por instalar-iterm2.sh)\n%s\n' "$LS_LINEA" >> "$HOME/.zshrc"
+      echo "    Línea añadida a ~/.zshrc (copia previa en $COPIAS)."
+    fi
+    echo "    Hecho. Abre una pestaña nueva para verlo."
+  else
+    echo "    Omitido."
+  fi
+fi
+
+echo "==> 9/9 Fijar UMH · Base como perfil predeterminado"
 GUID_BASE="415d01c5-71c8-5639-bd7e-0d90e99b4a0f"   # uuid5 de "UMH · Base"
 ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null || true)"
 if [[ "$ACTUAL" == "$GUID_BASE" ]]; then

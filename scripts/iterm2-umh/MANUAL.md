@@ -455,7 +455,7 @@ ssh-keygen -R servidor.umh.es                 # olvidar una clave de host cambia
 
 **Shell integration de iTerm2** — marcas de prompt (`⌘↑`/`⌘↓` salta entre comandos),
 historial de comandos y descarga de archivos con clic derecho. `instalar-iterm2.sh` la
-instala si respondes `s` en el paso 7/8: descarga el archivo, guarda una copia de tu
+instala si respondes `s` en el paso 7/9: descarga el archivo, guarda una copia de tu
 `~/.zshrc` en `~/.iterm2-umh-copias` y añade la línea solo si no estaba. A mano:
 
 ```bash
@@ -466,6 +466,18 @@ echo 'source ~/.iterm2_shell_integration.zsh' >> ~/.zshrc
 
 Para que funcione también en los servidores, instálalo allí igualmente (iTerm2 3.5+
 incluye `it2ssh`, que lo lleva consigo al conectar).
+
+**Ejecutables en rojo (`ls`)** — `colores-ls.sh` define `LSCOLORS` (macOS/BSD) y
+`LS_COLORS` (GNU/Linux) para que los ejecutables salgan en rojo. `instalar-iterm2.sh` lo
+ofrece en el paso 8/9: copia el archivo a `~/.umh_colores_ls.sh` y añade una línea a
+`~/.zshrc` (con copia previa en `~/.iterm2-umh-copias`). El rojo es el ANSI 1 de la
+paleta (§1.2), así que cambia con ella. Para otro color, edita las dos líneas marcadas
+con `<<` en `colores-ls.sh` (la tabla de letras está en el propio archivo) y repite el
+instalador. En un servidor Linux el instalador no actúa: lleva el archivo tú con
+
+```bash
+ssh SERVIDOR 'cat >> ~/.bashrc' < colores-ls.sh
+```
 
 **Atajos que más se usan**
 
