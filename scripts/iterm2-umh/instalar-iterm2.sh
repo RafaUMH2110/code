@@ -168,11 +168,15 @@ if [[ -n "$AJENOS" ]]; then
   printf '%s\n' "$AJENOS" | while IFS= read -r f; do [[ -n "$f" ]] && echo "      $(basename "$f")"; done
 fi
 
+PERFILES_HECHOS=0
 if [[ -f "$BASE/datos/servidores.csv" ]] && command -v python3 >/dev/null 2>&1; then
   echo "    Hay inventario: regenero los perfiles para que lleven el nombre nuevo"
   [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
-  python3 "$BASE/generar_perfiles.py" --instalar \
-    || echo "    El inventario tiene errores: corrígelos y repite generar_perfiles.py"
+  if python3 "$BASE/generar_perfiles.py" --instalar; then
+    PERFILES_HECHOS=1
+  else
+    echo "    El inventario tiene errores: corrígelos y repite generar_perfiles.py"
+  fi
 elif [[ -f "$BASE/perfiles/UMH-Perfiles.json" ]]; then
   [[ -f "$DYN/UMH-Perfiles.json" ]] && cp "$DYN/UMH-Perfiles.json" "$COPIAS/UMH-Perfiles.json.bak-$STAMP"
   cp "$BASE/perfiles/UMH-Perfiles.json" "$DYN/UMH-Perfiles.json"
@@ -269,14 +273,21 @@ else
   fi
 fi
 
-cat <<'FIN'
-
-
-Listo. Siguiente paso (desde esta carpeta):
-  python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/umh.conf
-  python3 generar_claves.py --dry-run        # ver qué claves se crearían
-En iTerm2: Ajustes > Perfiles  ->  verás los perfiles "UMH · ...".
-«UMH · Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja.
-Si ya tenías ventanas abiertas, ciérralas y abre una nueva con ⌘N: el tamaño
-solo se aplica a ventanas nuevas.
-FIN
+echo
+echo
+echo "Listo."
+if [[ "$PERFILES_HECHOS" == "1" ]]; then
+  echo "  Perfiles y ~/.ssh/config.d/umh.conf: ya instalados (no hace falta generar_perfiles.py)."
+  echo "  Solo si cambias el inventario: exporta el CSV a datos/servidores.csv y ejecuta"
+  echo "    python3 generar_perfiles.py --instalar"
+else
+  echo "  Falta generar los perfiles. Copia tu inventario a datos/servidores.csv y ejecuta:"
+  echo "    python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/umh.conf"
+fi
+echo "  Claves SSH (aparte, este script no las crea):"
+echo "    python3 generar_claves.py --dry-run        # ver qué claves se crearían"
+echo "    python3 generar_claves.py                  # crearlas y copiarlas a los servidores"
+echo "En iTerm2: Ajustes > Perfiles  ->  verás los perfiles \"UMH · ...\"."
+echo "«UMH · Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja."
+echo "Si ya tenías ventanas abiertas, ciérralas y abre una nueva con ⌘N: el tamaño"
+echo "solo se aplica a ventanas nuevas."
