@@ -9,7 +9,7 @@ Cada versión es una carpeta autocontenida (código, `.vscode/`, README y prueba
 | Carpeta | Versión | Qué es |
 |---|---|---|
 | [`telemet-enchufes-local/`](telemet-enchufes-local/) | 0.1.0 | macOS, solo red local, con interfaz web e histórico SQLite. |
-| [`telemet-enchufes-nube/`](telemet-enchufes-nube/) | 0.2.0 | Añade modo nube (API de Tuya IoT), instalador para Linux (systemd) y contraseña opcional. Es la que sirve para una VM de Azure. |
+| [`telemet-enchufes-nube/`](telemet-enchufes-nube/) | 0.2.0 | Añade modo nube (API de Tuya IoT), instalador para Linux (systemd) y contraseña opcional. Es la que sirve para una VM de Azure, y la que se publica en Apache con `instalar-linux.sh --apache` (ver su README). |
 | [`telemet-enchufes-vscode/`](telemet-enchufes-vscode/) | — | Script único de pruebas por línea de órdenes (estado, encender, apagar, vigilar a CSV, datos crudos), configurable por JSON y por variables del código. Sirve para probar antes de instalar las otras. |
 
 `local` y `nube` usan la misma carpeta de datos y el mismo nombre de servicio: instala solo una de las dos.

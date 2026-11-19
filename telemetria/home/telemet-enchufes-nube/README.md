@@ -55,17 +55,35 @@ sudo ./linux/instalar-linux.sh          # servicio systemd «telemet-enchufes»,
 
 El instalador crea un usuario de servicio, el entorno virtual, la unidad systemd (con `ProtectSystem=strict`) y la
 orden `telemet-enchufes`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
-momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--quitar`.
+momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--apache NOMBRE` (ver más abajo), `--quitar`.
 
 Acceso desde tu ordenador sin abrir puertos en Azure: `ssh -L 8765:127.0.0.1:8765 usuario@tu-vm` y abre
-<http://127.0.0.1:8765/>. Si prefieres publicarla con Apache (HTTPS), la interfaz funciona en una subruta:
+<http://127.0.0.1:8765/>.
 
-```apache
-ProxyPass        /enchufes/ http://127.0.0.1:8765/
-ProxyPassReverse /enchufes/ http://127.0.0.1:8765/
-```
+### Publicar en Apache, como el resto de apps
 
-En ese caso instala con `--allow-host tu-dominio` y pon contraseña (`sudo telemet-enchufes password`).
+La interfaz es un HTML estático (`telemet_enchufes/static/index.html`), así que se despliega con
+[`instalar-todo`](../../../scripts/README.md) igual que las demás apps; Apache solo tiene que enrutar su API
+(`api/…`) al servicio local. Son dos pasos:
+
+1. **Interfaz**: añade la carpeta `code/telemetria/home/telemet-enchufes-nube` a la selección de
+   `instalar-todo-isa.sh` (menú `-i`, o `--repos` con tu lista actual más esa carpeta; `--listar` la muestra).
+   Cuidado: `--repos` **sustituye** la selección guardada. Queda en
+   `/var/www/htdocs/rafa/code/telemetria/home/telemet-enchufes-nube/telemet_enchufes/static/` y el portal la lista.
+2. **API**: en la máquina donde corre el servicio (Apache y servicio, en la misma máquina):
+
+   ```bash
+   sudo telemet-enchufes password                      # obligatoria: la API enciende y apaga enchufes
+   sudo ./linux/instalar-linux.sh --apache isa.umh.es  # --docroot y --ruta-web si difieren de los valores por defecto
+   ```
+
+   El instalador activa los módulos `proxy` y `proxy_http`, escribe `/etc/apache2/conf-available/telemet-enchufes.conf`
+   (`ProxyPass` de `…/api/` a `127.0.0.1:8765` y un alias corto), comprueba la configuración y recarga Apache.
+   **Si no hay contraseña, deja la configuración preparada pero sin activar**: ponla y vuelve a ejecutar el instalador.
+   El nombre del servidor se añade a `--allow-host`.
+
+Direcciones resultantes: `https://isa.umh.es/rafa/enchufes/` (corta) y la ruta larga del despliegue. La contraseña la
+pide el propio servicio (HTTP Basic) al primer acceso a la API. `--quitar` elimina también la configuración de Apache.
 
 ## Modo nube (API de Tuya)
 
