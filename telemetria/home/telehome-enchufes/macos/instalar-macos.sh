@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TeleMet Enchufes - instalador para macOS
+# TeleHome Enchufes - instalador para macOS
 #   ./macos/instalar-macos.sh                 crea .venv e instala dependencias
 #   ./macos/instalar-macos.sh --launchd       además arranca la app al iniciar sesión (LaunchAgent)
 #   ./macos/instalar-macos.sh --quitar-launchd  elimina el LaunchAgent
@@ -7,7 +7,7 @@
 # Opciones: --puerto N (8765 por defecto)
 set -euo pipefail
 
-LABEL="es.umh.telemet-enchufes"
+LABEL="es.umh.telehome-enchufes"
 PUERTO=8765
 ACCION="instalar"
 USAR_LAUNCHD=0
@@ -30,7 +30,7 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$AQUI/.." && pwd)"
 VENV="$REPO/.venv"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG="$HOME/Library/Logs/telemet-enchufes.log"
+LOG="$HOME/Library/Logs/telehome-enchufes.log"
 UID_NUM="$(id -u)"
 
 xml_escape() { local s="$1"; s="${s//&/&amp;}"; s="${s//</&lt;}"; s="${s//>/&gt;}"; printf '%s' "$s"; }
@@ -46,7 +46,7 @@ generar_plist() {
   <array>
     <string>$(xml_escape "$VENV/bin/python")</string>
     <string>-m</string>
-    <string>telemet_enchufes</string>
+    <string>telehome_enchufes</string>
     <string>serve</string>
     <string>--no-browser</string>
     <string>--port</string>
@@ -95,7 +95,7 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 "$VENV/bin/python" -m pip install --quiet --upgrade pip
 "$VENV/bin/python" -m pip install --quiet -r "$REPO/requirements.txt"
-chmod +x "$AQUI/iniciar-telemet-enchufes.command" "$AQUI/instalar-macos.sh" 2>/dev/null || true
+chmod +x "$AQUI/iniciar-telehome-enchufes.command" "$AQUI/instalar-macos.sh" 2>/dev/null || true
 echo "Dependencias instaladas."
 
 # 3) LaunchAgent (opcional)
@@ -111,9 +111,9 @@ fi
 cat <<FIN
 
 Listo. Para empezar:
-  - Doble clic en  macos/iniciar-telemet-enchufes.command
-    o bien:  $VENV/bin/python -m telemet_enchufes
-  - Prueba sin enchufes reales:  $VENV/bin/python -m telemet_enchufes serve --simulate 4
+  - Doble clic en  macos/iniciar-telehome-enchufes.command
+    o bien:  $VENV/bin/python -m telehome_enchufes
+  - Prueba sin enchufes reales:  $VENV/bin/python -m telehome_enchufes serve --simulate 4
 
 Importante (macOS reciente): la primera vez, permite en la ventana emergente que Python
 acceda a la «Red local»; sin ese permiso no podrá hablar con los enchufes.

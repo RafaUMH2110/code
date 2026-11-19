@@ -1,4 +1,4 @@
-"""Pruebas de telemet-enchufes-pruebas.py (simulado y nube con un cliente falso)."""
+"""Pruebas de telehome-enchufes-pruebas.py (simulado y nube con un cliente falso)."""
 
 import importlib.util
 import json
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-RUTA = Path(__file__).resolve().parents[1] / "telemet-enchufes-pruebas.py"
+RUTA = Path(__file__).resolve().parents[1] / "telehome-enchufes-pruebas.py"
 
 
 @pytest.fixture()

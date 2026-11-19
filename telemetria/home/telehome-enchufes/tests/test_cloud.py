@@ -7,12 +7,12 @@ import urllib.request
 
 import pytest
 
-from telemet_enchufes.cloud import CloudError, CloudHub
-from telemet_enchufes.config import Config, ConfigError, normalize_device
-from telemet_enchufes.devices import CloudPlug, PlugError
-from telemet_enchufes.monitor import Monitor
-from telemet_enchufes.server import AppContext, make_server
-from telemet_enchufes.store import Store
+from telehome_enchufes.cloud import CloudError, CloudHub
+from telehome_enchufes.config import Config, ConfigError, normalize_device
+from telehome_enchufes.devices import CloudPlug, PlugError
+from telehome_enchufes.monitor import Monitor
+from telehome_enchufes.server import AppContext, make_server
+from telehome_enchufes.store import Store
 
 IDS = ["bfaaaaaaaa", "bfbbbbbbbb"]
 
@@ -140,7 +140,7 @@ def cloud_app(tmp_path):
 
 
 def call(base, path, method="GET", body=None, auth=None):
-    h = {"X-TeleMet": "1"}
+    h = {"X-TeleHome": "1"}
     if auth:
         h["Authorization"] = "Basic " + base64.b64encode(auth.encode()).decode()
     data = None if body is None else json.dumps(body).encode()

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-telemet-enchufes-pruebas.py
+telehome-enchufes-pruebas.py
 ===========================
 
 Herramienta de **pruebas preliminares** para enchufes Wi-Fi Tuya con medidor de
 consumo (Energeeks EG-EW008MC / pack EG-EW009MC) desde la línea de órdenes o
 desde Visual Studio Code.
 
-Permite, sin la interfaz web de TeleMet Enchufes:
+Permite, sin la interfaz web de TeleHome Enchufes:
 
 * consultar el estado (encendido, potencia, tensión, corriente);
 * encender, apagar y conmutar uno o varios enchufes;
@@ -48,15 +48,15 @@ Uso rápido
 ----------
 ::
 
-    python telemet-enchufes-pruebas.py --simular estado
-    python telemet-enchufes-pruebas.py estado                 # todos los enchufes
-    python telemet-enchufes-pruebas.py encender Nevera
-    python telemet-enchufes-pruebas.py apagar 2               # por posición (1-7)
-    python telemet-enchufes-pruebas.py vigilar todos --intervalo 30 --veces 10 --csv lecturas.csv
-    python telemet-enchufes-pruebas.py nube-dispositivos --guardar
-    python telemet-enchufes-pruebas.py --json estado          # salida para otros programas
+    python telehome-enchufes-pruebas.py --simular estado
+    python telehome-enchufes-pruebas.py estado                 # todos los enchufes
+    python telehome-enchufes-pruebas.py encender Nevera
+    python telehome-enchufes-pruebas.py apagar 2               # por posición (1-7)
+    python telehome-enchufes-pruebas.py vigilar todos --intervalo 30 --veces 10 --csv lecturas.csv
+    python telehome-enchufes-pruebas.py nube-dispositivos --guardar
+    python telehome-enchufes-pruebas.py --json estado          # salida para otros programas
 
-``python telemet-enchufes-pruebas.py -h`` y ``<orden> -h`` muestran la ayuda.
+``python telehome-enchufes-pruebas.py -h`` y ``<orden> -h`` muestran la ayuda.
 
 Códigos de salida
 -----------------
@@ -162,7 +162,7 @@ ERRORES_LOCALES = {
     "917": "Local Key o versión de protocolo incorrectas",
 }
 
-log = logging.getLogger("telemet-enchufes-pruebas")
+log = logging.getLogger("telehome-enchufes-pruebas")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -599,7 +599,7 @@ class ConectorNube(Conector):
 class ConectorSimulado(Conector):
     """Enchufe ficticio con consumo verosímil. Su estado on/off persiste entre ejecuciones."""
 
-    FICHERO_ESTADO = Path(tempfile.gettempdir()) / "telemet-enchufes-pruebas-simulado.json"
+    FICHERO_ESTADO = Path(tempfile.gettempdir()) / "telehome-enchufes-pruebas-simulado.json"
 
     def _estados(self) -> Dict[str, bool]:
         try:
@@ -927,7 +927,7 @@ def _informar_llamadas(conectores: Sequence[Conector], out: Salida) -> None:
 def construir_parser() -> argparse.ArgumentParser:
     """Define las opciones generales y una subórden por cada acción."""
     p = argparse.ArgumentParser(
-        prog="telemet-enchufes-pruebas",
+        prog="telehome-enchufes-pruebas",
         description="Pruebas preliminares de enchufes Tuya/Energeeks (local, nube o simulado).",
         epilog="Los enchufes se indican por nombre, posición (1-%d), Device ID o «todos»." % MAX_ENCHUFES)
     p.add_argument("--version", action="version", version="%(prog)s " + VERSION)

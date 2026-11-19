@@ -19,13 +19,13 @@
     {
       "label": "Enchufes: estado",
       "type": "shell",
-      "command": "${command:python.interpreterPath} telemet-enchufes-pruebas.py estado",
+      "command": "${command:python.interpreterPath} telehome-enchufes-pruebas.py estado",
       "problemMatcher": []
     },
     {
       "label": "Enchufes: configuración efectiva",
       "type": "shell",
-      "command": "${command:python.interpreterPath} telemet-enchufes-pruebas.py config",
+      "command": "${command:python.interpreterPath} telehome-enchufes-pruebas.py config",
       "problemMatcher": []
     }
   ]

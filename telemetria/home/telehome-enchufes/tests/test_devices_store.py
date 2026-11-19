@@ -1,8 +1,8 @@
 import time
 
-from telemet_enchufes.config import normalize_device
-from telemet_enchufes.devices import SimPlug, parse_dps, _error_text
-from telemet_enchufes.store import Store
+from telehome_enchufes.config import normalize_device
+from telehome_enchufes.devices import SimPlug, parse_dps, _error_text
+from telehome_enchufes.store import Store
 
 DEV = normalize_device({"name": "t", "dev_id": "bf00000001", "local_key": "0123456789abcdef"})
 

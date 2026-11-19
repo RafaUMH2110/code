@@ -6,55 +6,55 @@
     {
       "name": "Pruebas: estado de todos",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["estado"]
     },
     {
       "name": "Pruebas: estado (simulado)",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["--simular", "estado"]
     },
     {
       "name": "Pruebas: encender…",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["encender", "${input:enchufe}"]
     },
     {
       "name": "Pruebas: apagar…",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["apagar", "${input:enchufe}"]
     },
     {
       "name": "Pruebas: conmutar…",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["conmutar", "${input:enchufe}"]
     },
     {
       "name": "Pruebas: vigilar (10 lecturas a CSV)",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["vigilar", "todos", "--veces", "10", "--csv", "${workspaceFolder}/lecturas.csv"]
     },
     {
       "name": "Pruebas: datos crudos (dps)…",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["dps", "${input:enchufe}"]
     },
     {
       "name": "Pruebas: dispositivos de la nube",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": ["nube-dispositivos"]
     },
     {
       "name": "Pruebas: orden libre…",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "program": "${workspaceFolder}/telemet-enchufes-pruebas.py",
+      "program": "${workspaceFolder}/telehome-enchufes-pruebas.py",
       "args": "${input:argumentos}"
     }
   ],

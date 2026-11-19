@@ -6,10 +6,10 @@ import urllib.request
 
 import pytest
 
-from telemet_enchufes.config import Config
-from telemet_enchufes.monitor import Monitor
-from telemet_enchufes.server import AppContext, make_server
-from telemet_enchufes.store import Store
+from telehome_enchufes.config import Config
+from telehome_enchufes.monitor import Monitor
+from telehome_enchufes.server import AppContext, make_server
+from telehome_enchufes.store import Store
 
 
 @pytest.fixture()
@@ -32,7 +32,7 @@ def app(tmp_path):
 
 
 def call(base, path, method="GET", body=None, headers=None):
-    h = {"X-TeleMet": "1"} if method != "GET" else {}
+    h = {"X-TeleHome": "1"} if method != "GET" else {}
     h.update(headers or {})
     data = None if body is None else json.dumps(body).encode()
     if data:
@@ -49,7 +49,7 @@ def call(base, path, method="GET", body=None, headers=None):
 def test_index_and_state(app):
     base, cfg, mon = app
     st, html = call(base, "/")
-    assert st == 200 and b"TeleMet Enchufes" in html
+    assert st == 200 and b"TeleHome Enchufes" in html
     st, state = call(base, "/api/state")
     assert st == 200 and state["max_devices"] == 7 and len(state["devices"]) == 2
     assert all("local_key" not in d for d in state["devices"])

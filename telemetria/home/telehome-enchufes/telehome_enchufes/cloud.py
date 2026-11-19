@@ -12,7 +12,7 @@ import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-log = logging.getLogger("telemet-enchufes")
+log = logging.getLogger("telehome-enchufes")
 
 REGIONS = {
     "eu": "Europa central",
@@ -74,7 +74,7 @@ def default_client_factory(region: str, key: str, secret: str):
     import tinytuya
 
     try:
-        c = tinytuya.Cloud(apiRegion=region, apiKey=key, apiSecret=secret, configFile="/nonexistent-telemet")
+        c = tinytuya.Cloud(apiRegion=region, apiKey=key, apiSecret=secret, configFile="/nonexistent-telehome")
     except TypeError as exc:
         raise CloudError("Credenciales de la nube incompletas: %s" % exc)
     if not getattr(c, "token", None):

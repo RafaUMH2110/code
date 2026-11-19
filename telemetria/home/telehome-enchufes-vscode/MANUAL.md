@@ -1,10 +1,10 @@
-# Pruebas preliminares de enchufes: `telemet-enchufes-pruebas.py`
+# Pruebas preliminares de enchufes: `telehome-enchufes-pruebas.py`
 
 Herramienta de línea de órdenes, en un único fichero Python, para probar los enchufes Energeeks EG-EW008MC
-(pack EG-EW009MC) u otros enchufes Tuya **antes** de instalar la interfaz web de TeleMet Enchufes. Sirve para
+(pack EG-EW009MC) u otros enchufes Tuya **antes** de instalar la interfaz web de TeleHome Enchufes. Sirve para
 comprobar credenciales, ver qué datos devuelve cada enchufe, encenderlo o apagarlo y registrar lecturas.
 
-Es independiente: puedes copiar el `.py` (y, si quieres, su JSON) a cualquier carpeta. Pertenece a la versión «vscode» de TeleMet Enchufes; la versión con interfaz web es [`telehome-enchufes`](../telehome-enchufes/).
+Es independiente: puedes copiar el `.py` (y, si quieres, su JSON) a cualquier carpeta. Pertenece a la versión «vscode» de TeleHome Enchufes; la versión con interfaz web es [`telehome-enchufes`](../telehome-enchufes/).
 
 ## 1. Requisitos
 
@@ -93,13 +93,13 @@ depura TinyTuya). `encender/apagar/conmutar` aceptan `--espera S` (2 s): tiempo 
 Ejemplos:
 
 ```bash
-python telemet-enchufes-pruebas.py --simular estado
-python telemet-enchufes-pruebas.py nube-dispositivos --guardar     # rellena el JSON desde la nube
-python telemet-enchufes-pruebas.py estado
-python telemet-enchufes-pruebas.py dps Nevera                      # ¿cuadran los códigos y escalas?
-python telemet-enchufes-pruebas.py apagar 2 && python telemet-enchufes-pruebas.py encender 2
-python telemet-enchufes-pruebas.py vigilar todos -i 60 -n 30 --csv lecturas.csv
-python telemet-enchufes-pruebas.py --json estado > estado.json
+python telehome-enchufes-pruebas.py --simular estado
+python telehome-enchufes-pruebas.py nube-dispositivos --guardar     # rellena el JSON desde la nube
+python telehome-enchufes-pruebas.py estado
+python telehome-enchufes-pruebas.py dps Nevera                      # ¿cuadran los códigos y escalas?
+python telehome-enchufes-pruebas.py apagar 2 && python telehome-enchufes-pruebas.py encender 2
+python telehome-enchufes-pruebas.py vigilar todos -i 60 -n 30 --csv lecturas.csv
+python telehome-enchufes-pruebas.py --json estado > estado.json
 ```
 
 ## 5. Visual Studio Code

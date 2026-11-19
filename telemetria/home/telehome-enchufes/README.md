@@ -1,6 +1,6 @@
-# TeleMet Enchufes
+# TeleHome Enchufes
 
-> TeleMet Enchufes (0.2.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.2.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -19,7 +19,7 @@ El EG-EW008MC es un dispositivo Tuya (Wi-Fi 2,4 GHz, compatible con las apps Ene
 Un navegador no puede hablar TCP/UDP con él, así que la app es un pequeño servicio Python + una interfaz HTML:
 
 ```
-navegador ──HTTP──▶ telemet_enchufes (Python) ──TCP 6668──────────▶ enchufes (modo local, misma LAN)
+navegador ──HTTP──▶ telehome_enchufes (Python) ──TCP 6668──────────▶ enchufes (modo local, misma LAN)
                          │                  └──HTTPS (API Tuya)──▶ nube de Tuya ◀── enchufes (modo nube)
                          └── SQLite (telemetría)
 ```
@@ -36,13 +36,13 @@ cd telemetria/home/telehome-enchufes
 ./macos/instalar-macos.sh --launchd   # opcional: arranca al iniciar sesión
 ```
 
-Arranque: doble clic en `macos/iniciar-telemet-enchufes.command` (abre el navegador en <http://127.0.0.1:8765/>)
-o `.venv/bin/python -m telemet_enchufes`.
+Arranque: doble clic en `macos/iniciar-telehome-enchufes.command` (abre el navegador en <http://127.0.0.1:8765/>)
+o `.venv/bin/python -m telehome_enchufes`.
 
 > En macOS reciente, la primera vez aparece un aviso para que Python acceda a la **Red local**. Debes permitirlo;
 > si usas el LaunchAgent, ejecuta antes la app una vez desde el Terminal para ver ese aviso.
 
-Prueba sin hardware: `.venv/bin/python -m telemet_enchufes serve --simulate 4` (datos simulados, carpeta de datos aparte).
+Prueba sin hardware: `.venv/bin/python -m telehome_enchufes serve --simulate 4` (datos simulados, carpeta de datos aparte).
 
 ## Instalación en Linux (p. ej. una VM de Azure)
 
@@ -50,11 +50,11 @@ Prueba sin hardware: `.venv/bin/python -m telemet_enchufes serve --simulate 4` (
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
 cd code && git sparse-checkout set telemetria/home/telehome-enchufes
 cd telemetria/home/telehome-enchufes
-sudo ./linux/instalar-linux.sh          # servicio systemd «telemet-enchufes», código en /opt, datos en /var/lib
+sudo ./linux/instalar-linux.sh          # servicio systemd «telehome-enchufes», código en /opt, datos en /var/lib
 ```
 
 El instalador crea un usuario de servicio, el entorno virtual, la unidad systemd (con `ProtectSystem=strict`) y la
-orden `telemet-enchufes`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
+orden `telehome-enchufes`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
 momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--quitar`.
 
 Acceso desde tu ordenador sin abrir puertos en Azure: `ssh -L 8765:127.0.0.1:8765 usuario@tu-vm` y abre
@@ -65,7 +65,7 @@ ProxyPass        /enchufes/ http://127.0.0.1:8765/
 ProxyPassReverse /enchufes/ http://127.0.0.1:8765/
 ```
 
-En ese caso instala con `--allow-host tu-dominio` y pon contraseña (`sudo telemet-enchufes password`).
+En ese caso instala con `--allow-host tu-dominio` y pon contraseña (`sudo telehome-enchufes password`).
 
 ## Modo nube (API de Tuya)
 
@@ -80,7 +80,7 @@ Sirve cuando el programa no está en la misma red que los enchufes. Requisitos:
    Smart Life. Deben aparecer tus enchufes.
 4. Copia el **Access ID** y el **Access Secret** (pestaña *Overview*) en *Ajustes → Nube de Tuya*, pulsa
    *Ver dispositivos de la nube* y añádelos; o por línea de órdenes:
-   `telemet-enchufes cloud-setup --region eu --access-id …` y `telemet-enchufes cloud-import`.
+   `telehome-enchufes cloud-setup --region eu --access-id …` y `telehome-enchufes cloud-import`.
 
 Notas:
 
@@ -89,7 +89,7 @@ Notas:
 - El cupo de llamadas del plan gratuito es limitado. La app lee **todos** los enchufes de la nube con 1-2 llamadas por
   ciclo (caché compartida) y por defecto cada **300 s** (mínimo 60). *Ajustes → Opciones* muestra la estimación mensual.
 - Códigos de datos por defecto: `switch_1`, `cur_power` (÷10 → W), `cur_voltage` (÷10 → V), `cur_current` (mA).
-  Se ajustan por enchufe en *Avanzado*; `telemet-enchufes probe <enchufe>` muestra lo que devuelve la nube.
+  Se ajustan por enchufe en *Avanzado*; `telehome-enchufes probe <enchufe>` muestra lo que devuelve la nube.
 - Al importar desde la nube también se guarda la *Local Key*, así que el enchufe puede pasarse a modo local más tarde.
 - **El modo nube está probado con un cliente simulado, no contra una cuenta real de Tuya.** El programa prueba tres
   formas de consulta de la API y se queda con la que funcione; si algo falla, el error de Tuya se ve en la tarjeta.
@@ -102,8 +102,8 @@ Cada enchufe necesita: **Device ID**, **Local Key**, IP (o `Auto`) y versión de
 2. Obtén la Local Key una vez con el asistente de TinyTuya (requiere una cuenta gratuita de desarrollador en
    iot.tuya.com con tu app vinculada): `.venv/bin/python -m tinytuya wizard`. Genera `devices.json` con todos tus
    dispositivos. La clave cambia si borras el enchufe de la app o lo restableces.
-3. Impórtalos: botón **Ajustes → Importar devices.json**, o `python -m telemet_enchufes import devices.json`.
-   También puedes añadirlos a mano y buscar IP/Device ID con **Buscar en la red** (`python -m telemet_enchufes scan`).
+3. Impórtalos: botón **Ajustes → Importar devices.json**, o `python -m telehome_enchufes import devices.json`.
+   También puedes añadirlos a mano y buscar IP/Device ID con **Buscar en la red** (`python -m telehome_enchufes scan`).
 
 Con IP `Auto` la app localiza el enchufe por su Device ID y se adapta si el router le cambia la IP.
 Aun así, lo ideal es reservar una IP fija para cada enchufe en el router.
@@ -112,12 +112,12 @@ Aun así, lo ideal es reservar una IP fija para cada enchufe en el router.
 
 Valores por defecto de un enchufe Tuya con medidor: interruptor `1`, corriente `18` (mA), potencia `19` (÷10 → W),
 tensión `20` (÷10 → V). **No he podido verificarlos con un EG-EW008MC real**; si las lecturas salen mal, mira los DPS
-crudos con `python -m telemet_enchufes probe <nombre>` y ajústalos en *Ajustes → Avanzado* de ese enchufe.
+crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes → Avanzado* de ese enchufe.
 
 ## Límites y buenas prácticas
 
 - **Máximo 7 enchufes** en total, sumando ambos modos (límite aplicado en la configuración, la API y la interfaz).
-- Los dispositivos Tuya suelen admitir **una sola conexión TCP**: cierra la app del móvil mientras uses TeleMet Enchufes.
+- Los dispositivos Tuya suelen admitir **una sola conexión TCP**: cierra la app del móvil mientras uses TeleHome Enchufes.
 - Intervalo de lectura local: 10 s por defecto, **mínimo 5 s** (los medidores no toleran sondeos más rápidos).
   En la nube: 300 s por defecto, mínimo 60 s.
 - Si un enchufe se cae, se reintenta con espera creciente (hasta 60 s) y se registra como «sin conexión».
@@ -125,13 +125,13 @@ crudos con `python -m telemet_enchufes probe <nombre>` y ajústalos en *Ajustes 
 
 ## Datos y seguridad
 
-- Datos en `~/Library/Application Support/telemet-enchufes/` (macOS), `~/.telemet-enchufes/` (Linux) o
-  `/var/lib/telemet-enchufes/` (servicio Linux): `config.json` con permisos 600 y `telemetria.sqlite3`.
+- Datos en `~/Library/Application Support/telehome-enchufes/` (macOS), `~/.telehome-enchufes/` (Linux) o
+  `/var/lib/telehome-enchufes/` (servicio Linux): `config.json` con permisos 600 y `telemetria.sqlite3`.
   Las *Local Keys*, el *Access Secret* de Tuya y la contraseña (PBKDF2) **nunca** salen por la API ni se suben al
   repositorio (`.gitignore`).
-- La interfaz escucha en `127.0.0.1`, rechaza `Host` ajenos (DNS rebinding) y exige la cabecera `X-TeleMet` y un
+- La interfaz escucha en `127.0.0.1`, rechaza `Host` ajenos (DNS rebinding) y exige la cabecera `X-TeleHome` y un
   `Origin` propio en las operaciones de escritura (CSRF).
-- Contraseña opcional (HTTP Basic, cualquier usuario): `telemet-enchufes password`. Por HTTP sin cifrar solo tiene
+- Contraseña opcional (HTTP Basic, cualquier usuario): `telehome-enchufes password`. Por HTTP sin cifrar solo tiene
   sentido tras un túnel SSH o un proxy con HTTPS. No uses `--host 0.0.0.0` sin contraseña.
 
 ## API (JSON)
@@ -144,7 +144,7 @@ crudos con `python -m telemet_enchufes probe <nombre>` y ajústalos en *Ajustes 
 ## Órdenes
 
 `serve` (por defecto) · `scan` · `probe <enchufe>` · `import <devices.json> [--nube]` · `list` · `cloud-setup` ·
-`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` — ver `python -m telemet_enchufes --help`.
+`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` — ver `python -m telehome_enchufes --help`.
 
 ## Desarrollo
 
@@ -153,7 +153,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
 .venv/bin/python -m pytest -q
 ```
 
-Estructura: `telemet_enchufes/` (config, devices, cloud, store, monitor, server, cli, `static/index.html`), `macos/`
+Estructura: `telehome_enchufes/` (config, devices, cloud, store, monitor, server, cli, `static/index.html`), `macos/`
 (instalador y lanzador), `linux/` (instalador con systemd), `tests/`. Convenciones: scripts y guías con guiones; los `.py` del programa conservan `_`.
 
 ---

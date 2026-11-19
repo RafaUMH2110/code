@@ -20,7 +20,7 @@ from .devices import PlugError, scan_network
 from .monitor import Monitor
 from .store import Store
 
-log = logging.getLogger("telemet-enchufes")
+log = logging.getLogger("telehome-enchufes")
 
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
@@ -49,7 +49,7 @@ def _host_only(header: str) -> str:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TeleMetEnchufes/" + __version__
+    server_version = "TeleHomeEnchufes/" + __version__
     ctx: AppContext  # lo fija make_server
 
     # ---- utilidades -------------------------------------------------------
@@ -106,8 +106,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.ctx.loopback_only and host not in self.ctx.allowed_hosts:
             return "Host no permitido"  # protección frente a DNS rebinding
         if method != "GET":
-            if self.headers.get("X-TeleMet") != "1":
-                return "Falta la cabecera X-TeleMet"
+            if self.headers.get("X-TeleHome") != "1":
+                return "Falta la cabecera X-TeleHome"
             origin = self.headers.get("Origin")
             if origin:
                 o = urlsplit(origin)
@@ -129,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
             if not self._authorized():
                 body = json.dumps({"error": "Se requiere contraseña"}).encode("utf-8")
                 return self._send(401, body, "application/json; charset=utf-8",
-                                  {"WWW-Authenticate": 'Basic realm="TeleMet Enchufes", charset="UTF-8"'})
+                                  {"WWW-Authenticate": 'Basic realm="TeleHome Enchufes", charset="UTF-8"'})
             url = urlsplit(self.path)
             query = {k: v[0] for k, v in parse_qs(url.query).items()}
             for m, rx, fn in ROUTES:
@@ -237,7 +237,7 @@ def r_csv(h: Handler, q):
     if h.ctx.config.get(plug) is None:
         raise KeyError(plug)
     data = "".join(h.ctx.store.export_csv(plug, t0, t1)).encode("utf-8")
-    fname = "telemet-enchufes-%s-%s.csv" % (plug, time.strftime("%Y%m%d-%H%M"))
+    fname = "telehome-enchufes-%s-%s.csv" % (plug, time.strftime("%Y%m%d-%H%M"))
     h._send(200, data, "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="%s"' % fname})
 
 

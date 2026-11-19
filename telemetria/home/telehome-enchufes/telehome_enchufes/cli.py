@@ -22,7 +22,7 @@ from .monitor import Monitor
 from .server import AppContext, make_server
 from .store import Store
 
-log = logging.getLogger("telemet-enchufes")
+log = logging.getLogger("telehome-enchufes")
 DEFAULT_PORT = 8765
 
 
@@ -103,9 +103,9 @@ def cmd_serve(args) -> int:
     print("%s %s%s\n  Interfaz: %s\n  Datos:    %s\n  Pulsa Ctrl+C para salir."
           % (APP_NAME, __version__, " (SIMULACIÓN)" if args.simulate else "", url, base))
     if not loopback and not cfg.options.get("password_hash"):
-        print("  AVISO: escuchando fuera de localhost SIN contraseña. Ponla con: telemet-enchufes password")
+        print("  AVISO: escuchando fuera de localhost SIN contraseña. Ponla con: telehome-enchufes password")
     if any(d["mode"] == "nube" for d in cfg.devices) and not hub.configured():
-        print("  AVISO: hay enchufes en modo nube pero faltan las credenciales (telemet-enchufes cloud-setup)")
+        print("  AVISO: hay enchufes en modo nube pero faltan las credenciales (telehome-enchufes cloud-setup)")
     if not args.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
@@ -251,11 +251,11 @@ def cmd_cloud_import(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="telemet-enchufes",
+    p = argparse.ArgumentParser(prog="telehome-enchufes",
                                 description="%s: telemetría y control local de enchufes Tuya (máx. %d)." % (APP_NAME, MAX_DEVICES))
     p.add_argument("--version", action="version", version="%s %s" % (APP_NAME, __version__))
     p.add_argument("-v", "--verbose", action="store_true")
-    p.add_argument("--data-dir", help="carpeta de datos (por defecto ~/Library/Application Support/telemet-enchufes)")
+    p.add_argument("--data-dir", help="carpeta de datos (por defecto ~/Library/Application Support/telehome-enchufes)")
     sub = p.add_subparsers(dest="cmd")
 
     s = sub.add_parser("serve", help="inicia la interfaz web local (orden por defecto)")

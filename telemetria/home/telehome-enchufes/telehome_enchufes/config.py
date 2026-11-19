@@ -66,12 +66,12 @@ class ConfigError(ValueError):
 def data_dir(override: Optional[str] = None) -> Path:
     if override:
         return Path(override).expanduser()
-    env = os.environ.get("TELEMET_ENCHUFES_DIR")
+    env = os.environ.get("TELEHOME_ENCHUFES_DIR")
     if env:
         return Path(env).expanduser()
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "telemet-enchufes"
-    return Path.home() / ".telemet-enchufes"
+        return Path.home() / "Library" / "Application Support" / "telehome-enchufes"
+    return Path.home() / ".telehome-enchufes"
 
 
 def _slug(text: str) -> str:

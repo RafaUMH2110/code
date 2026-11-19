@@ -3,15 +3,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "TeleMet Enchufes: interfaz web (simulación, 3 enchufes)",
+      "name": "TeleHome Enchufes: interfaz web (simulación, 3 enchufes)",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "module": "telemet_enchufes", "cwd": "${workspaceFolder}",
+      "module": "telehome_enchufes", "cwd": "${workspaceFolder}",
       "args": ["serve", "--simulate", "3"]
     },
     {
-      "name": "TeleMet Enchufes: interfaz web (datos reales)",
+      "name": "TeleHome Enchufes: interfaz web (datos reales)",
       "type": "debugpy", "request": "launch", "console": "integratedTerminal",
-      "module": "telemet_enchufes", "cwd": "${workspaceFolder}",
+      "module": "telehome_enchufes", "cwd": "${workspaceFolder}",
       "args": ["serve"]
     }
   ]

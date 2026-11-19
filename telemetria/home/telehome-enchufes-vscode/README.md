@@ -1,10 +1,10 @@
-# TeleMet Enchufes · versión vscode
+# TeleHome Enchufes · versión vscode
 
 Pruebas preliminares, **desde la línea de órdenes y desde VS Code**, de los enchufes Wi-Fi Energeeks
 EG-EW008MC (el pack de 3 se vende como EG-EW009MC) u otros enchufes Tuya: consultar el estado, encender, apagar,
 conmutar, registrar lecturas a CSV y ver los datos crudos (DPS) de cada enchufe. Hasta **7 enchufes**.
 
-Es un único fichero Python, [`telemet-enchufes-pruebas.py`](telemet-enchufes-pruebas.py), comentado y documentado
+Es un único fichero Python, [`telehome-enchufes-pruebas.py`](telehome-enchufes-pruebas.py), comentado y documentado
 por secciones. No tiene interfaz web ni base de datos: sirve para comprobar credenciales, códigos y escalas
 **antes** de instalar [`telehome-enchufes`](../telehome-enchufes/).
 
@@ -15,10 +15,10 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/c
 cd code && git sparse-checkout set telemetria/home/telehome-enchufes-vscode
 cd telemetria/home/telehome-enchufes-vscode
 
-python3 telemet-enchufes-pruebas.py --simular estado      # sin enchufes ni TinyTuya
+python3 telehome-enchufes-pruebas.py --simular estado      # sin enchufes ni TinyTuya
 pip install tinytuya                                       # para los modos local y nube
 cp config-pruebas.example.json config-pruebas.json         # y edítalo (también puedes editar las variables del .py)
-python3 telemet-enchufes-pruebas.py estado
+python3 telehome-enchufes-pruebas.py estado
 ```
 
 En VS Code, abre esta carpeta y pulsa F5: hay configuraciones para estado, encender, apagar, conmutar, vigilar,
@@ -28,7 +28,7 @@ datos crudos y dispositivos de la nube. Las tareas crean el `.venv` y lanzan `py
 
 | Fichero | Para qué |
 |---|---|
-| `telemet-enchufes-pruebas.py` | La herramienta (modos local, nube y simulado) |
+| `telehome-enchufes-pruebas.py` | La herramienta (modos local, nube y simulado) |
 | `config-pruebas.example.json` | Plantilla de configuración; cópiala como `config-pruebas.json` (no se versiona) |
 | `MANUAL.md` | Manual completo: campos, órdenes, prioridad de la configuración, códigos de salida |
 | `.vscode/` | Ejecución, depuración y tareas de VS Code |

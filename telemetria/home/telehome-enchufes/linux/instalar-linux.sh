@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# TeleMet Enchufes - instalador para Linux (servicio systemd)
+# TeleHome Enchufes - instalador para Linux (servicio systemd)
 #   sudo ./linux/instalar-linux.sh                    instala o actualiza y arranca el servicio
 #   sudo ./linux/instalar-linux.sh --quitar           detiene y elimina el servicio (conserva los datos)
 #   ./linux/instalar-linux.sh --solo-servicio         imprime la unidad systemd y sale
 # Opciones: --puerto N (8765) · --host DIR (127.0.0.1) · --allow-host NOMBRE (repetible, para un proxy inverso)
 set -euo pipefail
 
-SERVICIO="telemet-enchufes"
-USUARIO="telemet-enchufes"
-DESTINO="/opt/telemet-enchufes"
-DATOS="/var/lib/telemet-enchufes"
+SERVICIO="telehome-enchufes"
+USUARIO="telehome-enchufes"
+DESTINO="/opt/telehome-enchufes"
+DATOS="/var/lib/telehome-enchufes"
 UNIDAD="/etc/systemd/system/$SERVICIO.service"
-ENVOLTORIO="/usr/local/bin/telemet-enchufes"
+ENVOLTORIO="/usr/local/bin/telehome-enchufes"
 PUERTO=8765
 HOST="127.0.0.1"
 EXTRA=()
@@ -41,17 +41,17 @@ generar_unidad() {
   for h in "${EXTRA[@]+"${EXTRA[@]}"}"; do extra="$extra --allow-host $h"; done
   cat <<UNIT
 [Unit]
-Description=TeleMet Enchufes (telemetría de enchufes Tuya)
+Description=TeleHome Enchufes (telemetría de enchufes Tuya)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 User=$USUARIO
 Group=$USUARIO
-Environment=TELEMET_ENCHUFES_DIR=$DATOS
+Environment=TELEHOME_ENCHUFES_DIR=$DATOS
 Environment=PYTHONUNBUFFERED=1
 WorkingDirectory=$DESTINO
-ExecStart=$DESTINO/.venv/bin/python -m telemet_enchufes serve --no-browser --host $HOST --port $PUERTO$extra
+ExecStart=$DESTINO/.venv/bin/python -m telehome_enchufes serve --no-browser --host $HOST --port $PUERTO$extra
 Restart=on-failure
 RestartSec=10
 NoNewPrivileges=yes
@@ -93,22 +93,22 @@ install -d -m 0750 -o "$USUARIO" -g "$USUARIO" "$DATOS"
 install -d -m 0755 "$DESTINO"
 
 # 3) Código y dependencias
-rm -rf /opt/telemet-enchufes/telemet_enchufes
-cp -a "$REPO/telemet_enchufes" "$DESTINO/"
+rm -rf /opt/telehome-enchufes/telehome_enchufes
+cp -a "$REPO/telehome_enchufes" "$DESTINO/"
 cp "$REPO/requirements.txt" "$DESTINO/"
-find "$DESTINO/telemet_enchufes" -name __pycache__ -prune -exec rm -r {} +
+find "$DESTINO/telehome_enchufes" -name __pycache__ -prune -exec rm -r {} +
 [ -x "$DESTINO/.venv/bin/python" ] || "$PY" -m venv "$DESTINO/.venv"
 "$DESTINO/.venv/bin/python" -m pip install --quiet --upgrade pip
 "$DESTINO/.venv/bin/python" -m pip install --quiet -r "$DESTINO/requirements.txt"
 
-# 4) Orden «telemet-enchufes» que actúa como el usuario del servicio
+# 4) Orden «telehome-enchufes» que actúa como el usuario del servicio
 cat > "$ENVOLTORIO" <<WRAP
 #!/bin/sh
-# Ejecuta TeleMet Enchufes sobre los datos del servicio (p. ej. cloud-setup, cloud-import, password, list)
+# Ejecuta TeleHome Enchufes sobre los datos del servicio (p. ej. cloud-setup, cloud-import, password, list)
 if [ "\$(id -un)" = "$USUARIO" ]; then
-  exec env TELEMET_ENCHUFES_DIR=$DATOS $DESTINO/.venv/bin/python -m telemet_enchufes "\$@"
+  exec env TELEHOME_ENCHUFES_DIR=$DATOS $DESTINO/.venv/bin/python -m telehome_enchufes "\$@"
 fi
-cd $DESTINO && exec sudo -u $USUARIO env TELEMET_ENCHUFES_DIR=$DATOS $DESTINO/.venv/bin/python -m telemet_enchufes "\$@"
+cd $DESTINO && exec sudo -u $USUARIO env TELEHOME_ENCHUFES_DIR=$DATOS $DESTINO/.venv/bin/python -m telehome_enchufes "\$@"
 WRAP
 chmod 0755 "$ENVOLTORIO"
 
@@ -125,9 +125,9 @@ cat <<FIN
 Instalado. Interfaz en http://$HOST:$PUERTO/ (servicio «$SERVICIO», datos en $DATOS).
 
 Siguientes pasos (modo nube):
-  sudo telemet-enchufes cloud-setup --region eu --access-id TU_ACCESS_ID   # pide el Access Secret
-  sudo telemet-enchufes cloud-import                                       # añade tus enchufes (máx. 7)
-  sudo telemet-enchufes password                                           # recomendable
+  sudo telehome-enchufes cloud-setup --region eu --access-id TU_ACCESS_ID   # pide el Access Secret
+  sudo telehome-enchufes cloud-import                                       # añade tus enchufes (máx. 7)
+  sudo telehome-enchufes password                                           # recomendable
 
 Para verla desde tu ordenador sin abrir puertos:
   ssh -L $PUERTO:127.0.0.1:$PUERTO usuario@tu-vm   y abre http://127.0.0.1:$PUERTO/

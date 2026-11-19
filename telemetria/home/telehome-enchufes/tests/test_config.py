@@ -4,7 +4,7 @@ import stat
 
 import pytest
 
-from telemet_enchufes.config import MAX_DEVICES, Config, ConfigError, public_device
+from telehome_enchufes.config import MAX_DEVICES, Config, ConfigError, public_device
 
 
 def dev(i, **kw):
