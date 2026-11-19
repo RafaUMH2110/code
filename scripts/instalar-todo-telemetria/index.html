@@ -196,7 +196,7 @@
       <span class="legend">Generado con IA · Revisado por el autor</span>
     </div>
     <div>
-      Última modificación: <b>19/11/2026 23:51</b><br>
+      Última modificación: <b>20/11/2026 00:36</b><br>
       Catálogo actualizado: <b id="gen">–</b>
     </div>
   </div>
@@ -324,7 +324,7 @@
     var meta = [];
     if (a.size) meta.push(esc(a.size));
     if (a.updated) meta.push('Actualizado '+esc(a.updated));
-    return '<a class="card" href="'+esc(a.href)+'">'+
+    return '<a class="card" href="'+esc(a.href)+'" target="_blank" rel="noopener">'+
       '<div class="card-top">'+
         '<div class="logo" style="background:linear-gradient(135deg,hsl('+h+' 70% 48%),hsl('+((h+40)%360)+' 75% 58%))" aria-hidden="true">'+esc(ini)+'</div>'+
         '<div><h3>'+esc(a.title)+(a.variant ? ' <span class="ver">'+esc(a.variant)+'</span>' : '')+'</h3><div class="path">'+esc(a.path)+'</div></div>'+

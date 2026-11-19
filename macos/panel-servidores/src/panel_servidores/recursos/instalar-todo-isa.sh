@@ -33,7 +33,7 @@ TODOS=0
 REPOS_CLI=""
 EXCLUIR_CLI=""
 COLECTOR=0
-TELEHOME=0
+TELEHOME=auto   # auto: se instala si code/telemetria/home está entre los repos clonados
 
 uso() {
 cat <<'EOF'
@@ -78,8 +78,9 @@ Telemetría
   --telehome          Instala TeleHome Enchufes (de code/telemetria/home) como servicio
                       systemd y lo publica en Apache en <entrada>telehome/enchufes/
                       (proxy inverso a 127.0.0.1:8765). Añade al portal la categoría
-                      «Home». Requiere tener clonado code/telemetria. Una vez
-                      instalado, el portal lo sigue listando aunque no repitas la opción.
+                      «Home». Es lo que se hace por defecto si code/telemetria/home está
+                      entre los repos clonados; con --sin-telehome se omite.
+  --sin-telehome      No instala TeleHome Enchufes aunque esté disponible.
 Otros
   --cron "EXPR"       Programa la tarea en cron, p. ej. --cron "0 3 * * *"
   -h, --help          Esta ayuda
@@ -107,6 +108,7 @@ while [ $# -gt 0 ]; do
     --listar) LISTAR=1; shift ;;
     --colector) COLECTOR=1; shift ;;
     --telehome) TELEHOME=1; shift ;;
+    --sin-telehome) TELEHOME=0; shift ;;
     -h|--help) uso; exit 0 ;;
     *) echo "Opción desconocida: $1  (usa -h para ver la ayuda)" >&2; exit 1 ;;
   esac
@@ -510,7 +512,8 @@ done
 # README más cercano (proyecto y resumen).
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
-if [ "$TELEHOME" -eq 1 ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
+telehome_disponible() { find "$ORIGEN" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
 python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -872,7 +875,7 @@ instalar_telehome() {
   local hosts=() args=()
   inst="$(find "$ORIGEN" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | head -1)"
   if [ -z "$inst" ]; then
-    log "AVISO: no se encontró telehome-enchufes en los repos clonados (¿está seleccionado code/telemetria?)"
+    [ "$TELEHOME" = 1 ] && log "AVISO: no se encontró telehome-enchufes en los repos clonados (¿está seleccionado code/telemetria?)"
     return 0
   fi
   ruta="${ENTRADA}telehome/enchufes/"
@@ -910,7 +913,7 @@ else
   log "No solicitado (usa --colector para instalarlo)"
 fi
 
-if [ "$TELEHOME" -eq 1 ]; then
+if [ "$TELEHOME" != 0 ]; then
   instalar_telehome
 else
   log "No solicitado (usa --telehome para instalarlo)"
@@ -991,7 +994,8 @@ if [ -n "$CRON_EXPR" ]; then
   [ "$MODO" != "web" ] && linea="$linea --modo $MODO"
   [ "$INDICE" -eq 0 ]  && linea="$linea --sin-indice"
   [ "$COLECTOR" -eq 1 ] && linea="$linea --colector"
-  [ "$TELEHOME" -eq 1 ] && linea="$linea --telehome"
+  [ "$TELEHOME" = 1 ] && linea="$linea --telehome"
+  [ "$TELEHOME" = 0 ] && linea="$linea --sin-telehome"
   [ "$ENTRADA_RAIZ" -eq 1 ] && linea="$linea --entrada-raiz"
   [ -n "$JSON_DIR_CLI" ] && linea="$linea --json-dir $JSON_DIR_CLI"
   linea="$linea >/dev/null 2>&1"

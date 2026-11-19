@@ -61,7 +61,7 @@ chmod +x instalar-todo-isa.sh
 | `--entrada-raiz` | Además, `/` redirige a `/rafa/` (cambia la portada) |
 | `--json-dir DIR` | Carpeta donde el colector publica `historial.json` |
 
-También admite `--telehome`: instala TeleHome Enchufes como servicio y lo publica en `<entrada>telehome/enchufes/` mediante un `conf-available/telehome-enchufes.conf` (proxy inverso; se activa con `a2enconf` y, si `configtest` falla, se desactiva junto con el resto de confs nuevas). El portal muestra la categoría **Home**.
+También admite `--telehome`/`--sin-telehome` (por defecto se instala si `code/telemetria/home` está entre los repos clonados): instala TeleHome Enchufes como servicio y lo publica en `<entrada>telehome/enchufes/` mediante un `conf-available/telehome-enchufes.conf` (proxy inverso; se activa con `a2enconf` y, si `configtest` falla, se desactiva junto con el resto de confs nuevas). El portal muestra la categoría **Home**.
 
 El resto de opciones (`-u`, `-o`, `-d`, `--modo`, `--repos`, `--excluir`, `--todos`, `--listar`, `--sin-indice`, `--colector`, `--cron`, `--forzar`) funcionan igual que en la versión local; ver `instrucciones-instalar-todo.md`.
 
