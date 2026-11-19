@@ -1,0 +1,18 @@
+{
+  // F5 o panel «Ejecutar y depurar». Requiere la extensión «Python Debugger» y el intérprete de .venv.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TeleMet Enchufes: interfaz web (simulación, 3 enchufes)",
+      "type": "debugpy", "request": "launch", "console": "integratedTerminal",
+      "module": "telemet_enchufes", "cwd": "${workspaceFolder}",
+      "args": ["serve", "--simulate", "3"]
+    },
+    {
+      "name": "TeleMet Enchufes: interfaz web (datos reales)",
+      "type": "debugpy", "request": "launch", "console": "integratedTerminal",
+      "module": "telemet_enchufes", "cwd": "${workspaceFolder}",
+      "args": ["serve"]
+    }
+  ]
+}

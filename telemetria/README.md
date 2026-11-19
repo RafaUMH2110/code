@@ -12,6 +12,11 @@ WH2600/WH2900) desde la nube de Wunderground/Earth Network, y fue creciendo en
 iteraciones sucesivas: de una consulta puntual por línea de comandos hasta un
 monitor asíncrono con reconexión y un puente que republica los datos por MQTT.
 
+> **Enchufes inteligentes:** TeleMet Enchufes (telemetría y control de enchufes Energeeks/Tuya) está en tres
+> carpetas autocontenidas: [`telemet-enchufes-local/`](telemet-enchufes-local/README.md) (macOS, red local),
+> [`telemet-enchufes-nube/`](telemet-enchufes-nube/README.md) (añade modo nube y Linux) y
+> [`telemet-enchufes-vscode/`](telemet-enchufes-vscode/README.md) (pruebas por línea de órdenes).
+
 ## Índice
 
 - [Arquitectura y evolución](#arquitectura-y-evolución)
