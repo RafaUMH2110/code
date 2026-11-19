@@ -27,8 +27,8 @@ Necesitas Python 3.9 o superior (`xcode-select --install` o `brew install python
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-local
-cd telemetria/telemet-enchufes-local
+cd code && git sparse-checkout set telemetria/home/telemet-enchufes-local
+cd telemetria/home/telemet-enchufes-local
 ./macos/instalar-macos.sh             # crea .venv e instala dependencias
 ./macos/instalar-macos.sh --launchd   # opcional: arranca al iniciar sesión
 ```

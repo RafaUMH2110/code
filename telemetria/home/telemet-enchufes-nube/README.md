@@ -30,8 +30,8 @@ Necesitas Python 3.9 o superior (`xcode-select --install` o `brew install python
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-nube
-cd telemetria/telemet-enchufes-nube
+cd code && git sparse-checkout set telemetria/home/telemet-enchufes-nube
+cd telemetria/home/telemet-enchufes-nube
 ./macos/instalar-macos.sh             # crea .venv e instala dependencias
 ./macos/instalar-macos.sh --launchd   # opcional: arranca al iniciar sesión
 ```
@@ -48,8 +48,8 @@ Prueba sin hardware: `.venv/bin/python -m telemet_enchufes serve --simulate 4` (
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-nube
-cd telemetria/telemet-enchufes-nube
+cd code && git sparse-checkout set telemetria/home/telemet-enchufes-nube
+cd telemetria/home/telemet-enchufes-nube
 sudo ./linux/instalar-linux.sh          # servicio systemd «telemet-enchufes», código en /opt, datos en /var/lib
 ```
 

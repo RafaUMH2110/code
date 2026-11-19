@@ -13,8 +13,8 @@ por secciones. No tiene interfaz web ni base de datos: sirve para comprobar cred
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-vscode
-cd telemetria/telemet-enchufes-vscode
+cd code && git sparse-checkout set telemetria/home/telemet-enchufes-vscode
+cd telemetria/home/telemet-enchufes-vscode
 
 python3 telemet-enchufes-pruebas.py --simular estado      # sin enchufes ni TinyTuya
 pip install tinytuya                                       # para los modos local y nube

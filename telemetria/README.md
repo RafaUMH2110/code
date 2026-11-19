@@ -13,9 +13,9 @@ iteraciones sucesivas: de una consulta puntual por línea de comandos hasta un
 monitor asíncrono con reconexión y un puente que republica los datos por MQTT.
 
 > **Enchufes inteligentes:** TeleMet Enchufes (telemetría y control de enchufes Energeeks/Tuya) está en tres
-> carpetas autocontenidas: [`telemet-enchufes-local/`](telemet-enchufes-local/README.md) (macOS, red local),
-> [`telemet-enchufes-nube/`](telemet-enchufes-nube/README.md) (añade modo nube y Linux) y
-> [`telemet-enchufes-vscode/`](telemet-enchufes-vscode/README.md) (pruebas por línea de órdenes).
+> carpetas autocontenidas dentro de [`home/`](home/README.md): [`telemet-enchufes-local/`](home/telemet-enchufes-local/README.md) (macOS, red local),
+> [`telemet-enchufes-nube/`](home/telemet-enchufes-nube/README.md) (añade modo nube y Linux) y
+> [`telemet-enchufes-vscode/`](home/telemet-enchufes-vscode/README.md) (pruebas por línea de órdenes).
 
 ## Índice
 
@@ -74,6 +74,7 @@ Elige el fichero según lo que necesites:
 | `wu_telemetria_puente_mqtt.py` | `aiohttp`, `paho-mqtt>=2.0` | Igual que el monitor anterior, pero en vez de solo loggear cada lectura la publica en un topic MQTT (por defecto `weather/vevor/telemetry`) con `retain=True`, para que cualquier suscriptor (una app iOS, un dashboard, otro proceso) reciba al instante la última lectura conocida al conectarse. Soporta usuario/contraseña y TLS opcionales para el broker. |
 | `wu_telemetria_cliente_sincrono_gui.py` | `requests`, `tkinter` | Ventana gráfica que envuelve `WUPWSClient` (del fichero anterior, debe estar en la misma carpeta): sondea en un hilo en segundo plano y muestra los valores actuales, un indicador de estado y un histórico de lecturas con scroll. |
 | `wu_telemetria_monitor_asincrono_gui.py` | `aiohttp`, `tkinter` | Ventana gráfica que envuelve `WURealtimeMonitor` (del fichero anterior, debe estar en la misma carpeta): el bucle `asyncio` original corre íntegro en un hilo aparte y reenvía cada lectura a la interfaz mediante una cola segura entre hilos. Detecta y muestra cuando el monitor se detiene solo por un error fatal. |
+| `home/` | Python (stdlib; `tinytuya`) | Carpeta aparte, sin relación con la estación: telemetría doméstica. Contiene las tres versiones de TeleMet Enchufes (local, nube y vscode). Ver su [README](home/README.md). |
 
 ## Requisitos
 
