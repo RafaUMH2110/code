@@ -16,10 +16,14 @@ code/
 │   └── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
 ├── generador-apps/             ← generador de apps web con IA (el mismo en los tres sistemas)
 ├── scripts/                    ← instaladores, informes del colector, mantenimiento de repos
-└── telemetria/                 ← scripts Python de la estación meteorológica y de los enchufes
-    ├── telemet-enchufes-local/   ← TeleMet Enchufes, versión local (macOS, red local)
-    ├── telemet-enchufes-nube/    ← TeleMet Enchufes, versión nube (macOS y Linux, local + API de Tuya)
-    └── telemet-enchufes-vscode/  ← TeleMet Enchufes, pruebas por línea de órdenes (VS Code)
+└── telemetria/                 ← scripts Python de telemetría
+    ├── meteo/                  ← estación meteorológica Vevor YT60234 (Weather Underground)
+    │   ├── telemeteo-consulta/ ← consulta puntual y cliente síncrono (+ GUI)
+    │   ├── telemeteo-monitor/  ← monitor asíncrono (+ GUI)
+    │   └── telemeteo-puente/   ← puente HTTP → MQTT
+    └── home/                   ← TeleHome Enchufes (telemetría y control de enchufes Tuya)
+        ├── telehome-enchufes/         ← interfaz web, modo local y nube, macOS y Linux
+        └── telehome-enchufes-vscode/  ← pruebas por línea de órdenes (VS Code)
 ```
 
 Contenido de cada app de escritorio (ejemplo con `notas-rapidas`):
@@ -68,10 +72,11 @@ Abre `code.code-workspace` (menú *Archivo → Abrir workspace desde archivo*): 
 
 | Carpeta | Contenido |
 |---|---|
-| [`telemetria/`](telemetria/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): consulta simple, clientes síncronos, monitor asíncrono, GUIs Tkinter y puente MQTT. Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/README.md). |
-| [`telemetria/telemet-enchufes-local/`](telemetria/telemet-enchufes-local/) | **TeleMet Enchufes · local** (0.1.0): telemetría y control de hasta 7 enchufes Wi-Fi Energeeks EG-EW008MC / EG-EW009MC (Tuya) **en red local**, con interfaz web, histórico SQLite e instalador para macOS. Ver su [README](telemetria/telemet-enchufes-local/README.md). |
-| [`telemetria/telemet-enchufes-nube/`](telemetria/telemet-enchufes-nube/) | **TeleMet Enchufes · nube** (0.2.0): lo anterior más **modo nube** (API de Tuya IoT, para leer los enchufes desde fuera de su red, p. ej. una VM de Azure), instalador para Linux (systemd) y contraseña opcional. Ver su [README](telemetria/telemet-enchufes-nube/README.md). |
-| [`telemetria/telemet-enchufes-vscode/`](telemetria/telemet-enchufes-vscode/) | **TeleMet Enchufes · vscode**: herramienta de pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV, datos crudos), configurable por JSON y por variables del código, con `.vscode/` listo. Ver su [README](telemetria/telemet-enchufes-vscode/README.md) y su [manual](telemetria/telemet-enchufes-vscode/MANUAL.md). |
+| [`telemetria/`](telemetria/) | Telemetría en Python, en dos carpetas: [`meteo/`](telemetria/meteo/) y [`home/`](telemetria/home/). Ver su [README](telemetria/README.md). |
+| [`telemetria/meteo/`](telemetria/meteo/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): en tres carpetas `telemeteo-consulta/`, `telemeteo-monitor/` y `telemeteo-puente/` (consulta y cliente síncrono, monitor asíncrono, GUIs Tkinter y puente MQTT). Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/meteo/README.md). |
+| [`telemetria/home/`](telemetria/home/) | **TeleHome**: enchufes inteligentes Energeeks/Tuya, en dos carpetas (siguientes filas). Ver su [README](telemetria/home/README.md). |
+| [`telemetria/home/telehome-enchufes/`](telemetria/home/telehome-enchufes/) | **TeleHome Enchufes** (0.2.0): telemetría y control de hasta 7 enchufes Wi-Fi Energeeks EG-EW008MC / EG-EW009MC (Tuya), con interfaz web, histórico SQLite, **modo local** (red local) y **modo nube** (API de Tuya IoT, para leer los enchufes desde fuera de su red, p. ej. una VM de Azure), instaladores para macOS y Linux (systemd) y contraseña opcional. Ver su [README](telemetria/home/telehome-enchufes/README.md). |
+| [`telemetria/home/telehome-enchufes-vscode/`](telemetria/home/telehome-enchufes-vscode/) | **TeleHome Enchufes · vscode**: herramienta de pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV, datos crudos), configurable por JSON y por variables del código, con `.vscode/` listo. Ver su [README](telemetria/home/telehome-enchufes-vscode/README.md) y su [manual](telemetria/home/telehome-enchufes-vscode/MANUAL.md). |
 | [`scripts/`](scripts/) | Instaladores para clonar los repos y desplegar las apps en Apache (con opción de instalar el colector TeleMet), informes del colector por SSH, auditoría de los repos de `RafaUMH2110` y la guía para mover repos. Ver su [README](scripts/README.md). |
 
 ## Notas Rápidas: diferencias entre plataformas

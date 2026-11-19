@@ -11,9 +11,10 @@
     { "name": "Generador · App con API Anthropic","path": "generador-apps/python-app-api-anthropic" },
     { "name": "Scripts",                         "path": "scripts" },
     { "name": "Telemetría",                      "path": "telemetria" },
-    { "name": "Telemetría · Enchufes (local)",   "path": "telemetria/telemet-enchufes-local" },
-    { "name": "Telemetría · Enchufes (nube)",    "path": "telemetria/telemet-enchufes-nube" },
-    { "name": "Telemetría · Enchufes (vscode)",  "path": "telemetria/telemet-enchufes-vscode" }
+    { "name": "Telemetría · Meteo",              "path": "telemetria/meteo" },
+    { "name": "Telemetría · Home",               "path": "telemetria/home" },
+    { "name": "Home · Enchufes",                "path": "telemetria/home/telehome-enchufes" },
+    { "name": "Home · Enchufes (vscode)",       "path": "telemetria/home/telehome-enchufes-vscode" }
   ],
   "settings": {
     "files.exclude": { "**/.DS_Store": true, "**/__pycache__": true },

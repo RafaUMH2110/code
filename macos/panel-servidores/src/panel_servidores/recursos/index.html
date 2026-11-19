@@ -196,7 +196,7 @@
       <span class="legend">Generado con IA · Revisado por el autor</span>
     </div>
     <div>
-      Última modificación: <b>31/10/2026 21:56</b><br>
+      Última modificación: <b>19/11/2026 23:51</b><br>
       Catálogo actualizado: <b id="gen">–</b>
     </div>
   </div>
@@ -232,13 +232,13 @@
   function hue(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
 
   // Carpetas/ficheros que son versiones de una app (…/genimod/pro/index.html → GenImOd · Pro)
-  var VARIANT = /^(pro|lite|plus|free|basic|demo|beta|standard|light|max|mini|premium|v\d+(\.\d+)*)$/i;
+  var VARIANT = /^(pro|promax|lite|plus|free|basic|demo|beta|standard|light|max|mini|premium|v\d+(\.\d+)*)$/i;
   // Nombres demasiado genéricos para servir de título
   var GENERIC = /^(ui|app|web|src|public|dist|build|static|html|plantilla|plantilla[-_]base|template|index|main|home)$/i;
   var OS = {linux:'Linux', macos:'macOS', windows:'Windows'};
   // Repos cuya primera carpeta es una categoría (apps/moda/…, apps/telemetria/…)
   var CATEGORY_REPOS = {apps:true};
-  var CAT = {moda:'Moda', telemetria:'Telemetría', appindex:'Índice de apps'};
+  var CAT = {moda:'Moda', telemetria:'Meteo', home:'Home', appindex:'Índice de apps'};
   var PRETTY = {
     'notas-rapidas':'Notas rápidas', 'generador-apps':'Generador de apps', 'mejora-de-codigo':'Mejora de código',
     'python-app-api-anthropic':'Python App API Anthropic', 'plantilla_base':'Plantilla base',
@@ -252,7 +252,20 @@
   function fmtDate(d){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d||''); return m ? m[3]+'/'+m[2]+'/'+m[1] : ''; }
 
   // Convierte una entrada del catálogo en datos de tarjeta
+  // Nombre corto de una página: parte del <title> anterior al primer separador (· — | -)
+  function head(t){ return String(t||'').split(/\s+[·—–|]\s+|\s+-\s+/)[0].trim(); }
+  var PAGES = {};
+  var PAGE_NAMES = {mapa:'Mapa', map:'Mapa'};
   function toApp(e){
+    // Entradas con URL propia (p. ej. TeleHome, servido por un proxy de Apache)
+    if (e.url) {
+      var ck = (e.category || 'home');
+      return {
+        repo: e.repo, path: e.path, key: 'telehome-enchufes', os: '', title: e.title, desc: e.description || '',
+        gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: e.repo, project: '', crumb: '',
+        size: '', updated: fmtDate(e.updated), variant: '', href: e.url
+      };
+    }
     var folders = e.path.split('/');
     var file    = folders.pop();
     var base    = file.replace(/\.html?$/i,'');
@@ -276,14 +289,18 @@
     var info = INFO[key.toLowerCase()] || null;
     var generic = GENERIC.test(key);
     var names = folders.filter(function(f){ return !GENERIC.test(f) && !VARIANT.test(f); });
-    var title;
+    var title, ht = head(e.title);
     if (info) title = info.t;
-    else if (!generic && !placeholder(e.title) && e.title.length <= 60) title = e.title;
+    else if (!generic && !placeholder(ht) && ht.length <= 60) title = ht;
     else if (generic && key === base) title = (names.length ? pretty(names[names.length-1]) + ' · ' : '') + pretty(base);
     else if (generic && !placeholder(e.title) && e.title.length <= 60) title = e.title;
     else if (generic) title = names.slice(-2).map(pretty).join(' · ') || pretty(key);
     else title = pretty(key);
     if (extra) title += ' · ' + extra;
+    // Página secundaria (mapa.html, map.html…): nombre de la página principal de su carpeta + su función
+    var sib = (!info && !extra && base.toLowerCase() !== 'index') ? PAGES[e.repo + '/' + e.path.replace(/[^\/]*$/, '') + 'index.html'] : null;
+    if (sib && head(sib.title) && !placeholder(head(sib.title))) { title = head(sib.title) + ' · ' + (PAGE_NAMES[base.toLowerCase()] || titleCase(base)); variant = ''; }
+    if (!info && variant && title.toLowerCase().indexOf(variant.toLowerCase()) >= 0) variant = '';
     if (cat && !folders.length && /^index$/i.test(base)) title = glabel;
 
     var crumb = folders.filter(function(f){ return !GENERIC.test(f); }).map(pretty).join(' › ');
@@ -371,6 +388,7 @@
     .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
     .then(function(data){
       var entries = Array.isArray(data) ? data : (data.apps || []);
+      entries.forEach(function(e){ PAGES[e.repo + '/' + e.path] = e; });
       state.apps = entries.map(toApp);
       $('gen').textContent = data.generated || '–';
       $('loading').hidden = true;

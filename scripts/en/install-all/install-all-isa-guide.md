@@ -61,6 +61,8 @@ chmod +x install-all-isa.sh
 | `--root-entry` | Also, `/` redirects to `/rafa/` (changes the front page) |
 | `--json-dir DIR` | Folder where the collector publishes `history.json` |
 
+It also accepts `--telehome`: installs TeleHome Enchufes as a service and publishes it at `<entry>telehome/enchufes/` through a `conf-available/telehome-enchufes.conf` (reverse proxy; enabled with `a2enconf` and, if `configtest` fails, disabled together with the other new confs). The portal shows the **Home** category (the `telemetria` apps of the `apps` repo are grouped under **Weather**).
+
 The remaining options (`-u`, `-o`, `-d`, `--mode`, `--repos`, `--exclude`, `--all`, `--list`, `--no-index`, `--collector`, `--cron`, `--force`) work as in the local version; see `install-all-guide.md`.
 
 ## 5. First run on isa.umh.es

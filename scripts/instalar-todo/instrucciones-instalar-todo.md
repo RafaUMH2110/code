@@ -117,6 +117,7 @@ Combinaciones habituales:
 | Opción | Descripción |
 |---|---|
 | `--colector` | Instala el colector de telemetría como servicio. Ver [sección 8](#8-colector-de-telemetría). |
+| `--telehome` | Instala **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) como servicio systemd en `127.0.0.1:8765`, lo publica en Apache en `<entrada>telehome/enchufes/` (proxy inverso, conf `telehome-enchufes`) y añade al portal la categoría **Home** (y las apps de `telemetria` del repo `apps` se agrupan en **Meteo**). Requiere `code/telemetria` entre los repos clonados. Una vez instalado, el portal lo sigue listando aunque no repitas la opción. El servicio solo acepta los nombres del servidor (`hostname`, FQDN e IPs), que se pasan como `--allow-host`. |
 | `--cron "EXPR"` | Programa la ejecución periódica, p. ej. `--cron "0 3 * * *"`. |
 | `-h`, `--help` | Muestra la ayuda. |
 

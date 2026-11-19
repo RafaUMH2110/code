@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TeleHome Enchufes</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M17 5 9 18h6l-1 9 9-14h-6z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light dark;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --accent:#2a78d6; --on-accent:#fff;
+  --good:#0ca30c; --critical:#d03b3b; --warn-bg:#fff4d6;
+  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#eda100;
+  --series-5:#e87ba4; --series-6:#008300; --series-7:#6250d6;
+  --font: system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --accent:#3987e5; --warn-bg:#3a2f0b;
+    --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
+    --series-5:#d55181; --series-6:#0ca30c; --series-7:#9085e9;
+  }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--page); color:var(--ink); font:15px/1.45 var(--font); }
+header { display:flex; align-items:center; gap:12px; padding:14px 24px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:5; }
+header h1 { font-size:18px; margin:0; font-weight:650; }
+header .count { color:var(--ink2); font-size:13px; }
+header .spacer { flex:1; }
+main { max-width:1180px; margin:0 auto; padding:20px 24px 40px; }
+button, select, input { font:inherit; color:inherit; }
+.btn { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:7px 14px; cursor:pointer; }
+.btn:hover { background:var(--grid); }
+.btn.primary { background:var(--accent); color:var(--on-accent); border-color:transparent; }
+.btn.primary:hover { filter:brightness(1.08); }
+.btn.danger { color:var(--critical); }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.banner { background:var(--warn-bg); border:1px solid var(--border); border-radius:8px; padding:8px 14px; margin-bottom:16px; font-size:13.5px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; position:relative; }
+.card.sel { outline:2px solid var(--accent); outline-offset:-1px; }
+.card .top { display:flex; align-items:center; gap:8px; }
+.key { width:18px; height:0; border-top:3px solid; border-radius:2px; flex:none; }
+.card h3 { margin:0; font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.pill { font-size:12px; color:var(--ink2); display:inline-flex; align-items:center; gap:5px; }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--good); display:inline-block; }
+.dot.off { background:transparent; border:2px solid var(--critical); }
+.power { font-size:34px; font-weight:650; margin:8px 0 2px; letter-spacing:-.5px; }
+.power small { font-size:15px; font-weight:500; color:var(--ink2); margin-left:3px; }
+.meta { display:flex; gap:14px; color:var(--ink2); font-size:13px; flex-wrap:wrap; }
+.meta b { color:var(--ink); font-weight:600; }
+.err { color:var(--ink2); font-size:12.5px; margin-top:6px; min-height:1.2em; }
+.row { display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+.switch { width:46px; height:26px; border-radius:13px; border:none; background:var(--axis); position:relative; cursor:pointer; padding:0; }
+.switch::after { content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .15s; }
+.switch[aria-checked="true"] { background:var(--accent); }
+.switch[aria-checked="true"]::after { left:23px; }
+.switch:disabled { opacity:.4; cursor:not-allowed; }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-top:20px; }
+.filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+.filters .grp { display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.filters .grp button { border:none; background:transparent; padding:6px 12px; cursor:pointer; }
+.filters .grp button[aria-pressed="true"] { background:var(--accent); color:var(--on-accent); }
+.filters .spacer { flex:1; }
+h2 { font-size:15px; margin:0 0 8px; font-weight:650; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin:4px 0 8px; font-size:13px; color:var(--ink2); }
+.legend button { background:none; border:none; padding:2px 0; cursor:pointer; display:inline-flex; align-items:center; gap:6px; color:inherit; }
+.legend button[aria-pressed="false"] { opacity:.4; text-decoration:line-through; }
+#chartWrap { position:relative; }
+#chart { width:100%; height:320px; display:block; touch-action:none; }
+#chart text { fill:var(--muted); font-size:11.5px; font-family:var(--font); }
+.tip { position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.18); min-width:170px; z-index:3; }
+.tip .t { color:var(--ink2); font-size:12px; margin-bottom:4px; }
+.tip .r { display:flex; align-items:center; gap:7px; padding:1px 0; }
+.tip .r b { font-weight:650; min-width:62px; text-align:right; }
+.tip .r span.n { color:var(--ink2); }
+.empty { padding:40px 10px; text-align:center; color:var(--ink2); }
+table { border-collapse:collapse; width:100%; font-size:13.5px; }
+th, td { text-align:right; padding:7px 8px; border-bottom:1px solid var(--grid); }
+th:first-child, td:first-child { text-align:left; }
+th { color:var(--ink2); font-weight:600; }
+td.num { font-variant-numeric:tabular-nums; }
+caption { text-align:left; color:var(--ink2); font-size:12.5px; padding-bottom:6px; }
+footer { color:var(--muted); font-size:12.5px; text-align:center; padding:0 24px 28px; }
+dialog { border:1px solid var(--border); border-radius:14px; background:var(--surface); color:var(--ink); width:min(760px,94vw); padding:0; }
+dialog::backdrop { background:rgba(0,0,0,.45); }
+.dlg-h { display:flex; align-items:center; padding:14px 20px; border-bottom:1px solid var(--border); }
+.dlg-h h2 { margin:0; flex:1; font-size:17px; }
+.dlg-b { padding:16px 20px 20px; max-height:72vh; overflow:auto; }
+.dlg-b section { margin-bottom:22px; }
+.dev { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--grid); }
+.dev .n { flex:1; min-width:0; }
+.dev .n small { color:var(--ink2); display:block; }
+form.f { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+form.f label { display:flex; flex-direction:column; font-size:12.5px; color:var(--ink2); gap:3px; }
+form.f input, form.f select { background:var(--page); border:1px solid var(--border); border-radius:7px; padding:7px 9px; color:var(--ink); }
+form.f .full { grid-column:1/-1; }
+details summary { cursor:pointer; color:var(--ink2); font-size:13px; }
+details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px; }
+.msg { font-size:13px; margin-top:8px; min-height:1.2em; }
+.msg.bad { color:var(--critical); }
+.msg.ok { color:var(--ink2); }
+.found { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:13.5px; }
+.found code { flex:1; }
+.tag { font-size:11px; color:var(--ink2); border:1px solid var(--border); border-radius:5px; padding:0 5px; }
+.hint { color:var(--ink2); font-size:12.5px; margin:4px 0 0; }
+.only-nube, .only-local { display:contents; }
+form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { display:none; }
+@media (max-width:640px){ form.f{grid-template-columns:1fr;} details .adv{grid-template-columns:1fr 1fr;} main{padding:14px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ TeleHome Enchufes</h1>
+  <span class="count" id="count"></span>
+  <span class="spacer"></span>
+  <button class="btn" id="btnSettings">Ajustes y enchufes</button>
+</header>
+<main>
+  <div id="simBanner" class="banner" hidden>Modo simulación: los datos no proceden de enchufes reales.</div>
+  <section class="grid" id="cards" aria-label="Enchufes"></section>
+
+  <section class="panel" id="chartPanel">
+    <div class="filters">
+      <div class="grp" id="rangeGrp" role="group" aria-label="Intervalo de tiempo"></div>
+      <div class="grp" id="metricGrp" role="group" aria-label="Magnitud"></div>
+      <span class="spacer"></span>
+      <button class="btn" id="btnCsv" title="Descargar lecturas del enchufe seleccionado">Exportar CSV</button>
+    </div>
+    <h2 id="chartTitle">Potencia</h2>
+    <div class="legend" id="legend"></div>
+    <div id="chartWrap">
+      <svg id="chart" tabindex="0" role="img" aria-label="Gráfica de telemetría"></svg>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <div class="empty" id="chartEmpty" hidden>Sin datos en este intervalo todavía.</div>
+  </section>
+
+  <section class="panel">
+    <table id="sumTable">
+      <caption id="sumCaption"></caption>
+      <thead><tr><th>Enchufe</th><th>Energía (kWh)</th><th>Potencia media (W)</th><th>Potencia máx. (W)</th><th>Disponibilidad</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+<footer>
+  <div>TeleHome Enchufes <span id="ver"></span> · datos locales, guardados en este equipo</div>
+  <div>Última modificación: <span id="lastmod">2026-11-19 22:27</span></div>
+</footer>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-h"><h2 id="dlgTitle">Ajustes y enchufes</h2><button class="btn" id="btnClose">Cerrar</button></div>
+  <div class="dlg-b">
+    <section>
+      <h2>Nube de Tuya</h2>
+      <p class="hint" style="margin:0 0 8px">Para leer los enchufes sin estar en su red (p. ej. desde un servidor). Necesita un proyecto en iot.tuya.com con tu cuenta de Smart Life/Tuya Smart enlazada; copia aquí su Access ID y Access Secret.</p>
+      <form class="f" id="cloudForm" autocomplete="off">
+        <label>Centro de datos<select name="region" id="regionSel"></select></label>
+        <label>Access ID / Client ID<input name="api_key" maxlength="64" spellcheck="false"></label>
+        <label class="full">Access Secret / Client Secret<input name="api_secret" type="password" autocomplete="new-password" maxlength="64"></label>
+        <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" type="submit">Guardar credenciales</button>
+          <button class="btn" type="button" id="btnCloudTest">Probar conexión</button>
+          <button class="btn" type="button" id="btnCloudList">Ver dispositivos de la nube</button>
+        </div>
+      </form>
+      <div class="msg" id="cloudMsg" role="alert"></div>
+      <div id="cloudOut"></div>
+    </section>
+    <section>
+      <h2>Enchufes configurados <span id="dlgCount" style="color:var(--ink2);font-weight:400"></span></h2>
+      <div id="devList"></div>
+    </section>
+    <section>
+      <h2 id="formTitle">Añadir enchufe</h2>
+      <form class="f" id="devForm" autocomplete="off" data-mode="local">
+        <label>Nombre<input name="name" required maxlength="40" placeholder="Nevera"></label>
+        <label>Modo
+          <select name="mode"><option value="local">Local (misma red)</option><option value="nube">Nube de Tuya</option></select>
+        </label>
+        <label class="full">Device ID<input name="dev_id" required pattern="[A-Za-z0-9]{8,40}" placeholder="bf1234…"></label>
+        <span class="only-local">
+        <label>Local Key<input name="local_key" type="password" autocomplete="new-password" placeholder="16 caracteres"></label>
+        <label>IP (o «Auto»)<input name="ip" value="Auto" placeholder="Auto"></label>
+        <label>Versión del protocolo
+          <select name="version"><option>3.3</option><option>3.4</option><option>3.5</option><option>3.2</option><option>3.1</option></select>
+        </label>
+        <div></div>
+        </span>
+        <details class="full"><summary>Avanzado: mapa de datos y escalas</summary>
+          <div class="adv">
+            <span class="only-local">
+            <label>DPS interruptor<input name="dp_switch" type="number" min="1" max="255" value="1"></label>
+            <label>DPS potencia<input name="dp_power" type="number" min="1" max="255" value="19"></label>
+            <label>DPS tensión<input name="dp_voltage" type="number" min="1" max="255" value="20"></label>
+            <label>DPS corriente<input name="dp_current" type="number" min="1" max="255" value="18"></label>
+            </span>
+            <span class="only-nube">
+            <label>Código interruptor<input name="code_switch" value="switch_1" spellcheck="false"></label>
+            <label>Código potencia<input name="code_power" value="cur_power" spellcheck="false"></label>
+            <label>Código tensión<input name="code_voltage" value="cur_voltage" spellcheck="false"></label>
+            <label>Código corriente<input name="code_current" value="cur_current" spellcheck="false"></label>
+            </span>
+            <label>÷ potencia<input name="scale_power" type="number" step="any" value="10"></label>
+            <label>÷ tensión<input name="scale_voltage" type="number" step="any" value="10"></label>
+            <label>÷ corriente<input name="scale_current" type="number" step="any" value="1000"></label>
+          </div>
+        </details>
+        <div class="full" style="display:flex;gap:8px">
+          <button class="btn primary" type="submit" id="btnSave">Añadir</button>
+          <button class="btn" type="button" id="btnCancel" hidden>Cancelar edición</button>
+        </div>
+      </form>
+      <div class="msg" id="formMsg" role="alert"></div>
+    </section>
+    <section>
+      <h2>Buscar en la red local</h2>
+      <p style="color:var(--ink2);margin:0 0 8px;font-size:13.5px">Encuentra enchufes Tuya por difusión UDP (tarda unos 12 s). Rellena IP, Device ID y versión; la Local Key se obtiene con <code>python -m tinytuya wizard</code>.</p>
+      <button class="btn" id="btnScan">Buscar enchufes</button>
+      <div id="scanOut" class="msg"></div>
+    </section>
+    <section>
+      <h2>Importar devices.json (TinyTuya)</h2>
+      <input type="file" id="fileImport" accept=".json,application/json">
+      <div id="importOut" class="msg"></div>
+    </section>
+    <section>
+      <h2>Opciones</h2>
+      <form class="f" id="optForm">
+        <label>Intervalo de lectura local (s, mín. 5)<input name="poll_interval" type="number" min="5" max="3600"></label>
+        <label>Intervalo de lectura en la nube (s, mín. 60)<input name="cloud_poll_interval" type="number" min="60" max="3600"></label>
+        <label>Conservar histórico (días)<input name="retention_days" type="number" min="1" max="3650"></label>
+        <p class="hint full" id="callEstimate"></p>
+        <div class="full"><button class="btn" type="submit">Guardar opciones</button></div>
+      </form>
+      <div class="msg" id="optMsg" role="alert"></div>
+    </section>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const nf = (d) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? "—" : nf(d).format(v);
+const el = (tag, props = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") e.className = v; else if (k === "text") e.textContent = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c != null) e.append(c);
+  return e;
+};
+
+const RANGES = [["1 h", 3600], ["6 h", 21600], ["24 h", 86400], ["7 días", 604800], ["30 días", 2592000]];
+const METRICS = {
+  p: { label: "Potencia", unit: "W", dec: 1, zero: true },
+  v: { label: "Tensión", unit: "V", dec: 1, zero: false },
+  i: { label: "Corriente", unit: "A", dec: 3, zero: true },
+};
+const S = { state: null, range: 86400, metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null };
+
+async function api(path, opt = {}) {
+  const init = { method: opt.method || "GET", headers: { "X-TeleHome": "1" } };
+  if (opt.body !== undefined) { init.body = JSON.stringify(opt.body); init.headers["Content-Type"] = "application/json"; }
+  const r = await fetch(path, init);
+  let data = null;
+  try { data = await r.json(); } catch (e) { /* respuesta no JSON */ }
+  if (!r.ok) throw new Error((data && data.error) || ("Error " + r.status));
+  return data;
+}
+const color = (dev) => "var(--series-" + (((dev.slot ?? 0) % 7) + 1) + ")";
+
+/* ---------- tarjetas ---------- */
+function renderCards() {
+  const box = $("#cards"); box.replaceChildren();
+  const devs = S.state.devices;
+  $("#count").textContent = devs.length + "/" + S.state.max_devices + " enchufes";
+  if (!devs.length) {
+    box.append(el("div", { class: "empty", style: "grid-column:1/-1" },
+      el("p", { text: "Aún no hay enchufes configurados." }),
+      el("button", { class: "btn primary", text: "Añadir el primer enchufe", onclick: openDialog })));
+  }
+  for (const d of devs) {
+    const r = d.reading, online = !!(r && r.online);
+    const card = el("div", { class: "card" + (S.sel === d.id ? " sel" : ""), tabindex: "0", role: "button", "aria-label": "Seleccionar " + d.name });
+    card.addEventListener("click", () => selectPlug(S.sel === d.id ? "all" : d.id));
+    card.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === card) card.click(); });
+    const sw = el("button", { class: "switch", role: "switch", "aria-label": "Alimentación de " + d.name,
+      "aria-checked": String(!!(r && r.on)) });
+    sw.disabled = !online;
+    sw.addEventListener("click", async (e) => {
+      e.stopPropagation(); sw.disabled = true;
+      try { await api("api/plugs/" + d.id + "/power", { method: "POST", body: { on: !(r && r.on) } }); }
+      catch (err) { alert(err.message); }
+      await refresh();
+    });
+    card.append(
+      el("div", { class: "top" }, el("span", { class: "key", style: "border-color:" + color(d) }), el("h3", { text: d.name, title: d.name }),
+        el("span", { class: "tag", text: d.mode === "nube" ? "Nube" : "Local", title: d.mode === "nube" ? "Leído a través de la nube de Tuya" : "Leído en la red local" }),
+        el("span", { class: "pill" }, el("span", { class: "dot" + (online ? "" : " off") }), online ? "En línea" : (r ? "Sin conexión" : "Conectando…"))),
+      el("div", { class: "power" }, online ? fmt(r.power_w, 1) : "—", el("small", { text: "W" })),
+      el("div", { class: "meta" },
+        el("span", {}, el("b", { text: online ? fmt(r.voltage_v, 1) : "—" }), " V"),
+        el("span", {}, el("b", { text: online ? fmt(r.current_a, 3) : "—" }), " A"),
+        el("span", {}, "Hoy ", el("b", { text: fmt(d.energy_today_kwh, 3) }), " kWh")),
+      el("div", { class: "row" }, el("span", { class: "pill", text: online ? (r.on ? "Encendido" : "Apagado") : "" }), sw),
+      el("div", { class: "err", text: !online && r && r.error ? r.error : "" }));
+    box.append(card);
+  }
+}
+
+/* ---------- gráfica ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const sv = (tag, attrs = {}, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+
+function niceTicks(lo, hi, n = 5) {
+  if (!(hi > lo)) { hi = lo + 1; }
+  const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+  const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out = [];
+  for (let v = a; v <= b + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+const pad2 = (n) => String(n).padStart(2, "0");
+function tlabel(t, withDate) {
+  const d = new Date(t * 1000), hm = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  return withDate ? pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + " " + hm : hm;
+}
+
+function visibleDevs() { return S.state.devices.filter(d => (S.sel === "all" || S.sel === d.id) && !S.hidden.has(d.id)); }
+
+function drawChart() {
+  const svg = $("#chart"), H = 320, W = Math.max(svg.clientWidth, 320);
+  svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  const hist = S.hist; if (!hist) return;
+  const M = { l: 52, r: 14, t: 12, b: 26 }, iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const m = METRICS[S.metric], devs = visibleDevs();
+  const bucket = Math.max(1, Math.ceil((hist.to - hist.from) / 400));
+  let lo = Infinity, hi = -Infinity, any = false;
+  for (const d of devs) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { any = true; lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  $("#chartEmpty").hidden = any; svg.style.display = any ? "block" : "none";
+  if (!any) return;
+  if (m.zero) lo = 0; else { const padv = Math.max((hi - lo) * 0.15, 1); lo -= padv; hi += padv; }
+  const ticks = niceTicks(lo, hi), y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const X = (t) => M.l + (t - hist.from) / (hist.to - hist.from) * iw;
+  const Y = (v) => M.t + ih - (v - y0) / (y1 - y0 || 1) * ih;
+  for (const tv of ticks) {
+    svg.append(sv("line", { x1: M.l, x2: W - M.r, y1: Y(tv), y2: Y(tv), stroke: tv === y0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+    svg.append(sv("text", { x: M.l - 8, y: Y(tv) + 4, "text-anchor": "end" }, fmt(tv, m.dec > 1 && (y1 - y0) < 5 ? 2 : (y1 - y0) < 5 ? 1 : 0)));
+  }
+  const withDate = (hist.to - hist.from) > 86400 * 1.2;
+  for (let k = 0; k <= 4; k++) {
+    const t = hist.from + (hist.to - hist.from) * k / 4;
+    svg.append(sv("text", { x: M.l + iw * k / 4, y: H - 6, "text-anchor": k === 0 ? "start" : k === 4 ? "end" : "middle" }, tlabel(t, withDate)));
+  }
+  svg.append(sv("text", { x: 4, y: 10, "text-anchor": "start" }, m.unit));
+  for (const d of devs) {
+    const pts = hist.series[d.id] || []; let path = "", prev = null, last = null;
+    for (const p of pts) {
+      const v = p[S.metric];
+      if (v == null) { prev = null; continue; }
+      path += (prev == null || p.t - prev > bucket * 3 ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(v).toFixed(1);
+      prev = p.t; last = p;
+    }
+    if (path) svg.append(sv("path", { d: path, fill: "none", stroke: color(d), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    if (last) svg.append(sv("circle", { cx: X(last.t), cy: Y(last[S.metric]), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
+  }
+  S.geo = { M, iw, ih, W, H, X, Y, bucket };
+  const cross = sv("line", { class: "cross", y1: M.t, y2: M.t + ih, stroke: "var(--ink2)", "stroke-width": 1, visibility: "hidden" });
+  svg.append(cross);
+  svg.append(sv("rect", { class: "hit", x: M.l, y: M.t, width: iw, height: ih, fill: "transparent" }));
+  if (S.hover != null) showHover(S.hover);
+}
+
+function showHover(t) {
+  const g = S.geo, hist = S.hist; if (!g || !hist) return;
+  const svg = $("#chart"), tip = $("#tip"), devs = visibleDevs();
+  t = Math.min(Math.max(t, hist.from), hist.to);
+  const rows = []; let snap = null, best = Infinity;
+  for (const d of devs) {
+    const pts = hist.series[d.id] || []; let near = null, nd = Infinity;
+    for (const p of pts) { const dd = Math.abs(p.t - t); if (dd < nd) { nd = dd; near = p; } }
+    if (near && nd <= g.bucket * 2) { rows.push([d, near]); if (nd < best) { best = nd; snap = near.t; } }
+  }
+  svg.querySelectorAll(".mk").forEach(n => n.remove());
+  const cross = svg.querySelector(".cross");
+  if (snap == null) { cross.setAttribute("visibility", "hidden"); tip.hidden = true; return; }
+  S.hover = snap;
+  const x = g.X(snap); cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
+  tip.replaceChildren(el("div", { class: "t", text: new Date(snap * 1000).toLocaleString("es-ES") }));
+  for (const [d, p] of rows) {
+    const v = p[S.metric];
+    if (v != null) svg.append(sv("circle", { class: "mk", cx: x, cy: g.Y(v), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
+    tip.append(el("div", { class: "r" }, el("span", { class: "key", style: "border-color:" + color(d) }),
+      el("b", { text: v == null ? "sin datos" : fmt(v, METRICS[S.metric].dec) + " " + METRICS[S.metric].unit }), el("span", { class: "n", text: d.name })));
+  }
+  tip.hidden = false;
+  const wrap = $("#chartWrap"), tw = tip.offsetWidth, scale = wrap.clientWidth / g.W;
+  let left = x * scale + 14; if (left + tw > wrap.clientWidth) left = x * scale - tw - 14;
+  tip.style.left = Math.max(0, left) + "px"; tip.style.top = "10px";
+}
+
+function bindChart() {
+  const svg = $("#chart");
+  const tAt = (e) => { const r = svg.getBoundingClientRect(), g = S.geo; if (!g) return null;
+    const px = (e.clientX - r.left) * g.W / r.width; return S.hist.from + (px - g.M.l) / g.iw * (S.hist.to - S.hist.from); };
+  svg.addEventListener("pointermove", (e) => { const t = tAt(e); if (t != null) showHover(t); });
+  svg.addEventListener("pointerleave", () => { S.hover = null; $("#tip").hidden = true; const c = svg.querySelector(".cross"); if (c) c.setAttribute("visibility", "hidden"); svg.querySelectorAll(".mk").forEach(n => n.remove()); });
+  svg.addEventListener("keydown", (e) => {
+    if (!S.geo || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault(); const step = S.geo.bucket * (e.shiftKey ? 10 : 1);
+    let t = S.hover ?? S.hist.to;
+    t = e.key === "ArrowLeft" ? t - step : e.key === "ArrowRight" ? t + step : e.key === "Home" ? S.hist.from : S.hist.to;
+    showHover(t);
+  });
+  new ResizeObserver(() => drawChart()).observe(svg);
+}
+
+function renderLegend() {
+  const lg = $("#legend"); lg.replaceChildren();
+  const devs = S.state.devices.filter(d => S.sel === "all" || S.sel === d.id);
+  $("#chartTitle").textContent = METRICS[S.metric].label + " (" + METRICS[S.metric].unit + ")" + (S.sel === "all" ? "" : " · " + (devs[0] ? devs[0].name : ""));
+  if (devs.length < 2) return;
+  for (const d of devs) {
+    const b = el("button", { type: "button", "aria-pressed": String(!S.hidden.has(d.id)) }, el("span", { class: "key", style: "border-color:" + color(d) }), d.name);
+    b.addEventListener("click", () => { S.hidden.has(d.id) ? S.hidden.delete(d.id) : S.hidden.add(d.id); renderLegend(); drawChart(); });
+    lg.append(b);
+  }
+}
+
+function renderFilters() {
+  const rg = $("#rangeGrp"); rg.replaceChildren();
+  for (const [lab, secs] of RANGES) {
+    const b = el("button", { type: "button", text: lab, "aria-pressed": String(S.range === secs) });
+    b.addEventListener("click", () => { S.range = secs; renderFilters(); loadChart(); }); rg.append(b);
+  }
+  const mg = $("#metricGrp"); mg.replaceChildren();
+  for (const k of Object.keys(METRICS)) {
+    const b = el("button", { type: "button", text: METRICS[k].label, "aria-pressed": String(S.metric === k) });
+    b.addEventListener("click", () => { S.metric = k; renderFilters(); renderLegend(); drawChart(); }); mg.append(b);
+  }
+  $("#btnCsv").disabled = S.sel === "all" && S.state.devices.length !== 1;
+}
+
+function renderSummary() {
+  const tb = $("#sumTable tbody"); tb.replaceChildren();
+  if (!S.sum) return;
+  const lab = RANGES.find(r => r[1] === S.range);
+  $("#sumCaption").textContent = "Resumen de " + (lab ? lab[0] : "") + " (energía integrada a partir de la potencia medida)";
+  for (const d of S.state.devices) {
+    const s = S.sum.plugs[d.id]; if (!s) continue;
+    tb.append(el("tr", {}, el("td", {}, el("span", { class: "key", style: "border-color:" + color(d) + ";display:inline-block;margin-right:8px;vertical-align:middle" }), d.name),
+      el("td", { class: "num", text: fmt(s.energy_kwh, 3) }), el("td", { class: "num", text: fmt(s.avg_w, 1) }),
+      el("td", { class: "num", text: fmt(s.max_w, 1) }), el("td", { class: "num", text: s.availability == null ? "—" : fmt(s.availability * 100, 1) + " %" })));
+  }
+}
+
+async function loadChart() {
+  if (!S.state || !S.state.devices.length) { S.hist = null; drawChart(); return; }
+  const q = "range=" + S.range;
+  const [h, s] = await Promise.all([api("api/history?plug=all&points=400&" + q), api("api/summary?" + q)]);
+  S.hist = h; S.sum = s; renderLegend(); drawChart(); renderSummary();
+}
+function selectPlug(id) { S.sel = id; renderCards(); renderFilters(); renderLegend(); drawChart(); }
+
+/* ---------- ajustes ---------- */
+function openDialog() { renderDevList(); $("#dlg").showModal(); fillOptions(); }
+function fillOptions() {
+  const o = S.state.options, f = $("#optForm");
+  f.poll_interval.value = o.poll_interval; f.cloud_poll_interval.value = o.cloud_poll_interval; f.retention_days.value = o.retention_days;
+  updateEstimate();
+  const cf = $("#cloudForm"), sel = $("#regionSel");
+  if (!sel.options.length) for (const [k, v] of Object.entries(S.state.regions || {})) sel.append(el("option", { value: k, text: v + " (" + k + ")" }));
+  sel.value = o.cloud_region; cf.api_key.value = o.cloud_api_key || ""; cf.api_secret.value = "";
+  cf.api_secret.placeholder = o.cloud_secret_set ? "(guardado; déjalo vacío para conservarlo)" : "";
+}
+function updateEstimate() {
+  const iv = Math.max(60, +$("#optForm").cloud_poll_interval.value || 300);
+  const n = S.state.devices.filter(d => d.mode === "nube").length;
+  $("#callEstimate").textContent = n
+    ? "Modo nube: ~2 llamadas a la API por ciclo para todos los enchufes (" + n + ") → ≈ " + nf(0).format(Math.round(2 * 86400 * 30 / iv)) + " llamadas/mes. La cuenta gratuita de Tuya tiene un cupo limitado."
+    : "Ningún enchufe en modo nube.";
+}
+const DEV_FIELDS = ["name", "mode", "dev_id", "ip", "version", "dp_switch", "dp_power", "dp_voltage", "dp_current",
+  "code_switch", "code_power", "code_voltage", "code_current", "scale_power", "scale_voltage", "scale_current"];
+function setFormMode(m) { const f = $("#devForm"); f.mode.value = m; f.dataset.mode = m; }
+function renderDevList() {
+  const box = $("#devList"); box.replaceChildren();
+  const devs = S.state.devices;
+  $("#dlgCount").textContent = "(" + devs.length + "/" + S.state.max_devices + ")";
+  if (!devs.length) box.append(el("div", { class: "msg ok", text: "Ninguno todavía." }));
+  for (const d of devs) {
+    box.append(el("div", { class: "dev" }, el("span", { class: "key", style: "border-color:" + color(d) }),
+      el("div", { class: "n" }, d.name, el("small", { text: d.dev_id + " · " + (d.mode === "nube" ? "nube de Tuya" : d.ip + " · v" + d.version) })),
+      el("button", { class: "btn", type: "button", text: "Editar", onclick: () => editDev(d) }),
+      el("button", { class: "btn danger", type: "button", text: "Eliminar", onclick: () => delDev(d) })));
+  }
+  const full = devs.length >= S.state.max_devices && !S.editing;
+  $("#btnSave").disabled = full;
+  if (full) setMsg("#formMsg", "Has alcanzado el máximo de " + S.state.max_devices + " enchufes.", false);
+}
+function setMsg(sel, text, ok) { const m = $(sel); m.textContent = text; m.className = "msg " + (ok ? "ok" : "bad"); }
+function editDev(d) {
+  S.editing = d.id; const f = $("#devForm");
+  for (const k of DEV_FIELDS) f[k].value = d[k];
+  setFormMode(d.mode);
+  f.local_key.value = ""; f.local_key.placeholder = d.has_key ? "(sin cambios)" : "16 caracteres";
+  $("#formTitle").textContent = "Editar «" + d.name + "»"; $("#btnSave").textContent = "Guardar cambios"; $("#btnSave").disabled = false;
+  $("#btnCancel").hidden = false; setMsg("#formMsg", "", true); f.name.focus();
+}
+function resetForm() {
+  S.editing = null; const f = $("#devForm"); f.reset(); f.ip.value = "Auto"; f.local_key.placeholder = "16 caracteres"; setFormMode("local");
+  $("#formTitle").textContent = "Añadir enchufe"; $("#btnSave").textContent = "Añadir"; $("#btnCancel").hidden = true; setMsg("#formMsg", "", true);
+}
+async function delDev(d) {
+  if (!confirm("¿Eliminar «" + d.name + "» y su histórico de telemetría?")) return;
+  try { await api("api/devices/" + d.id, { method: "DELETE" }); if (S.sel === d.id) S.sel = "all"; resetForm(); await refresh(); renderDevList(); }
+  catch (e) { setMsg("#formMsg", e.message, false); }
+}
+
+function bindDialog() {
+  $("#devForm").mode.addEventListener("change", (e) => setFormMode(e.target.value));
+  $("#optForm").cloud_poll_interval.addEventListener("input", updateEstimate);
+  $("#cloudForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    try {
+      await api("api/cloud", { method: "PUT", body: { region: f.region.value, api_key: f.api_key.value.trim(), api_secret: f.api_secret.value.trim() } });
+      await refresh(); fillOptions(); setMsg("#cloudMsg", "Credenciales guardadas.", true);
+    } catch (err) { setMsg("#cloudMsg", err.message, false); }
+  });
+  $("#btnCloudTest").addEventListener("click", async () => {
+    setMsg("#cloudMsg", "Conectando con la nube de Tuya…", true);
+    try { const r = await api("api/cloud/test", { method: "POST", body: {} }); setMsg("#cloudMsg", "Conexión correcta: " + r.devices + " dispositivos en la cuenta enlazada.", true); }
+    catch (err) { setMsg("#cloudMsg", err.message, false); }
+  });
+  $("#btnCloudList").addEventListener("click", async () => {
+    const out = $("#cloudOut"); out.replaceChildren(); setMsg("#cloudMsg", "Consultando la nube…", true);
+    try {
+      const r = await api("api/cloud/devices", { method: "POST", body: {} });
+      setMsg("#cloudMsg", r.found.length ? "" : "La cuenta enlazada no tiene dispositivos (¿centro de datos correcto?).", true);
+      for (const f of r.found) {
+        const add = el("button", { class: "btn", type: "button", text: f.configured ? "Ya configurado" : "Añadir" });
+        add.disabled = f.configured || S.state.devices.length >= S.state.max_devices;
+        add.addEventListener("click", async () => {
+          add.disabled = true;
+          try {
+            const rep = await api("api/cloud/import", { method: "POST", body: { dev_ids: [f.dev_id] } });
+            if (rep["omitidos"].length) throw new Error(rep["omitidos"][0].motivo);
+            add.textContent = "Añadido"; await refresh(); renderDevList();
+          } catch (err) { setMsg("#cloudMsg", err.message, false); add.disabled = false; }
+        });
+        out.append(el("div", { class: "found" },
+          el("code", { text: f.name + " · " + f.dev_id + (f.category ? " · " + f.category : "") + (f.online === false ? " · desconectado" : "") }), add));
+      }
+    } catch (err) { setMsg("#cloudMsg", err.message, false); }
+  });
+  $("#btnSettings").addEventListener("click", openDialog);
+  $("#btnClose").addEventListener("click", () => $("#dlg").close());
+  $("#btnCancel").addEventListener("click", () => { resetForm(); renderDevList(); });
+  $("#devForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target, body = {};
+    for (const k of DEV_FIELDS) body[k] = String(f[k].value).trim();
+    if (f.local_key.value) body.local_key = f.local_key.value.trim();
+    try {
+      if (S.editing) await api("api/devices/" + S.editing, { method: "PUT", body }); else await api("api/devices", { method: "POST", body });
+      resetForm(); await refresh(); renderDevList(); setMsg("#formMsg", "Guardado.", true);
+    } catch (err) { setMsg("#formMsg", err.message, false); }
+  });
+  $("#optForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    try { await api("api/options", { method: "PUT", body: { poll_interval: +f.poll_interval.value, cloud_poll_interval: +f.cloud_poll_interval.value, retention_days: +f.retention_days.value } }); setMsg("#optMsg", "Opciones guardadas.", true); await refresh(); updateEstimate(); }
+    catch (err) { setMsg("#optMsg", err.message, false); }
+  });
+  $("#btnScan").addEventListener("click", async () => {
+    const out = $("#scanOut"); out.className = "msg ok"; out.textContent = "Buscando…"; $("#btnScan").disabled = true;
+    try {
+      const r = await api("api/discover", { method: "POST", body: {} });
+      out.replaceChildren(); out.className = "";
+      if (!r.found.length) { out.className = "msg ok"; out.textContent = "No se ha encontrado ningún dispositivo (¿misma red Wi-Fi? ¿enchufe encendido?)."; }
+      for (const f of r.found) {
+        const use = el("button", { class: "btn", type: "button", text: f.configured ? "Ya configurado" : "Usar", onclick: () => {
+          resetForm(); const form = $("#devForm"); form.dev_id.value = f.dev_id; form.ip.value = f.ip || "Auto";
+          if (f.version) form.version.value = f.version; $("#formTitle").scrollIntoView({ block: "center" }); form.name.focus(); } });
+        use.disabled = f.configured;
+        out.append(el("div", { class: "found" }, el("code", { text: f.ip + "  ·  " + f.dev_id + "  ·  v" + f.version }), use));
+      }
+    } catch (err) { out.className = "msg bad"; out.textContent = err.message; }
+    $("#btnScan").disabled = false;
+  });
+  $("#fileImport").addEventListener("change", async (e) => {
+    const out = $("#importOut"); const file = e.target.files[0]; if (!file) return;
+    try {
+      const rows = JSON.parse(await file.text());
+      const r = await api("api/devices/import", { method: "POST", body: { devices: Array.isArray(rows) ? rows : (rows.devices || []) } });
+      out.className = "msg ok"; out.textContent = "Añadidos: " + (r["añadidos"].join(", ") || "ninguno") +
+        (r["omitidos"].length ? ". Omitidos: " + r["omitidos"].map(o => o.name + " (" + o.motivo + ")").join("; ") : "");
+      await refresh(); renderDevList();
+    } catch (err) { out.className = "msg bad"; out.textContent = err.message; }
+    e.target.value = "";
+  });
+  $("#btnCsv").addEventListener("click", () => {
+    const id = S.sel !== "all" ? S.sel : (S.state.devices[0] && S.state.devices[0].id); if (!id) return;
+    location.href = "api/export.csv?plug=" + encodeURIComponent(id) + "&range=" + S.range;
+  });
+}
+
+/* ---------- ciclo ---------- */
+async function refresh() {
+  S.state = await api("api/state");
+  $("#ver").textContent = "v" + S.state.version; $("#simBanner").hidden = !S.state.simulate;
+  if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
+  renderCards(); renderFilters(); if (!$("#dlg").open) { /* sin recomponer el diálogo mientras se edita */ }
+  else { $("#dlgCount").textContent = "(" + S.state.devices.length + "/" + S.state.max_devices + ")"; updateEstimate(); }
+}
+async function init() {
+  bindChart(); bindDialog();
+  await refresh(); await loadChart();
+  setInterval(() => refresh().catch(() => { $("#count").textContent = "Sin conexión con el servidor"; }), 3000);
+  setInterval(() => loadChart().catch(() => {}), 15000);
+}
+init().catch((e) => { $("#count").textContent = e.message; });
+</script>
+</body>
+</html>
