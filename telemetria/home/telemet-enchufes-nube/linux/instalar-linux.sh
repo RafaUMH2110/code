@@ -102,6 +102,7 @@ find "$DESTINO/telemet_enchufes" -name __pycache__ -prune -exec rm -r {} +
 "$DESTINO/.venv/bin/python" -m pip install --quiet -r "$DESTINO/requirements.txt"
 
 # 4) Orden «telemet-enchufes» que actúa como el usuario del servicio
+install -d -m 0755 "$(dirname "$ENVOLTORIO")"   # /usr/local/bin puede no existir en instalaciones mínimas
 cat > "$ENVOLTORIO" <<WRAP
 #!/bin/sh
 # Ejecuta TeleMet Enchufes sobre los datos del servicio (p. ej. cloud-setup, cloud-import, password, list)
