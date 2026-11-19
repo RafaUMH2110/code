@@ -31,7 +31,7 @@ ALL=0
 REPOS_CLI=""
 EXCLUDE_CLI=""
 COLLECTOR=0
-TELEHOME=0
+TELEHOME=auto   # auto: installed if code/telemetria/home is among the cloned repos
 
 usage() {
 cat <<'EOF'
@@ -69,9 +69,10 @@ Telemetry
 
   --telehome          Installs TeleHome Enchufes (from code/telemetria/home) as a systemd
                       service and publishes it in Apache at <entry>telehome/enchufes/
-                      (reverse proxy to 127.0.0.1:8765). Adds the «Home» category to
-                      the portal. Requires code/telemetria to be cloned. Once installed,
-                      the portal keeps listing it even if you do not repeat the option.
+                      (reverse proxy to 127.0.0.1:8765). Adds the «Home» category to the
+                      portal. This is the default when code/telemetria/home is among the
+                      cloned repos; --no-telehome skips it.
+  --no-telehome       Does not install TeleHome Enchufes even if it is available.
 Other
   --cron "EXPR"       Schedule the task in cron, e.g. --cron "0 3 * * *"
   -h, --help          This help
@@ -96,6 +97,7 @@ while [ $# -gt 0 ]; do
     --list) LIST=1; shift ;;
     --collector) COLLECTOR=1; shift ;;
     --telehome) TELEHOME=1; shift ;;
+    --no-telehome) TELEHOME=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1  (use -h for help)" >&2; exit 1 ;;
   esac
@@ -498,7 +500,8 @@ done
 # nearest README (project and summary).
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
-if [ "$TELEHOME" -eq 1 ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/enchufes/"; fi
+telehome_disponible() { find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/enchufes/"; fi
 python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -848,7 +851,7 @@ instalar_telehome() {
   local hosts=() args=()
   inst="$(find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | head -1)"
   if [ -z "$inst" ]; then
-    log "WARNING: telehome-enchufes was not found in the cloned repos (is code/telemetria selected?)"
+    [ "$TELEHOME" = 1 ] && log "WARNING: telehome-enchufes was not found in the cloned repos (is code/telemetria selected?)"
     return 0
   fi
   ruta="${ENTRY}telehome/enchufes/"
@@ -886,7 +889,7 @@ else
   log "Not requested (use --collector to install it)"
 fi
 
-if [ "$TELEHOME" -eq 1 ]; then
+if [ "$TELEHOME" != 0 ]; then
   instalar_telehome
 else
   log "Not requested (use --telehome to install it)"
@@ -981,7 +984,8 @@ if [ -n "$CRON_EXPR" ]; then
   [ "$MODE" != "web" ] && cron_line="$cron_line --mode $MODE"
   [ "$INDEX" -eq 0 ]  && cron_line="$cron_line --no-index"
   [ "$COLLECTOR" -eq 1 ] && cron_line="$cron_line --collector"
-  [ "$TELEHOME" -eq 1 ] && cron_line="$cron_line --telehome"
+  [ "$TELEHOME" = 1 ] && cron_line="$cron_line --telehome"
+  [ "$TELEHOME" = 0 ] && cron_line="$cron_line --no-telehome"
   cron_line="$cron_line >/dev/null 2>&1"
   ( crontab -l 2>/dev/null | grep -vF "$SCRIPT_ABS" ; echo "$cron_line" ) | crontab -
   log "Cron scheduled: $CRON_EXPR (uses the selection saved in $SEL_FILE)"

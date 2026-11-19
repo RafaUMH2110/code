@@ -46,6 +46,7 @@ The collector program itself is not in this repository any more: its single sour
 | `--sin-indice` | `--no-index` |
 | `--colector` | `--collector` |
 | `--telehome` | `--telehome` |
+| `--sin-telehome` | `--no-telehome` |
 | `--entrada-raiz` | `--root-entry` |
 | `-u USUARIO` / `-o ORIGEN` / `-d DESTINO` | `-u USER` / `-o SOURCE` / `-d DEST` |
 
