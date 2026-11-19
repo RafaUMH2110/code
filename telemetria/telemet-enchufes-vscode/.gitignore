@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# Configuración y resultados de las pruebas (pueden contener claves de Tuya)
+config-pruebas.json
+*.csv
