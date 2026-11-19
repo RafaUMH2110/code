@@ -4,17 +4,17 @@ Pruebas preliminares, **desde la línea de órdenes y desde VS Code**, de los en
 EG-EW008MC (el pack de 3 se vende como EG-EW009MC) u otros enchufes Tuya: consultar el estado, encender, apagar,
 conmutar, registrar lecturas a CSV y ver los datos crudos (DPS) de cada enchufe. Hasta **7 enchufes**.
 
-Es un único fichero Python, [`telemet-enchufes-pruebas.py`](telemet-enchufes-pruebas.py), comentado y documentado
+Es un único fichero Python, [`telehome-enchufes-pruebas.py`](telemet-enchufes-pruebas.py), comentado y documentado
 por secciones. No tiene interfaz web ni base de datos: sirve para comprobar credenciales, códigos y escalas
-**antes** de instalar [`telemet-enchufes-local`](../telemet-enchufes-local/) o
-[`telemet-enchufes-nube`](../telemet-enchufes-nube/).
+**antes** de instalar [`telehome-enchufes-local`](../telehome-enchufes-local/) o
+[`telehome-enchufes-nube`](../telehome-enchufes-nube/).
 
 ## Inicio rápido
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-vscode
-cd telemetria/telemet-enchufes-vscode
+cd code && git sparse-checkout set telemetria/home/telehome-enchufes-vscode
+cd telemetria/home/telehome-enchufes-vscode
 
 python3 telemet-enchufes-pruebas.py --simular estado      # sin enchufes ni TinyTuya
 pip install tinytuya                                       # para los modos local y nube

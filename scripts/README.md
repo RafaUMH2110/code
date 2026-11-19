@@ -22,7 +22,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | `telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` (en el servidor): muestra todos los parámetros de TeleMet Collector (estaciones, API Key enmascarada, rutas, estado de BD y JSON, servicio systemd y diagnóstico). Independiente y de solo lectura |
 | | `telemet-collector-info-ssh.py` | Versión para ejecutar en tu ordenador (CLI o VS Code): se conecta por SSH (contraseña o clave RSA) y muestra el informe de uno o varios servidores sin instalar nada en ellos. Con `--check-key` / `--install-key` / `--generate-key` valida o instala el acceso por `authorized_keys` |
 | | `MANUAL.md`, `README.md`, `vscode-ejemplo/` | Manual detallado, resumen y ejemplos de `launch.json` / `tasks.json` |
-| `clonar-code/` | `clonar-code.sh` | Clona o actualiza el repo `code` **completo** (sin sparse; completa un clon parcial), informa de los directorios nuevos (p. ej. `telemetria/home`) y comprueba que existen los exigidos. `--cron` para programarlo |
+| `clonar-code/` | `clonar-code.sh` | Clona o actualiza el repo `code` **completo** (sin sparse; completa un clon parcial), informa de los directorios nuevos (p. ej. `telemetria/home/…`) y comprueba que existen los exigidos. `--cron` para programarlo |
 | | `instrucciones-clonar-code.md` | Guía de `clonar-code.sh` |
 | `mantenimiento-repos/` | `auditar-repos.sh` | Revisa los repos de `RafaUMH2110` (secretos, ramas sin integrar, ficheros grandes y duplicados, workflows, enlaces rotos) sin modificar nada. Ver su README y el artifact de mantenimiento |
 | | `README.md` | Guía de uso y de la rutina de mantenimiento |

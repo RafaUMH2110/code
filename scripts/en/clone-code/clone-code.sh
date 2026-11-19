@@ -3,7 +3,7 @@
 # clone-code.sh  ·  Clones or updates the COMPLETE repo RafaUMH2110/code
 #
 # Brings ALL the directories of the repo, including the new ones
-# (telemetria/, telemetria/home/, telemetria/telemet-enchufes-*/, generador-apps/…),
+# (telemetria/meteo/, telemetria/home/, telemetria/home/telehome-enchufes-*/, generador-apps/…),
 # without partial cloning. If you already had a partial clone (sparse-checkout),
 # it completes it. When done it reports what changed and checks that the
 # required directories exist.
@@ -29,7 +29,7 @@ FORCE=0
 TREE=0
 CHECK=1
 CRON_EXPR=""
-REQUIRE_DEFAULT="telemetria/home,telemetria/telemet-enchufes-local,telemetria/telemet-enchufes-nube,telemetria/telemet-enchufes-vscode,generador-apps,linux,macos,windows,scripts"
+REQUIRE_DEFAULT="telemetria/meteo,telemetria/home/telehome-enchufes-local,telemetria/home/telehome-enchufes-nube,telemetria/home/telehome-enchufes-vscode,generador-apps,linux,macos,windows,scripts"
 REQUIRE="$REQUIRE_DEFAULT"
 
 usage() {
@@ -48,8 +48,8 @@ Source
 
 Check
   --require LIST   Directories that must exist after cloning, comma-separated
-                   (def.: telemetria/home, telemetria/telemet-enchufes-local,
-                   telemetria/telemet-enchufes-nube, telemetria/telemet-enchufes-vscode,
+                   (def.: telemetria/meteo, telemetria/home/telehome-enchufes-local,
+                   telemetria/home/telehome-enchufes-nube, telemetria/home/telehome-enchufes-vscode,
                    generador-apps, linux, macos, windows, scripts)
   --no-check       Do not check directories (disables --require)
   --tree           Also show the second-level subdirectories

@@ -3,7 +3,7 @@
 **Author:** Rafa · Department of Systems Engineering and Automation · Miguel Hernández University of Elche · r.puerto@umh.es
 *Generated with AI · Reviewed by the author*
 
-Clones (or updates) the **complete** repository `RafaUMH2110/code` with **all** its directories, including the new ones (`telemetria/`, `telemetria/home/`, `telemetria/telemet-enchufes-*/`, `generador-apps/`…). It does not use partial cloning: if you already had a partial clone (sparse-checkout), it completes it.
+Clones (or updates) the **complete** repository `RafaUMH2110/code` with **all** its directories, including the new ones (`telemetria/meteo/`, `telemetria/home/`, `telemetria/home/telehome-enchufes-*/`, `generador-apps/`…). It does not use partial cloning: if you already had a partial clone (sparse-checkout), it completes it.
 
 Spanish original: [`../../clonar-code/`](../../clonar-code/instrucciones-clonar-code.md).
 
@@ -20,7 +20,7 @@ chmod +x clone-code.sh
 ## What it does (4 steps)
 
 1. **Cloning.** If `SOURCE/code` does not exist, it runs a full `git clone`. If it exists: it disables sparse-checkout if enabled, warns about local changes, runs `fetch` and advances with `merge --ff-only`. It reports commits, new/modified/deleted files, lines, approximate download and **new directories**.
-2. **Check.** Verifies that the required directories exist (and contain files). Default: `telemetria/home`, `telemetria/telemet-enchufes-local`, `telemetria/telemet-enchufes-nube`, `telemetria/telemet-enchufes-vscode`, `generador-apps`, `linux`, `macos`, `windows`, `scripts`.
+2. **Check.** Verifies that the required directories exist (and contain files). Default: `telemetria/meteo`, `telemetria/home/telehome-enchufes-local`, `telemetria/home/telehome-enchufes-nube`, `telemetria/home/telehome-enchufes-vscode`, `generador-apps`, `linux`, `macos`, `windows`, `scripts`.
 3. **Content.** Table of files and size per first-level directory (`--tree`: second level too).
 4. **Scheduling.** With `--cron` it replaces this script's cron line with the new one.
 
@@ -52,7 +52,7 @@ Without `--force`, if it cannot advance the script exits with an error and chang
 
 ## Notes
 
-- **`telemetria/home/`** currently holds only a placeholder `README.md`; the script accepts it because it contains a file. When content is added, the next run will download it.
+- **`telemetria/`** is organised as `meteo/` (weather station) and `home/` (`telehome-enchufes-local`, `-nube` and `-vscode`). If you had an earlier version cloned, the update moves the directories and the script lists them as new.
 - The **web mode** of `install-all.sh` publishes the apps, not the whole `code` repo: this script is for having the source code on the server, not for deploying it to Apache.
 - A saved `install-all` (sparse) selection does not affect this clone: they live in different folders unless you use the same `-o`; in that case `clone-code.sh` will complete the partial clone.
 - To add a new directory to the check: `--require "…,new-dir"` (or edit `REQUIRE_DEFAULT` in the script).

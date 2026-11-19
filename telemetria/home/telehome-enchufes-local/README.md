@@ -1,6 +1,6 @@
 # TeleMet Enchufes · versión local
 
-> **Versión «local»** de TeleMet Enchufes (0.1.0): solo macOS y solo red local. Hermanas: [`telemet-enchufes-nube`](../telemet-enchufes-nube/) (añade modo nube, Linux y contraseña; es la que sirve para una VM de Azure) y [`telemet-enchufes-vscode`](../telemet-enchufes-vscode/) (pruebas preliminares por línea de órdenes). Cada versión es autocontenida y usa la misma carpeta de datos, así que no las instales a la vez.
+> **Versión «local»** de TeleMet Enchufes (0.1.0): solo macOS y solo red local. Hermanas: [`telehome-enchufes-nube`](../telehome-enchufes-nube/) (añade modo nube, Linux y contraseña; es la que sirve para una VM de Azure) y [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/) (pruebas preliminares por línea de órdenes). Cada versión es autocontenida y usa la misma carpeta de datos, así que no las instales a la vez.
 
 Telemetría y control **en red local** de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), para **macOS**, hasta **7 enchufes**.
@@ -27,8 +27,8 @@ Necesitas Python 3.9 o superior (`xcode-select --install` o `brew install python
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/telemet-enchufes-local
-cd telemetria/telemet-enchufes-local
+cd code && git sparse-checkout set telemetria/home/telehome-enchufes-local
+cd telemetria/home/telehome-enchufes-local
 ./macos/instalar-macos.sh             # crea .venv e instala dependencias
 ./macos/instalar-macos.sh --launchd   # opcional: arranca al iniciar sesión
 ```
