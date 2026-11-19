@@ -16,6 +16,7 @@ monitor asíncrono con reconexión y un puente que republica los datos por MQTT.
 
 ## Índice
 
+- [Carpetas](#carpetas)
 - [Arquitectura y evolución](#arquitectura-y-evolución)
 - [Ficheros del repositorio](#ficheros-del-repositorio)
 - [Requisitos](#requisitos)
@@ -32,6 +33,18 @@ monitor asíncrono con reconexión y un puente que republica los datos por MQTT.
 - [Histórico de correcciones respecto a las primeras versiones](#histórico-de-correcciones-respecto-a-las-primeras-versiones)
 - [Licencia](#licencia)
 
+## Carpetas
+
+Cada carpeta es autocontenida (scripts + `requirements.txt`), así que puedes usar una sin las demás:
+
+| Carpeta | Scripts | Dependencias (`requirements.txt`) |
+|---|---|---|
+| [`telemeteo-consulta/`](telemeteo-consulta/) | `wu_telemetria_consulta_simple.py`, `wu_telemetria_cliente_sincrono.py`, `wu_telemetria_cliente_sincrono_gui.py` | `requests` |
+| [`telemeteo-monitor/`](telemeteo-monitor/) | `wu_telemetria_monitor_asincrono.py`, `wu_telemetria_monitor_asincrono_gui.py` | `aiohttp` |
+| [`telemeteo-puente/`](telemeteo-puente/) | `wu_telemetria_puente_mqtt.py` | `aiohttp`, `paho-mqtt>=2.0` |
+
+Instalación de las dependencias de una carpeta: `pip install -r telemeteo-monitor/requirements.txt`. Los comandos de este documento se ejecutan desde `telemetria/meteo/`.
+
 ## Arquitectura y evolución
 
 Los seis ficheros representan capas sucesivas sobre la misma API, cada una
@@ -41,36 +54,36 @@ las dos ventanas gráficas sí importan, respectivamente, al cliente síncrono y
 al monitor asíncrono, en vez de duplicar su lógica:
 
 ```
-wu_telemetria_consulta_simple.py        (síncrono, una sola lectura, por línea de comandos)
-wu_telemetria_cliente_sincrono.py        (síncrono, reutilizable, con sanity checks)
-        └── wu_telemetria_cliente_sincrono_gui.py    (ventana Tkinter sobre el cliente anterior)
+telemeteo-consulta/wu_telemetria_consulta_simple.py        (síncrono, una sola lectura, por línea de comandos)
+telemeteo-consulta/wu_telemetria_cliente_sincrono.py        (síncrono, reutilizable, con sanity checks)
+        └── telemeteo-consulta/wu_telemetria_cliente_sincrono_gui.py    (ventana Tkinter sobre el cliente anterior)
 
-wu_telemetria_monitor_asincrono.py       (asíncrono, continuo, con backoff exponencial)
-        └── wu_telemetria_monitor_asincrono_gui.py   (ventana Tkinter sobre el monitor anterior)
+telemeteo-monitor/wu_telemetria_monitor_asincrono.py       (asíncrono, continuo, con backoff exponencial)
+        └── telemeteo-monitor/wu_telemetria_monitor_asincrono_gui.py   (ventana Tkinter sobre el monitor anterior)
 
-wu_telemetria_puente_mqtt.py             (asíncrono, continuo, republica cada lectura por MQTT)
+telemeteo-puente/wu_telemetria_puente_mqtt.py             (asíncrono, continuo, republica cada lectura por MQTT)
 ```
 
 Elige el fichero según lo que necesites:
 
 | Necesidad | Fichero recomendado |
 |---|---|
-| Una lectura rápida para comprobar que la estación responde | `wu_telemetria_consulta_simple.py` |
-| Integrar la lectura en otro programa Python (síncrono) | `wu_telemetria_cliente_sincrono.py` (clase `WUPWSClient`) |
-| Un daemon de monitorización continua en segundo plano | `wu_telemetria_monitor_asincrono.py` |
-| Publicar los datos para que otro sistema (p. ej. una app iOS) los consuma en tiempo real | `wu_telemetria_puente_mqtt.py` |
+| Una lectura rápida para comprobar que la estación responde | `telemeteo-consulta/wu_telemetria_consulta_simple.py` |
+| Integrar la lectura en otro programa Python (síncrono) | `telemeteo-consulta/wu_telemetria_cliente_sincrono.py` (clase `WUPWSClient`) |
+| Un daemon de monitorización continua en segundo plano | `telemeteo-monitor/wu_telemetria_monitor_asincrono.py` |
+| Publicar los datos para que otro sistema (p. ej. una app iOS) los consuma en tiempo real | `telemeteo-puente/wu_telemetria_puente_mqtt.py` |
 | Ver los datos en una ventana mientras trabajas, sin terminal | cualquiera de las dos `_gui.py` |
 
 ## Ficheros del repositorio
 
 | Fichero | Lenguaje/deps extra | Qué hace |
 |---|---|---|
-| `wu_telemetria_consulta_simple.py` | `requests` | Una única consulta síncrona a la API, imprime los valores por consola y termina. Pensado para comprobar rápidamente que la estación responde. |
-| `wu_telemetria_cliente_sincrono.py` | `requests` | Clase `WUPWSClient` reutilizable: encapsula la consulta, el parseo de la respuesta y una validación física mínima (*sanity check*) de los valores recibidos (rechaza lecturas imposibles, p. ej. una temperatura de 200 °C). |
-| `wu_telemetria_monitor_asincrono.py` | `aiohttp` | Monitor `asyncio` de bajo acoplamiento: un productor sondea la API y encola cada lectura en una `asyncio.Queue`; un consumidor independiente la procesa, de modo que un callback lento (p. ej. escribir a una base de datos) nunca retrasa el siguiente ciclo de sondeo. Incluye backoff exponencial real con tope y distingue errores fatales (401/404, credenciales inválidas) de errores transitorios (timeout, 5xx). |
-| `wu_telemetria_puente_mqtt.py` | `aiohttp`, `paho-mqtt>=2.0` | Igual que el monitor anterior, pero en vez de solo loggear cada lectura la publica en un topic MQTT (por defecto `weather/vevor/telemetry`) con `retain=True`, para que cualquier suscriptor (una app iOS, un dashboard, otro proceso) reciba al instante la última lectura conocida al conectarse. Soporta usuario/contraseña y TLS opcionales para el broker. |
-| `wu_telemetria_cliente_sincrono_gui.py` | `requests`, `tkinter` | Ventana gráfica que envuelve `WUPWSClient` (del fichero anterior, debe estar en la misma carpeta): sondea en un hilo en segundo plano y muestra los valores actuales, un indicador de estado y un histórico de lecturas con scroll. |
-| `wu_telemetria_monitor_asincrono_gui.py` | `aiohttp`, `tkinter` | Ventana gráfica que envuelve `WURealtimeMonitor` (del fichero anterior, debe estar en la misma carpeta): el bucle `asyncio` original corre íntegro en un hilo aparte y reenvía cada lectura a la interfaz mediante una cola segura entre hilos. Detecta y muestra cuando el monitor se detiene solo por un error fatal. |
+| `telemeteo-consulta/wu_telemetria_consulta_simple.py` | `requests` | Una única consulta síncrona a la API, imprime los valores por consola y termina. Pensado para comprobar rápidamente que la estación responde. |
+| `telemeteo-consulta/wu_telemetria_cliente_sincrono.py` | `requests` | Clase `WUPWSClient` reutilizable: encapsula la consulta, el parseo de la respuesta y una validación física mínima (*sanity check*) de los valores recibidos (rechaza lecturas imposibles, p. ej. una temperatura de 200 °C). |
+| `telemeteo-monitor/wu_telemetria_monitor_asincrono.py` | `aiohttp` | Monitor `asyncio` de bajo acoplamiento: un productor sondea la API y encola cada lectura en una `asyncio.Queue`; un consumidor independiente la procesa, de modo que un callback lento (p. ej. escribir a una base de datos) nunca retrasa el siguiente ciclo de sondeo. Incluye backoff exponencial real con tope y distingue errores fatales (401/404, credenciales inválidas) de errores transitorios (timeout, 5xx). |
+| `telemeteo-puente/wu_telemetria_puente_mqtt.py` | `aiohttp`, `paho-mqtt>=2.0` | Igual que el monitor anterior, pero en vez de solo loggear cada lectura la publica en un topic MQTT (por defecto `weather/vevor/telemetry`) con `retain=True`, para que cualquier suscriptor (una app iOS, un dashboard, otro proceso) reciba al instante la última lectura conocida al conectarse. Soporta usuario/contraseña y TLS opcionales para el broker. |
+| `telemeteo-consulta/wu_telemetria_cliente_sincrono_gui.py` | `requests`, `tkinter` | Ventana gráfica que envuelve `WUPWSClient` (del fichero anterior, debe estar en la misma carpeta): sondea en un hilo en segundo plano y muestra los valores actuales, un indicador de estado y un histórico de lecturas con scroll. |
+| `telemeteo-monitor/wu_telemetria_monitor_asincrono_gui.py` | `aiohttp`, `tkinter` | Ventana gráfica que envuelve `WURealtimeMonitor` (del fichero anterior, debe estar en la misma carpeta): el bucle `asyncio` original corre íntegro en un hilo aparte y reenvía cada lectura a la interfaz mediante una cola segura entre hilos. Detecta y muestra cuando el monitor se detiene solo por un error fatal. |
 
 ## Requisitos
 
@@ -110,19 +123,19 @@ por `input()` ni lleva credenciales de ejemplo hardcodeadas en el código):
 | `WU_STATION_ID` | **Sí** | todos | Identificador de tu estación en Wunderground (formato típico `IXXXXXXX`). |
 | `WU_API_KEY` | No | todos | API Key de The Weather Company / IBM, si tu cuenta la exige. Sin ella, la consulta se hace en modo anónimo. |
 | `WU_POLL_INTERVAL` | No (por defecto `60`) | `..._monitor_asincrono*.py`, `..._puente_mqtt.py` | Segundos entre cada sondeo a la API. |
-| `MQTT_BROKER_HOST` | No (por defecto `localhost`) | `wu_telemetria_puente_mqtt.py` | Host del broker MQTT. |
-| `MQTT_BROKER_PORT` | No (por defecto `1883`) | `wu_telemetria_puente_mqtt.py` | Puerto del broker MQTT. |
-| `MQTT_TOPIC` | No (por defecto `weather/vevor/telemetry`) | `wu_telemetria_puente_mqtt.py` | Topic donde se publica cada lectura. |
-| `MQTT_USER` / `MQTT_PASSWORD` | No | `wu_telemetria_puente_mqtt.py` | Credenciales del broker, si las requiere. |
-| `MQTT_TLS` | No (por defecto `false`) | `wu_telemetria_puente_mqtt.py` | `"true"` para activar TLS en la conexión al broker. |
-| `MQTT_QOS` | No (por defecto `1`) | `wu_telemetria_puente_mqtt.py` | Calidad de servicio MQTT de la publicación. |
+| `MQTT_BROKER_HOST` | No (por defecto `localhost`) | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | Host del broker MQTT. |
+| `MQTT_BROKER_PORT` | No (por defecto `1883`) | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | Puerto del broker MQTT. |
+| `MQTT_TOPIC` | No (por defecto `weather/vevor/telemetry`) | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | Topic donde se publica cada lectura. |
+| `MQTT_USER` / `MQTT_PASSWORD` | No | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | Credenciales del broker, si las requiere. |
+| `MQTT_TLS` | No (por defecto `false`) | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | `"true"` para activar TLS en la conexión al broker. |
+| `MQTT_QOS` | No (por defecto `1`) | `telemeteo-puente/wu_telemetria_puente_mqtt.py` | Calidad de servicio MQTT de la publicación. |
 
 ## Uso
 
 ### 1. `wu_telemetria_consulta_simple.py` — consulta puntual
 
 ```bash
-WU_STATION_ID=IXXXXXXX python wu_telemetria_consulta_simple.py
+WU_STATION_ID=IXXXXXXX python telemeteo-consulta/wu_telemetria_consulta_simple.py
 ```
 
 Hace una única petición, imprime temperatura, humedad, viento, racha y
@@ -136,7 +149,7 @@ log con el motivo).
 Como script:
 
 ```bash
-WU_STATION_ID=IXXXXXXX python wu_telemetria_cliente_sincrono.py
+WU_STATION_ID=IXXXXXXX python telemeteo-consulta/wu_telemetria_cliente_sincrono.py
 ```
 
 Como librería en otro programa:
@@ -159,7 +172,7 @@ incumpla, antes de devolverla.
 ### 3. `wu_telemetria_monitor_asincrono.py` — monitor asíncrono continuo
 
 ```bash
-WU_STATION_ID=IXXXXXXX WU_POLL_INTERVAL=60 python wu_telemetria_monitor_asincrono.py
+WU_STATION_ID=IXXXXXXX WU_POLL_INTERVAL=60 python telemeteo-monitor/wu_telemetria_monitor_asincrono.py
 ```
 
 Corre indefinidamente hasta `Ctrl+C` (o `SIGTERM`), sondeando cada
@@ -173,7 +186,7 @@ que en el ejemplo anterior.
 ```bash
 WU_STATION_ID=IXXXXXXX \
 MQTT_BROKER_HOST=localhost MQTT_BROKER_PORT=1883 \
-python wu_telemetria_puente_mqtt.py
+python telemeteo-puente/wu_telemetria_puente_mqtt.py
 ```
 
 Cada lectura válida se publica en `MQTT_TOPIC` (por defecto
@@ -189,8 +202,8 @@ mosquitto_sub -h localhost -p 1883 -t weather/vevor/telemetry -v
 ### 5 y 6. Ventanas gráficas (Tkinter)
 
 ```bash
-WU_STATION_ID=IXXXXXXX python wu_telemetria_cliente_sincrono_gui.py
-WU_STATION_ID=IXXXXXXX WU_POLL_INTERVAL=30 python wu_telemetria_monitor_asincrono_gui.py
+WU_STATION_ID=IXXXXXXX python telemeteo-consulta/wu_telemetria_cliente_sincrono_gui.py
+WU_STATION_ID=IXXXXXXX WU_POLL_INTERVAL=30 python telemeteo-monitor/wu_telemetria_monitor_asincrono_gui.py
 ```
 
 Ambas deben ejecutarse desde la misma carpeta que su script base
@@ -243,7 +256,7 @@ por alto y fue, de hecho, un bug real en la primera versión de este proyecto
 
 ## Manejo de errores y backoff
 
-`wu_telemetria_monitor_asincrono.py` y `wu_telemetria_puente_mqtt.py`
+`telemeteo-monitor/wu_telemetria_monitor_asincrono.py` y `telemeteo-puente/wu_telemetria_puente_mqtt.py`
 distinguen dos clases de fallo:
 
 - **Fatales** (HTTP 401 — credenciales inválidas, o 404 — Station ID no
@@ -263,7 +276,7 @@ la decisión de reintentar a quien los invoque.
 ## Limitaciones conocidas / pendientes de verificar
 
 - Los campos `solarradiation_wm2` y `uv_index` en
-  `wu_telemetria_cliente_sincrono.py` usan los nombres de clave (`solarradiation`,
+  `telemeteo-consulta/wu_telemetria_cliente_sincrono.py` usan los nombres de clave (`solarradiation`,
   `uv`) habituales en estaciones Fine Offset, pero **no están confirmados
   contra un payload real** de la Vevor YT60234. Si tu estación tiene sensor
   solar/UV y estos campos aparecen siempre a `None`, vuelca una respuesta

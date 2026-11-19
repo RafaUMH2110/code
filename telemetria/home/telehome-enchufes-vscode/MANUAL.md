@@ -4,7 +4,7 @@ Herramienta de línea de órdenes, en un único fichero Python, para probar los 
 (pack EG-EW009MC) u otros enchufes Tuya **antes** de instalar la interfaz web de TeleMet Enchufes. Sirve para
 comprobar credenciales, ver qué datos devuelve cada enchufe, encenderlo o apagarlo y registrar lecturas.
 
-Es independiente: puedes copiar el `.py` (y, si quieres, su JSON) a cualquier carpeta. Pertenece a la versión «vscode» de TeleMet Enchufes; las versiones con interfaz web son [`telehome-enchufes-local`](../telehome-enchufes-local/) y [`telehome-enchufes-nube`](../telehome-enchufes-nube/).
+Es independiente: puedes copiar el `.py` (y, si quieres, su JSON) a cualquier carpeta. Pertenece a la versión «vscode» de TeleMet Enchufes; la versión con interfaz web es [`telehome-enchufes`](../telehome-enchufes/).
 
 ## 1. Requisitos
 
@@ -25,7 +25,7 @@ En VS Code: *Terminal → Ejecutar tarea… → Crear .venv e instalar dependenc
 `--simular` trata **todos** los enchufes como simulados (y, si no hay ninguno, usa tres de demostración).
 
 El modo nube exige que los enchufes estén en **Smart Life** o **Tuya Smart** y que esa cuenta esté enlazada al
-proyecto de iot.tuya.com (ver el README de [`telehome-enchufes-nube`](../telehome-enchufes-nube/README.md)). Con la app Energeeks 3.0 normalmente no funciona.
+proyecto de iot.tuya.com (ver el README de [`telehome-enchufes`](../telehome-enchufes/README.md)). Con la app Energeeks 3.0 normalmente no funciona.
 
 ## 3. Configuración: código o JSON
 

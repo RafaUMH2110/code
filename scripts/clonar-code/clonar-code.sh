@@ -3,7 +3,7 @@
 # clonar-code.sh  ·  Clona o actualiza el repo COMPLETO RafaUMH2110/code
 #
 # Trae TODOS los directorios del repo, incluidos los nuevos
-# (telemetria/meteo/, telemetria/home/, telemetria/home/telehome-enchufes-*/, generador-apps/…),
+# (telemetria/meteo/, telemetria/home/, telemetria/home/telehome-enchufes*/, generador-apps/…),
 # sin clonado parcial. Si ya tenías un clon parcial (sparse-checkout), lo
 # completa. Al terminar informa de qué ha cambiado y comprueba que existen los
 # directorios exigidos.
@@ -29,7 +29,7 @@ FORZAR=0
 ARBOL=0
 COMPROBAR=1
 CRON_EXPR=""
-EXIGIR_DEF="telemetria/meteo,telemetria/home/telehome-enchufes-local,telemetria/home/telehome-enchufes-nube,telemetria/home/telehome-enchufes-vscode,generador-apps,linux,macos,windows,scripts"
+EXIGIR_DEF="telemetria/meteo/telemeteo-consulta,telemetria/meteo/telemeteo-monitor,telemetria/meteo/telemeteo-puente,telemetria/home/telehome-enchufes,telemetria/home/telehome-enchufes-vscode,generador-apps,linux,macos,windows,scripts"
 EXIGIR="$EXIGIR_DEF"
 
 uso() {
@@ -48,8 +48,8 @@ Origen
 
 Comprobación
   --exigir LISTA   Directorios que deben existir tras clonar, separados por comas
-                   (def.: telemetria/meteo, telemetria/home/telehome-enchufes-local,
-                   telemetria/home/telehome-enchufes-nube, telemetria/home/telehome-enchufes-vscode,
+                   (def.: telemetria/meteo/telemeteo-consulta, -monitor y -puente,
+                   telemetria/home/telehome-enchufes, telemetria/home/telehome-enchufes-vscode,
                    generador-apps, linux, macos, windows, scripts)
   --sin-comprobar  No comprobar directorios (desactiva --exigir)
   --arbol          Mostrar también los subdirectorios de segundo nivel

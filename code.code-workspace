@@ -13,8 +13,7 @@
     { "name": "Telemetría",                      "path": "telemetria" },
     { "name": "Telemetría · Meteo",              "path": "telemetria/meteo" },
     { "name": "Telemetría · Home",               "path": "telemetria/home" },
-    { "name": "Home · Enchufes (local)",        "path": "telemetria/home/telehome-enchufes-local" },
-    { "name": "Home · Enchufes (nube)",         "path": "telemetria/home/telehome-enchufes-nube" },
+    { "name": "Home · Enchufes",                "path": "telemetria/home/telehome-enchufes" },
     { "name": "Home · Enchufes (vscode)",       "path": "telemetria/home/telehome-enchufes-vscode" }
   ],
   "settings": {

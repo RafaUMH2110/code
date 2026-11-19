@@ -4,10 +4,9 @@ Pruebas preliminares, **desde la línea de órdenes y desde VS Code**, de los en
 EG-EW008MC (el pack de 3 se vende como EG-EW009MC) u otros enchufes Tuya: consultar el estado, encender, apagar,
 conmutar, registrar lecturas a CSV y ver los datos crudos (DPS) de cada enchufe. Hasta **7 enchufes**.
 
-Es un único fichero Python, [`telehome-enchufes-pruebas.py`](telemet-enchufes-pruebas.py), comentado y documentado
+Es un único fichero Python, [`telemet-enchufes-pruebas.py`](telemet-enchufes-pruebas.py), comentado y documentado
 por secciones. No tiene interfaz web ni base de datos: sirve para comprobar credenciales, códigos y escalas
-**antes** de instalar [`telehome-enchufes-local`](../telehome-enchufes-local/) o
-[`telehome-enchufes-nube`](../telehome-enchufes-nube/).
+**antes** de instalar [`telehome-enchufes`](../telehome-enchufes/).
 
 ## Inicio rápido
 

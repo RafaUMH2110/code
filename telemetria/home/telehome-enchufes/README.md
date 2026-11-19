@@ -1,6 +1,6 @@
-# TeleMet Enchufes · versión nube
+# TeleMet Enchufes
 
-> **Versión «nube»** de TeleMet Enchufes (0.2.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Incluye todo lo de [`telehome-enchufes-local`](../telehome-enchufes-local/) (la versión anterior, solo macOS y red local). Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/). Cada versión es autocontenida y usa la misma carpeta de datos, así que no las instales a la vez.
+> TeleMet Enchufes (0.2.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -30,8 +30,8 @@ Necesitas Python 3.9 o superior (`xcode-select --install` o `brew install python
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/home/telehome-enchufes-nube
-cd telemetria/home/telehome-enchufes-nube
+cd code && git sparse-checkout set telemetria/home/telehome-enchufes
+cd telemetria/home/telehome-enchufes
 ./macos/instalar-macos.sh             # crea .venv e instala dependencias
 ./macos/instalar-macos.sh --launchd   # opcional: arranca al iniciar sesión
 ```
@@ -48,8 +48,8 @@ Prueba sin hardware: `.venv/bin/python -m telemet_enchufes serve --simulate 4` (
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
-cd code && git sparse-checkout set telemetria/home/telehome-enchufes-nube
-cd telemetria/home/telehome-enchufes-nube
+cd code && git sparse-checkout set telemetria/home/telehome-enchufes
+cd telemetria/home/telehome-enchufes
 sudo ./linux/instalar-linux.sh          # servicio systemd «telemet-enchufes», código en /opt, datos en /var/lib
 ```
 

@@ -3,7 +3,7 @@
 **Autor:** Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es
 *Generado con IA · Revisado por el autor*
 
-Clona (o actualiza) el repositorio **completo** `RafaUMH2110/code` con **todos** sus directorios, incluidos los nuevos (`telemetria/meteo/`, `telemetria/home/`, `telemetria/home/telehome-enchufes-*/`, `generador-apps/`…). No usa clonado parcial: si ya tenías un clon parcial (sparse-checkout), lo completa.
+Clona (o actualiza) el repositorio **completo** `RafaUMH2110/code` con **todos** sus directorios, incluidos los nuevos (`telemetria/meteo/`, `telemetria/home/`, `telemetria/home/telehome-enchufes*/`, `generador-apps/`…). No usa clonado parcial: si ya tenías un clon parcial (sparse-checkout), lo completa.
 
 Versión inglesa: [`../en/clone-code/`](../en/clone-code/clone-code-guide.md).
 
@@ -20,7 +20,7 @@ chmod +x clonar-code.sh
 ## Qué hace (4 pasos)
 
 1. **Clonado.** Si no existe `ORIGEN/code`, hace un `git clone` completo. Si existe: desactiva el sparse-checkout si lo tenía, avisa de cambios locales, hace `fetch` y avanza con `merge --ff-only`. Informa de commits, ficheros nuevos/modificados/borrados, líneas, descarga aproximada y **directorios nuevos**.
-2. **Comprobación.** Verifica que existen (y tienen ficheros) los directorios exigidos. Por defecto: `telemetria/meteo`, `telemetria/home/telehome-enchufes-local`, `telemetria/home/telehome-enchufes-nube`, `telemetria/home/telehome-enchufes-vscode`, `generador-apps`, `linux`, `macos`, `windows`, `scripts`.
+2. **Comprobación.** Verifica que existen (y tienen ficheros) los directorios exigidos. Por defecto: `telemetria/meteo/telemeteo-consulta`, `telemetria/meteo/telemeteo-monitor`, `telemetria/meteo/telemeteo-puente`, `telemetria/home/telehome-enchufes`, `telemetria/home/telehome-enchufes-vscode`, `generador-apps`, `linux`, `macos`, `windows`, `scripts`.
 3. **Contenido.** Tabla de ficheros y tamaño por directorio de primer nivel (`--arbol`: también el segundo).
 4. **Programación.** Con `--cron` sustituye la línea de cron de este script por la nueva.
 
@@ -52,7 +52,7 @@ Sin `--forzar`, si no se puede avanzar el script termina con error y no toca nad
 
 ## Notas
 
-- **`telemetria/`** se organiza en `meteo/` (estación meteorológica) y `home/` (`telehome-enchufes-local`, `-nube` y `-vscode`). Si tenías clonada una versión anterior, la actualización mueve los directorios y el script los lista como nuevos.
+- **`telemetria/`** se organiza en `meteo/` (`telemeteo-consulta`, `-monitor`, `-puente`) y `home/` (`telehome-enchufes` y `telehome-enchufes-vscode`). Si tenías clonada una versión anterior, la actualización mueve los directorios y el script los lista como nuevos.
 - El **modo web** de `instalar-todo.sh` publica las apps, no el repo `code` completo: este script es para tener el código fuente en el servidor, no para desplegarlo en Apache.
 - Una selección guardada de `instalar-todo` (sparse) no afecta a este clon: viven en carpetas distintas salvo que uses el mismo `-o`; en ese caso `clonar-code.sh` completará el clon parcial.
 - Para añadir un directorio nuevo a la comprobación: `--exigir "…,nuevo-dir"` (o edita `EXIGIR_DEF` en el script).
