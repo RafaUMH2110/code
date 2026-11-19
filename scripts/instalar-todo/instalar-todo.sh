@@ -70,7 +70,7 @@ Telemetría
   --telehome          Instala TeleHome Enchufes (de code/telemetria/home) como servicio
                       systemd y lo publica en Apache en <entrada>telehome/enchufes/
                       (proxy inverso a 127.0.0.1:8765). Añade al portal la categoría
-                      «TeleHome». Requiere tener clonado code/telemetria. Una vez
+                      «Home». Requiere tener clonado code/telemetria. Una vez
                       instalado, el portal lo sigue listando aunque no repitas la opción.
 Otros
   --cron "EXPR"       Programa la tarea en cron, p. ej. --cron "0 3 * * *"
@@ -630,7 +630,7 @@ if telehome:
     apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-enchufes/', 'title': 'TeleHome Enchufes',
                  'description': 'Telemetría y control de enchufes Wi-Fi Energeeks (Tuya): potencia, tensión, corriente, histórico y gráficas.', 'project': '', 'summary': '',
                  'size': 0, 'updated': tdate or datetime.date.today().isoformat(),
-                 'category': 'telehome', 'url': telehome})
+                 'category': 'home', 'url': telehome})
 
 with open(salida, 'w', encoding='utf-8') as fh:
     json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},

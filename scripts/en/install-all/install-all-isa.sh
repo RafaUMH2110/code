@@ -77,7 +77,7 @@ Telemetry
 
   --telehome          Installs TeleHome Enchufes (from code/telemetria/home) as a systemd
                       service and publishes it in Apache at <entry>telehome/enchufes/
-                      (reverse proxy to 127.0.0.1:8765). Adds the «TeleHome» category to
+                      (reverse proxy to 127.0.0.1:8765). Adds the «Home» category to
                       the portal. Requires code/telemetria to be cloned. Once installed,
                       the portal keeps listing it even if you do not repeat the option.
 Other
@@ -642,7 +642,7 @@ if telehome:
     apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-enchufes/', 'title': 'TeleHome Enchufes',
                  'description': 'Telemetry and control of Energeeks Wi-Fi plugs (Tuya): power, voltage, current, history and charts.', 'project': '', 'summary': '',
                  'size': 0, 'updated': tdate or datetime.date.today().isoformat(),
-                 'category': 'telehome', 'url': telehome})
+                 'category': 'home', 'url': telehome})
 
 with open(out_path, 'w', encoding='utf-8') as fh:
     json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},
