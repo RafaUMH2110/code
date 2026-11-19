@@ -196,7 +196,7 @@
       <span class="legend">Generated with AI · Reviewed by the author</span>
     </div>
     <div>
-      Last modified: <b>2026-11-04 02:35</b><br>
+      Last modified: <b>19/11/2026 23:51</b><br>
       Catalog updated: <b id="gen">–</b>
     </div>
   </div>
@@ -238,7 +238,7 @@
   var OS = {linux:'Linux', macos:'macOS', windows:'Windows'};
   // Repos whose first folder is a category (apps/moda/…, apps/telemetria/…)
   var CATEGORY_REPOS = {apps:true};
-  var CAT = {moda:'Fashion', telemetria:'Telemetry', appindex:'App index'};
+  var CAT = {moda:'Fashion', telemetria:'Telemetry', telehome:'TeleHome', appindex:'App index'};
   var PRETTY = {
     'notas-rapidas':'Quick notes', 'generador-apps':'App generator', 'mejora-de-codigo':'Code improvement',
     'python-app-api-anthropic':'Python App API Anthropic', 'plantilla_base':'Base template',
@@ -253,6 +253,15 @@
 
   // Turns a catalog entry into card data
   function toApp(e){
+    // Entries with their own URL (e.g. TeleHome, served through an Apache proxy)
+    if (e.url) {
+      var ck = (e.category || 'telehome');
+      return {
+        repo: e.repo, path: e.path, key: 'telehome-enchufes', os: '', title: e.title, desc: e.description || '',
+        gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: e.repo, project: '', crumb: '',
+        size: '', updated: fmtDate(e.updated), variant: '', href: e.url
+      };
+    }
     var folders = e.path.split('/');
     var file    = folders.pop();
     var base    = file.replace(/\.html?$/i,'');

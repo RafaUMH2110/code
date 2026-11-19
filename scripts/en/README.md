@@ -45,6 +45,7 @@ The collector program itself is not in this repository any more: its single sour
 | `--solo-html` | `--html-only` |
 | `--sin-indice` | `--no-index` |
 | `--colector` | `--collector` |
+| `--telehome` | `--telehome` |
 | `--entrada-raiz` | `--root-entry` |
 | `-u USUARIO` / `-o ORIGEN` / `-d DESTINO` | `-u USER` / `-o SOURCE` / `-d DEST` |
 
