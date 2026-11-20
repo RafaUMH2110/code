@@ -41,26 +41,37 @@ button, select, input { font:inherit; color:inherit; }
 .num { font-variant-numeric:tabular-nums; }
 
 /* ===================== Cabecera ===================== */
-.top { background:linear-gradient(135deg,#0f2240,#16407a); color:#fff; padding:calc(env(safe-area-inset-top) + 18px) 0 64px; }
+.top { background:linear-gradient(135deg,#0f2240 0%,#14386b 60%,#16407a 100%); color:#fff; padding:calc(env(safe-area-inset-top) + 22px) 0 70px; }
 .wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
-.brand { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-.logo { width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); display:grid; place-items:center; flex:none; }
-.logo svg { width:24px; height:24px; }
-.brand h1 { margin:0; font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.1; }
-.brand .sub { font-size:13px; color:#c4d3ea; }
+.brand { display:flex; align-items:center; gap:14px; }
+.logo { width:48px; height:48px; border-radius:14px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25); display:grid; place-items:center; flex:none; }
+.logo svg { width:26px; height:26px; }
+.brand .ttl { min-width:0; }
+.brand h1 { margin:0; font-size:24px; font-weight:800; letter-spacing:-.025em; line-height:1.15; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.mode-badge { font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#ffe2a8; background:rgba(255,196,77,.14); border:1px solid rgba(255,196,77,.4); border-radius:999px; padding:2px 10px; }
+.brand .sub { font-size:14px; color:#c4d3ea; margin-top:2px; }
 .brand .spacer { flex:1; }
-.status { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:#d6e2f3; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:6px 12px; }
-.status .dot { width:8px; height:8px; }
-.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px; border-radius:11px; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.1); color:#fff; font-weight:600; cursor:pointer; }
+.hright { display:flex; align-items:center; gap:14px; }
+.status { display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; text-align:right; }
+.status .st { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:650; }
+.status .when { font-size:12.5px; color:#b9c9e2; font-variant-numeric:tabular-nums; }
+.status .dot { width:9px; height:9px; }
+.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 16px; border-radius:12px; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.1); color:#fff; font-weight:650; font-size:14.5px; cursor:pointer; transition:background .15s; }
 .hbtn:hover { background:rgba(255,255,255,.18); }
 .hbtn svg { width:18px; height:18px; }
 
-/* Indicadores */
-.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-top:22px; }
-.kpi { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); border-radius:14px; padding:12px 16px; }
-.kpi .l { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#b9c9e2; font-weight:600; }
-.kpi .v { font-size:26px; font-weight:750; letter-spacing:-.02em; line-height:1.2; margin-top:2px; }
-.kpi .v small { font-size:14px; font-weight:500; color:#c4d3ea; margin-left:3px; letter-spacing:0; }
+/* Indicadores: un solo panel con cuatro columnas separadas por líneas finas */
+.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:26px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:18px; overflow:hidden; }
+.kpi { display:flex; gap:14px; align-items:flex-start; padding:18px 20px; min-width:0; }
+.kpi + .kpi { border-left:1px solid rgba(255,255,255,.12); }
+.ki { flex:none; width:38px; height:38px; border-radius:11px; display:grid; place-items:center; background:rgba(255,255,255,.1); color:#cfe0f7; }
+.ki svg { width:20px; height:20px; }
+.kpi > div { min-width:0; }
+.kpi .l { font-size:13.5px; color:#c4d3ea; font-weight:500; }
+.kpi .v { font-size:30px; font-weight:750; letter-spacing:-.025em; line-height:1.15; margin-top:2px; white-space:nowrap; }
+.kpi .v small { font-size:15px; font-weight:500; color:#c4d3ea; margin-left:4px; letter-spacing:0; }
+.kpi .s { font-size:12.5px; color:#a9bcd8; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kpi .s.warn { color:#ffc9c9; }
 
 main { margin-top:-40px; padding-bottom:12px; }
 .banner { display:flex; gap:10px; align-items:flex-start; background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:14px; box-shadow:var(--shadow); }
@@ -189,10 +200,16 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 .toast.bad { background:#7f1d1d; }
 .toast button { border:none; background:transparent; color:#fff; opacity:.8; cursor:pointer; font-size:18px; line-height:1; padding:0 2px; }
 
-@media (max-width:860px) { .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:900px) {
+  .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .kpi:nth-child(3) { border-left:none; }
+  .kpi:nth-child(n+3) { border-top:1px solid rgba(255,255,255,.12); }
+}
 @media (max-width:640px) {
-  .wrap { padding:0 14px; } .top { padding-bottom:56px; } .brand .sub { display:none; } .status { order:3; }
-  .kpi .v { font-size:22px; } form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
+  .wrap { padding:0 14px; } .top { padding-bottom:58px; }
+  .brand { flex-wrap:wrap; gap:12px; } .brand .ttl { flex:1; } .brand h1 { font-size:21px; } .logo { width:42px; height:42px; } .brand .spacer { display:none; } .hright { width:100%; justify-content:space-between; }
+  .status { align-items:flex-start; text-align:left; } .hbtn span { display:none; } .hbtn { padding:0 12px; }
+  .kpi { padding:14px; gap:10px; } .ki { display:none; } .kpi .v { font-size:24px; } form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
   .panel { padding:16px 14px; } #chart { height:280px; }
 }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
@@ -203,18 +220,30 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div class="wrap">
     <div class="brand">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.2 2.5 5 14.2h5.9L9.6 21.5 19 9.4h-6z"/></svg></span>
-      <div><h1>TeleHome Enchufes</h1><div class="sub">Telemetría y control de enchufes Wi-Fi</div></div>
+      <div class="ttl">
+        <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span></h1>
+        <div class="sub">Telemetría y control de enchufes Wi-Fi</div>
+      </div>
       <span class="spacer"></span>
-      <span class="status" id="status" role="status"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
-      <button class="hbtn" id="btnSettings" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
-        <span>Ajustes y enchufes</span></button>
+      <div class="hright">
+        <div class="status" id="status" role="status">
+          <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
+          <span class="when" id="statusWhen"></span>
+        </div>
+        <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+          <span>Ajustes y enchufes</span></button>
+      </div>
     </div>
-    <div class="kpis" aria-label="Resumen">
-      <div class="kpi"><div class="l">Potencia ahora</div><div class="v num" id="kPower">—</div></div>
-      <div class="kpi"><div class="l">Energía hoy</div><div class="v num" id="kToday">—</div></div>
-      <div class="kpi"><div class="l">En línea</div><div class="v num" id="kOnline">—</div></div>
-      <div class="kpi"><div class="l">Encendidos</div><div class="v num" id="kOn">—</div></div>
+    <div class="kpis" aria-label="Resumen de los enchufes">
+      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
+        <div><div class="l">Potencia ahora</div><div class="v num" id="kPower">—</div><div class="s" id="kPowerS"></div></div></div>
+      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <div><div class="l">Energía hoy</div><div class="v num" id="kToday">—</div><div class="s" id="kTodayS">desde las 00:00</div></div></div>
+      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><path d="M12 19.5v.01"/></svg></span>
+        <div><div class="l">En línea</div><div class="v num" id="kOnline">—</div><div class="s" id="kOnlineS"></div></div></div>
+      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></span>
+        <div><div class="l">Encendidos</div><div class="v num" id="kOn">—</div><div class="s" id="kOnS"></div></div></div>
     </div>
   </div>
 </header>
@@ -259,7 +288,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 12:36</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 12:51</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -427,11 +456,21 @@ function renderHeader() {
   $("#kPower").replaceChildren(devs.length ? fmt(total, total < 100 ? 1 : 0) : "—", el("small", { text: "W" }));
   $("#kToday").replaceChildren(devs.length ? fmt(today, 3) : "—", el("small", { text: "kWh" }));
   $("#kOnline").replaceChildren(String(online.length), el("small", { text: "de " + devs.length }));
-  $("#kOn").replaceChildren(String(online.filter(d => d.reading.on).length), el("small", { text: "de " + devs.length }));
+  const encendidos = online.filter(d => d.reading.on);
+  $("#kOn").replaceChildren(String(encendidos.length), el("small", { text: "de " + devs.length }));
+  // Líneas secundarias: el detalle que ayuda a leer cada cifra
+  const mayor = online.slice().sort((a, b) => (b.reading.power_w || 0) - (a.reading.power_w || 0))[0];
+  $("#kPowerS").textContent = !devs.length ? "sin enchufes" : mayor && total > 0 ? "Mayor consumo: " + mayor.name : "ningún consumo ahora";
+  const caidos = devs.filter(d => !(d.reading && d.reading.online));
+  $("#kOnlineS").textContent = !devs.length ? "" : caidos.length ? "Sin conexión: " + caidos.map(d => d.name).join(", ") : "todos responden";
+  $("#kOnlineS").classList.toggle("warn", caidos.length > 0);
+  const apagados = online.filter(d => !d.reading.on);
+  $("#kOnS").textContent = !devs.length ? "" : apagados.length ? "Apagados: " + apagados.map(d => d.name).join(", ") : "todos encendidos";
 }
-function setStatus(ok, text) {
+function setStatus(ok, text, when) {
   $("#status").querySelector(".dot").className = "dot" + (ok ? "" : " off");
   $("#statusTxt").textContent = text;
+  $("#statusWhen").textContent = when || "";
 }
 
 /* ---------- tarjetas ---------- */
@@ -844,13 +883,17 @@ function bindDialog() {
 /* ---------- ciclo ---------- */
 async function refresh() {
   try { S.state = await api("api/state"); }
-  catch (e) { setStatus(false, "Sin conexión con el servicio"); throw e; }
+  catch (e) { setStatus(false, "Sin conexión con el servicio", S.lastOk ? "Último dato a las " + new Date(S.lastOk).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "Reintentando…"); throw e; }
   S.lastOk = Date.now();
   $("#ver").textContent = "v" + S.state.version;
   const sim = !!S.state.simulate;
   $("#simBanner").hidden = BACKEND && BACKEND.banner ? !BACKEND.banner() : !sim;
   if (BACKEND && BACKEND.banner && BACKEND.banner()) $("#simText").textContent = BACKEND.banner();
-  setStatus(true, (BACKEND && BACKEND.label ? BACKEND.label() : sim ? "Simulación" : "Conectado") + " · " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  const demo = !!(BACKEND && BACKEND.banner && BACKEND.banner());
+  $("#modeBadge").hidden = !(demo || sim);
+  $("#modeBadge").textContent = demo ? "Demostración" : "Simulación";
+  setStatus(true, BACKEND && BACKEND.label ? BACKEND.label() : "Conectado",
+    "Actualizado a las " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
   renderHeader(); renderCards(); renderFilters();
   if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); }

@@ -232,6 +232,8 @@
     }
     var folders = e.path.split('/'), file = folders.pop(), base = file.replace(/\.html?$/i, '');
     if (e.repo === 'apps' && (e.path === 'index.html' || /^appindex\//.test(e.path))) return null;   // portada y catálogo de apps: van en los botones
+    // La demostración de TeleHome (pensada para GitHub Pages) no se lista: en el servidor está la interfaz real
+    if (e.repo === 'apps' && /^telemetria\/home\/telehome-enchufes\/index\.html$/.test(e.path)) return null;
     // Plantillas de esta misma página de entrada (instalar-todo, install-all, panel de servidores): no son apps
     if (e.repo === 'code' && /(^|\/)(instalar-todo|install-all)[^\/]*\/index\.html$|\/recursos\/index\.html$/.test(e.path)) return null;
     var area = '', sub = '', os = '', carpetaCat = '';
