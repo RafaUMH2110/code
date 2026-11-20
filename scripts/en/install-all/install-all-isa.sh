@@ -316,7 +316,7 @@ step() { echo | tee -a "$LOG"; log "=== $* ==="; }
 # -----------------------------------------------------------------------------
 step "1/6 Dependencies"
 MISSING=()
-for p in apache2 git curl jq rsync python3; do
+for p in apache2 git curl jq rsync python3 python3-venv; do
   dpkg -s "$p" >/dev/null 2>&1 || MISSING+=("$p")
 done
 if [ "${#MISSING[@]}" -gt 0 ]; then
@@ -891,7 +891,7 @@ instalar_telehome() {
   if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
     log "Service telehome-enchufes installed (listening on 127.0.0.1:$puerto)"
   else
-    log "ERROR installing telehome-enchufes (see $LOG)"; errors=$((errors+1)); return 0
+    log "ERROR installing telehome-enchufes (see $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errors=$((errors+1)); return 0
   fi
 
   # Apache: reverse proxy of the service under $ruta (the interface uses relative paths)

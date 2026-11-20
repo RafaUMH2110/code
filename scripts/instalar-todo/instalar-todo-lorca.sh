@@ -322,7 +322,7 @@ paso() { echo | tee -a "$LOG"; log "=== $* ==="; }
 # -----------------------------------------------------------------------------
 paso "1/6 Dependencias"
 FALTAN=()
-for p in apache2 git curl jq rsync python3; do
+for p in apache2 git curl jq rsync python3 python3-venv; do
   dpkg -s "$p" >/dev/null 2>&1 || FALTAN+=("$p")
 done
 if [ "${#FALTAN[@]}" -gt 0 ]; then
@@ -894,7 +894,7 @@ instalar_telehome() {
   if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
     log "Servicio telehome-enchufes instalado (escucha en 127.0.0.1:$puerto)"
   else
-    log "ERROR instalando telehome-enchufes (revisa $LOG)"; errores=$((errores+1)); return 0
+    log "ERROR instalando telehome-enchufes (revisa $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errores=$((errores+1)); return 0
   fi
 
   # Apache: proxy inverso del servicio bajo $ruta (la interfaz usa rutas relativas)
