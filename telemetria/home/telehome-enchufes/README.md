@@ -75,7 +75,10 @@ Sirve cuando el programa no está en la misma red que los enchufes. Requisitos:
    plataforma de Tuya normalmente **no funciona** (son cuentas de otro sistema); en ese caso hay que restablecer cada
    enchufe con su botón y emparejarlo en Smart Life (la ficha de Energeeks lo admite).
 2. Cuenta en [iot.tuya.com](https://iot.tuya.com) → *Cloud → Create Cloud Project* (tipo **Smart Home**, centro de
-   datos **Central Europe** para España). Suscribe *IoT Core* y *Authorization* (plan de prueba gratuito).
+   datos **Central Europe** para España). Suscribe *IoT Core* y *Authorization* (plan de prueba gratuito) y
+   **autoriza tu proyecto** a usarlos: *Cloud Services → IoT Core → View Details → Authorized Projects → Add
+   Authorization* (o, en el proyecto, *Service API → Go to Authorize*). Si la columna *Authorized Projects* sale vacía,
+   leer puede funcionar pero encender y apagar no (error 28841105).
 3. En el proyecto: *Devices → Link Tuya App Account → Add App Account* y escanea el QR desde la pestaña «Yo» de
    Smart Life. Deben aparecer tus enchufes.
    **Para poder encender y apagar**, en esa misma lista pulsa *Change* en la columna *Device Permission* de cada

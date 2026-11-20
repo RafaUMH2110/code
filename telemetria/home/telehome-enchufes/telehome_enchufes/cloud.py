@@ -44,10 +44,11 @@ def _msg(resp: Any) -> str:
 # cambiar en iot.tuya.com). Se busca por código y por texto del mensaje.
 _AYUDA_PERMISOS = (
     (("28841105", "not authorized to call this api"),
-     "El proyecto de Tuya no tiene autorizada la API de control. En iot.tuya.com → Cloud → tu proyecto → "
-     "pestaña «Service API», comprueba que «IoT Core» está suscrito, autorizado para este proyecto y sin caducar "
-     "(la prueba gratuita dura un mes: «Extend trial period»). Después, en «Devices», pulsa «Change» en la columna "
-     "«Device Permission» de cada enchufe y elige «Controllable»."),
+     "El proyecto de Tuya no está autorizado a usar IoT Core. En iot.tuya.com → Cloud → Cloud Services, si en la "
+     "fila de «IoT Core» la columna «Authorized Projects» está vacía, pulsa «View Details» → «Authorized Projects» → "
+     "«Add Authorization», marca tu proyecto y pulsa «Confirm Authorization» (o, dentro del proyecto: «Service API» → "
+     "«Go to Authorize» → «IoT Core»). Comprueba también que no ha caducado («Extend Trial Period») y que en "
+     "«Devices» cada enchufe tiene «Device Permission» = «Controllable»."),
     (("28841106", "api is not subscribed"),
      "La API no está suscrita: en iot.tuya.com → tu proyecto → «Service API» → «Go to Authorize» suscribe "
      "«IoT Core» y «Authorization»."),
