@@ -664,11 +664,16 @@ log "Catálogo generado: $DESTINO/apps.json ($(jq '.apps|length' "$DESTINO/apps.
 
 # Página de entrada: plantilla index.html junto a este script (portal visual)
 PLANTILLA="$(dirname "$SCRIPT_ABS")/index.html"
+# Si no está junto al script, se usa la del repo code ya clonado
+if [ ! -f "$PLANTILLA" ] && [ -f "$ORIGEN/code/scripts/instalar-todo/index.html" ]; then PLANTILLA="$ORIGEN/code/scripts/instalar-todo/index.html"; fi
 if [ "$INDICE" -eq 1 ] && [ -f "$PLANTILLA" ]; then
   $SUDO install -m 644 "$PLANTILLA" "$DESTINO/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do
     if [ -f "$(dirname "$PLANTILLA")/$_f" ]; then $SUDO install -m 644 "$(dirname "$PLANTILLA")/$_f" "$DESTINO/$_f"; fi
   done
+  # Rotula el portal con el nombre del servidor
+  $SUDO sed -i -e "s|<title>Portal de aplicaciones</title>|<title>Portal de aplicaciones · $HOST_WEB</title>|" \
+    -e "s|<span class=\"eyebrow\">Universidad Miguel Hernández de Elche</span>|<span class=\"eyebrow\">Universidad Miguel Hernández de Elche · $HOST_WEB</span>|" "$DESTINO/index.html"
   log "Portal instalado: $DESTINO/index.html"
 elif [ "$INDICE" -eq 1 ]; then
   log "AVISO: no se encontró la plantilla $PLANTILLA; se genera un índice simple"

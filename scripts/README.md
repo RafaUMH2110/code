@@ -15,6 +15,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Portal de entrada y su favicon; deben estar junto a los scripts |
 | | `instrucciones-instalar-todo.md` | Guía de `instalar-todo.sh` |
 | | `instrucciones-instalar-todo-isa.md` | Guía de `instalar-todo-isa.sh` |
+| | `instrucciones-instalar-todo-lorca.md` | Guía de `instalar-todo-lorca.sh` |
 | | `apache-docroot-htdocs.md` | Por qué `/rafa/` da 404 si Apache sirve otro DocumentRoot |
 | `instalar-todo-telemetria/` | `instalar-todo.sh` | Versión reducida: clona **solo** `apps/telemetria` (clonado parcial), lo despliega en Apache y permite elegir instalar `telemet-colector` (`--colector` / `--sin-colector`). Su pareja inglesa instala `telemet-collector` |
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Portal de entrada (lista **todas** las apps clonadas, no solo las de telemetría) y su favicon; deben estar junto al script |
@@ -25,7 +26,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `MANUAL.md`, `README.md`, `vscode-ejemplo/` | Manual detallado, resumen y ejemplos de `launch.json` / `tasks.json` |
 | `clonar-code/` | `clonar-code.sh` | Clona o actualiza el repo `code` **completo** (sin sparse; completa un clon parcial), informa de los directorios nuevos (p. ej. `telemetria/home/…`) y comprueba que existen los exigidos. `--cron` para programarlo |
 | | `instrucciones-clonar-code.md` | Guía de `clonar-code.sh` |
-| `mantenimiento-repos/` | `auditar-repos.sh` | Revisa los repos de `RafaUMH2110` (secretos, ramas sin integrar, ficheros grandes y duplicados, workflows, enlaces rotos) sin modificar nada. Ver su README y el artifact de mantenimiento |
+| `mantenimiento-repos/` | `auditar-repos.py` | Revisa los repos de `RafaUMH2110` (secretos, ramas sin integrar, ficheros grandes y duplicados, workflows, enlaces rotos) sin modificar nada. Ver su README y el artifact de mantenimiento |
 | | `README.md` | Guía de uso y de la rutina de mantenimiento |
 | `mover-repo/` | `instrucciones-mover-repo.md` | Guía para mover un repo de GitHub a una subcarpeta de otro conservando el historial |
 

@@ -646,6 +646,8 @@ log "Catalog generated: $DEST/apps.json ($(jq '.apps|length' "$DEST/apps.json") 
 
 # Entry page: index.html template next to this script (visual portal)
 TEMPLATE="$(dirname "$SCRIPT_ABS")/index.html"
+# If it is not next to the script, the one from the cloned code repo is used
+if [ ! -f "$TEMPLATE" ] && [ -f "$SOURCE/code/scripts/en/install-all/index.html" ]; then TEMPLATE="$SOURCE/code/scripts/en/install-all/index.html"; fi
 if [ "$INDEX" -eq 1 ] && [ -f "$TEMPLATE" ]; then
   $SUDO install -m 644 "$TEMPLATE" "$DEST/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do
