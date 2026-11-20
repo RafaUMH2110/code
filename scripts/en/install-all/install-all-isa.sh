@@ -462,11 +462,11 @@ SECRETS=(--exclude='.env*' --exclude='*.key' --exclude='*.pem' --exclude='*secre
 RSYNC_OPTS=(-a --delete --delete-excluded --filter='P datos/' --filter='P data/' --exclude='.git/' --exclude='.github/' "${SECRETS[@]}")
 case "$MODE" in
   web)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
     for e in "${WEB_EXT[@]}"; do RSYNC_OPTS+=(--include="*.$e"); done
     RSYNC_OPTS+=(--exclude='*') ;;
   html)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
   all)
     RSYNC_OPTS+=(--exclude='.gitignore') ;;
 esac
@@ -475,9 +475,10 @@ copied=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$SOURCE/$r/.git" ] || [ -f "$SOURCE/$r/.git" ] || continue
   extra=()
+  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-enchufes/') # TeleHome from code is not copied (it is a service; published through a proxy)
   [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r")
   rsync_out="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${pre[@]}" "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
     copied=$((copied+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$rsync_out")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$rsync_out" | tr -d ',.')"; bytes="${bytes:-0}"
@@ -620,7 +621,7 @@ for repo in sorted(os.listdir(dest_root)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            if 'telehome-enchufes/' in rel:
+            if repo == 'code' and 'telehome-enchufes/' in rel:
                 continue  # its interface is published through a proxy (see below)
             # clone that contains this file (this run's one may be partial)
             clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
@@ -658,6 +659,8 @@ log "Catalog generated: $DEST/apps.json ($(jq '.apps|length' "$DEST/apps.json") 
 
 # Entry page: index.html template next to this script (visual portal)
 TEMPLATE="$(dirname "$SCRIPT_ABS")/index.html"
+# If it is not next to the script, the one from the cloned code repo is used
+if [ ! -f "$TEMPLATE" ] && [ -f "$SOURCE/code/scripts/en/install-all/index.html" ]; then TEMPLATE="$SOURCE/code/scripts/en/install-all/index.html"; fi
 if [ "$INDEX" -eq 1 ] && [ -f "$TEMPLATE" ]; then
   $SUDO install -m 644 "$TEMPLATE" "$DEST/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do

@@ -239,7 +239,7 @@ TeleMet Collector · parámetros   · Generado 2026-11-08 00:55:14
     API Key:       abcd…78 (16)   [config.ini] (usa --show-key para verla completa)
     Intervalo:     300 s  (288 llamadas/día)
     Base de datos: /opt/telemet-collector/data/telemet.sqlite
-    JSON publicado:/var/www/html/rafa/apps/telemetria/telemet/history/data/history.json
+    JSON publicado:/var/www/html/rafa/apps/telemetria/meteo/telemet/history/data/history.json
 …
 ▌ Diagnóstico
   ✔ OK Sin problemas detectados.

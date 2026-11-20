@@ -48,7 +48,7 @@ notas-rapidas/
 - Una app que es **idéntica en los tres sistemas** va una sola vez en la raíz (como `generador-apps/`), también autocontenida. Si más adelante necesita diferir por sistema, se separa en las tres carpetas.
 - Nombres de directorio en minúsculas y con guiones (`notas-rapidas`, `generador-apps`…). Los módulos y ficheros del programa Python conservan `_` (`generar_app.py`); `macos/`, `windows/` y `linux/` no se renombran.
 - Cada app lleva dentro todo lo suyo; no se comparten ficheros entre apps.
-- **El colector TeleMet no está aquí**: su única fuente es el repositorio [`apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria) (`telemetria/telemetcolector` y `telemetcollector`).
+- **El colector TeleMet no está aquí**: su única fuente es el repositorio [`apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria) (`telemetria/meteo/telemetcolector` y `telemetcollector`).
 - Para trabajar con una app, abre su carpeta (por ejemplo `macos/notas-rapidas/`) en VS Code (*File → Open Folder…*).
 
 ### Añadir una app nueva

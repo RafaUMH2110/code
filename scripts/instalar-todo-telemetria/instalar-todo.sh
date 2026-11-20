@@ -223,7 +223,7 @@ sincronizar_repo() {   # sincronizar_repo repo "carpetas"
 SEL_REPOS=("$REPO")
 sincronizar_repo "$REPO" "$FOLDER"
 for _c in telemetcolector telemetcollector; do
-  if [ -d "$ORIGEN/$REPO/$FOLDER/$_c" ]; then log "Colector disponible: $FOLDER/$_c"; else log "AVISO: no se encontró $FOLDER/$_c en el repo clonado"; fi
+  if [ -d "$ORIGEN/$REPO/$FOLDER/meteo/$_c" ]; then log "Colector disponible: $FOLDER/meteo/$_c"; else log "AVISO: no se encontró $FOLDER/meteo/$_c en el repo clonado"; fi
 done
 log "Repos -> nuevos: $nuevos | actualizados: $actualizados (con cambios: $((actualizados-sin_cambios)), sin cambios: $sin_cambios) | errores: $errores"
 log "Resumen git -> commits: $g_commits | ficheros: +$g_add ~$g_mod -$g_del | líneas: +$g_ins/-$g_rem | descarga ≈ $(humano $g_bytes)"
@@ -521,7 +521,7 @@ ini_set() {   # ini_set clave valor fichero  (el valor viaja por entorno, no por
 
 instalar_colector() {
   local src_dir app json_dir tmp station key pend=0
-  src_dir="$ORIGEN/$REPO/$FOLDER/telemetcolector"
+  src_dir="$ORIGEN/$REPO/$FOLDER/meteo/telemetcolector"
   if [ ! -f "$src_dir/telemet_colector.py" ]; then
     log "AVISO: no se encontró $src_dir/telemet_colector.py (¿se ha clonado bien apps/$FOLDER?)"
     return 0
@@ -532,7 +532,7 @@ instalar_colector() {
 
   # Dónde publica el JSON: junto a la app TeleMet Historial desplegada
   app="$(find "$DESTINO" -type f -path '*/telemet/historial/index.html' 2>/dev/null | head -1)"
-  if [ -n "$app" ]; then json_dir="$(dirname "$app")/datos"; else json_dir="$DESTINO/$REPO/$FOLDER/telemet/historial/datos"; fi
+  if [ -n "$app" ]; then json_dir="$(dirname "$app")/datos"; else json_dir="$DESTINO/$REPO/$FOLDER/meteo/telemet/historial/datos"; fi
 
   id telemet >/dev/null 2>&1 || {
     $SUDO useradd --system --home-dir "$COLECTOR_DIR" --shell /usr/sbin/nologin telemet

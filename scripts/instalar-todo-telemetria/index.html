@@ -196,7 +196,7 @@
       <span class="legend">Generado con IA · Revisado por el autor</span>
     </div>
     <div>
-      Última modificación: <b>20/11/2026 00:36</b><br>
+      Última modificación: <b>20/11/2026 02:26</b><br>
       Catálogo actualizado: <b id="gen">–</b>
     </div>
   </div>
@@ -238,7 +238,7 @@
   var OS = {linux:'Linux', macos:'macOS', windows:'Windows'};
   // Repos cuya primera carpeta es una categoría (apps/moda/…, apps/telemetria/…)
   var CATEGORY_REPOS = {apps:true};
-  var CAT = {moda:'Moda', telemetria:'Meteo', home:'Home', appindex:'Índice de apps'};
+  var CAT = {moda:'Moda', telemetria:'Meteo', meteo:'Meteo', home:'Home', appindex:'Índice de apps'};
   var PRETTY = {
     'notas-rapidas':'Notas rápidas', 'generador-apps':'Generador de apps', 'mejora-de-codigo':'Mejora de código',
     'python-app-api-anthropic':'Python App API Anthropic', 'plantilla_base':'Plantilla base',
@@ -262,7 +262,7 @@
       var ck = (e.category || 'home');
       return {
         repo: e.repo, path: e.path, key: 'telehome-enchufes', os: '', title: e.title, desc: e.description || '',
-        gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: e.repo, project: '', crumb: '',
+        gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: '', project: '', crumb: '',
         size: '', updated: fmtDate(e.updated), variant: '', href: e.url
       };
     }
@@ -272,8 +272,11 @@
     var os = '', cat = '';
     if (folders.length && OS[folders[0].toLowerCase()]) { os = OS[folders.shift().toLowerCase()]; }
     if (folders.length && CATEGORY_REPOS[e.repo.toLowerCase()]) { cat = folders.shift(); }
+    // telemetria/meteo/… y telemetria/home/… son categorías propias (Meteo y Home), comunes a todos los repos
+    var sub = false;
+    if (/^telemetria$/i.test(cat) && folders.length && /^(meteo|home)$/i.test(folders[0])) { cat = folders.shift(); sub = true; }
     var gid = e.repo, glabel = e.repo, gsub = '';
-    if (cat) { gid = e.repo + '/' + cat; glabel = CAT[cat.toLowerCase()] || titleCase(cat); gsub = e.repo; }
+    if (cat) { gid = sub ? cat.toLowerCase() : e.repo + '/' + cat; glabel = CAT[cat.toLowerCase()] || titleCase(cat); gsub = sub ? '' : e.repo; }
     var last = folders.length ? folders[folders.length-1] : '';
     var key = base, variant = '', extra = '';
 
