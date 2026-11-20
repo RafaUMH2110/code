@@ -4,6 +4,7 @@
 #   sudo ./linux/instalar-linux.sh --quitar           detiene y elimina el servicio (conserva los datos)
 #   ./linux/instalar-linux.sh --solo-servicio         imprime la unidad systemd y sale
 # Opciones: --puerto N (8765) · --host DIR (127.0.0.1) · --allow-host NOMBRE (repetible, para un proxy inverso)
+#           --allow-origin ORIGEN (repetible, p. ej. https://usuario.github.io: permite usar la API desde esa web)
 set -euo pipefail
 
 SERVICIO="telehome-enchufes"
@@ -15,6 +16,7 @@ ENVOLTORIO="/usr/local/bin/telehome-enchufes"
 PUERTO=8765
 HOST="127.0.0.1"
 EXTRA=()
+ORIGENES=()
 ACCION="instalar"
 
 while [ $# -gt 0 ]; do
@@ -22,9 +24,10 @@ while [ $# -gt 0 ]; do
     --puerto) shift; PUERTO="${1:?Falta el puerto}" ;;
     --host) shift; HOST="${1:?Falta la dirección}" ;;
     --allow-host) shift; EXTRA+=("${1:?Falta el nombre}") ;;
+    --allow-origin) shift; ORIGENES+=("${1:?Falta el origen}") ;;
     --quitar) ACCION="quitar" ;;
     --solo-servicio) ACCION="unidad" ;;
-    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
     *) echo "Opción desconocida: $1" >&2; exit 2 ;;
   esac
   shift
@@ -36,9 +39,15 @@ for h in "${EXTRA[@]+"${EXTRA[@]}"}"; do
   case "$h" in ''|*[!0-9A-Za-z.-]*) echo "Nombre de host no válido: $h" >&2; exit 2 ;; esac
 done
 
+for o in "${ORIGENES[@]+"${ORIGENES[@]}"}"; do
+  case "$o" in http://*|https://*) ;; *) echo "Origen no válido (usa http(s)://dominio[:puerto]): $o" >&2; exit 2 ;; esac
+  case "$o" in *[!0-9A-Za-z.:/-]*) echo "Origen no válido: $o" >&2; exit 2 ;; esac
+done
+
 generar_unidad() {
   local extra=""
   for h in "${EXTRA[@]+"${EXTRA[@]}"}"; do extra="$extra --allow-host $h"; done
+  for o in "${ORIGENES[@]+"${ORIGENES[@]}"}"; do extra="$extra --allow-origin $o"; done
   cat <<UNIT
 [Unit]
 Description=TeleHome Enchufes (telemetría de enchufes Tuya)

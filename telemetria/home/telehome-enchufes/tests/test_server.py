@@ -170,3 +170,45 @@ def test_type_and_room(app):
     st, err = call(base, "/api/devices", "POST",
                    {"name": "Lámpara", "type": "luz", "dev_id": "bf8888888888", "local_key": "0123456789abcdef"})
     assert st == 400 and "no admitido" in err["error"]
+
+
+def _cors_server(tmp_path, origins):
+    cfg = Config(tmp_path / "config.json")
+    store = Store(tmp_path / "t.db")
+    mon = Monitor(cfg, store, simulate=True)
+    ctx = AppContext(cfg, store, mon, True, extra_origins=origins)
+    srv = make_server(ctx, "127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, "http://127.0.0.1:%d" % srv.server_address[1]
+
+
+def test_cors_allow_origin(tmp_path):
+    srv, base = _cors_server(tmp_path, ["https://rafaumh2110.github.io/"])
+    try:
+        ok = {"Origin": "https://rafaumh2110.github.io"}
+        # preflight de un origen autorizado
+        req = urllib.request.Request(base + "/api/health", method="OPTIONS", headers=dict(ok, **{"Access-Control-Request-Method": "GET"}))
+        with urllib.request.urlopen(req, timeout=5) as r:
+            assert r.status == 204
+            assert r.headers["Access-Control-Allow-Origin"] == ok["Origin"]
+            assert "X-TeleHome" in r.headers["Access-Control-Allow-Headers"]
+        # lectura y escritura con ese origen
+        req = urllib.request.Request(base + "/api/health", headers=ok)
+        with urllib.request.urlopen(req, timeout=5) as r:
+            assert r.headers["Access-Control-Allow-Origin"] == ok["Origin"]
+        st, _ = call(base, "/api/options", "PUT", {"poll_interval": 20}, ok)
+        assert st == 200
+        # origen no autorizado: ni preflight ni escritura
+        bad = {"Origin": "https://malo.example"}
+        req = urllib.request.Request(base + "/api/health", method="OPTIONS", headers=bad)
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(req, timeout=5)
+        assert e.value.code == 403
+        st, body = call(base, "/api/options", "PUT", {"poll_interval": 20}, bad)
+        assert st == 403
+        req = urllib.request.Request(base + "/api/health", headers=bad)
+        with urllib.request.urlopen(req, timeout=5) as r:
+            assert r.headers.get("Access-Control-Allow-Origin") is None
+    finally:
+        srv.shutdown()
+        srv.server_close()

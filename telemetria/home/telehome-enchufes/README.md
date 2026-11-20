@@ -59,7 +59,7 @@ sudo ./linux/instalar-linux.sh          # servicio systemd «telehome-enchufes»
 
 El instalador crea un usuario de servicio, el entorno virtual, la unidad systemd (con `ProtectSystem=strict`) y la
 orden `telehome-enchufes`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
-momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--quitar`.
+momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--allow-origin ORIGEN` (web externa), `--quitar`.
 
 Acceso desde tu ordenador sin abrir puertos en Azure: `ssh -L 8765:127.0.0.1:8765 usuario@tu-vm` y abre
 <http://127.0.0.1:8765/>. Si prefieres publicarla con Apache (HTTPS), la interfaz funciona en una subruta:
@@ -211,3 +211,11 @@ Estructura: `telehome_enchufes/` (config, devices, cloud, store, monitor, server
 ---
 Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es  
 Generado con IA · Revisado por el autor
+
+## Usar la API desde una web externa (`--allow-origin`)
+
+Por defecto el servicio solo admite peticiones del mismo origen. Para que la app TeleHome publicada en otra web
+(p. ej. GitHub Pages) use este servicio, autoriza su origen: `telehome_enchufes serve --allow-origin https://usuario.github.io`
+(repetible; en Linux, `sudo ./linux/instalar-linux.sh --allow-origin https://usuario.github.io`). El servicio responde
+al *preflight* CORS solo a esos orígenes; `Host`, `X-TeleHome` y la contraseña se siguen exigiendo. Autorizar un origen
+es confiar en esa web: usa contraseña.

@@ -92,7 +92,7 @@ def cmd_serve(args) -> int:
     monitor = Monitor(cfg, store, simulate=bool(args.simulate), hub=hub)
     loopback = args.host in ("127.0.0.1", "localhost", "::1")
     ctx = AppContext(cfg, store, monitor, bool(args.simulate), loopback_only=loopback,
-                     extra_hosts=args.allow_host, hub=hub)
+                     extra_hosts=args.allow_host, hub=hub, extra_origins=args.allow_origin)
     try:
         server = make_server(ctx, args.host, args.port)
     except OSError as exc:
@@ -265,6 +265,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--simulate", type=int, metavar="N", help="usa N enchufes simulados (prueba sin hardware)")
     s.add_argument("--allow-host", action="append", default=[], metavar="NOMBRE",
                    help="nombre de host adicional permitido (p. ej. tras un proxy inverso); repetible")
+    s.add_argument("--allow-origin", action="append", default=[], metavar="ORIGEN",
+                   help="origen web externo autorizado a usar la API (CORS), p. ej. https://usuario.github.io; repetible")
     s.set_defaults(fn=cmd_serve)
 
     s = sub.add_parser("scan", help="busca enchufes Tuya en la red local")

@@ -29,7 +29,8 @@ LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 class AppContext:
     def __init__(self, config: Config, store: Store, monitor: Monitor, simulate: bool,
-                 loopback_only: bool = True, extra_hosts: Optional[List[str]] = None, hub=None):
+                 loopback_only: bool = True, extra_hosts: Optional[List[str]] = None, hub=None,
+                 extra_origins: Optional[List[str]] = None):
         self.config = config
         self.store = store
         self.monitor = monitor
@@ -38,6 +39,8 @@ class AppContext:
         self.loopback_only = loopback_only
         self.extra_hosts = {h.lower() for h in (extra_hosts or [])}
         self.allowed_hosts = LOOPBACK_HOSTS | self.extra_hosts
+        # orígenes web externos autorizados a usar la API desde el navegador (CORS), p. ej. https://usuario.github.io
+        self.extra_origins = {o.strip().rstrip("/").lower() for o in (extra_origins or []) if o.strip()}
         self.scan_lock = threading.Lock()
 
 
@@ -56,6 +59,20 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # silencia el log por petición
         log.debug("%s - %s", self.address_string(), fmt % args)
 
+    def _origin_ok(self) -> Optional[str]:
+        """Devuelve el Origin de la petición si está en --allow-origin."""
+        origin = (self.headers.get("Origin") or "").strip()
+        if origin and origin.rstrip("/").lower() in self.ctx.extra_origins:
+            return origin
+        return None
+
+    def _cors(self) -> None:
+        origin = self._origin_ok()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Credentials", "true")
+            self.send_header("Vary", "Origin")
+
     def _send(self, status: int, body: bytes, ctype: str, extra: Optional[Dict[str, str]] = None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", ctype)
@@ -63,6 +80,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+        self._cors()
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -112,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
             if origin:
                 o = urlsplit(origin)
                 same = o.netloc.lower() == self.headers.get("Host", "").lower()
-                if not same and (o.hostname or "").lower() not in self.ctx.extra_hosts:
+                if not same and not self._origin_ok() and (o.hostname or "").lower() not in self.ctx.extra_hosts:
                     return "Origen no permitido"
         return None
 
@@ -148,6 +166,23 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             log.exception("Error en %s %s", method, self.path)
             self._json(500, {"error": "Error interno"})
+
+    def do_OPTIONS(self):
+        """Preflight CORS: solo se responde a los orígenes autorizados con --allow-origin."""
+        host = _host_only(self.headers.get("Host", ""))
+        origin = self._origin_ok()
+        if not origin or (self.ctx.loopback_only and host not in self.ctx.allowed_hosts):
+            return self._json(403, {"error": "Origen no permitido"})
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Access-Control-Allow-Credentials", "true")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "X-TeleHome, Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Vary", "Origin")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self):
         self._dispatch("GET")
