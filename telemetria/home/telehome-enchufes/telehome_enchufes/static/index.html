@@ -149,7 +149,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 </main>
 <footer>
   <div>TeleHome Enchufes <span id="ver"></span> · datos locales, guardados en este equipo</div>
-  <div>Última modificación: <span id="lastmod">2026-11-19 22:27</span></div>
+  <div>Última modificación: <span id="lastmod">2026-11-20 12:12</span></div>
 </footer>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
@@ -556,7 +556,8 @@ function bindDialog() {
           } catch (err) { setMsg("#cloudMsg", err.message, false); add.disabled = false; }
         });
         out.append(el("div", { class: "found" },
-          el("code", { text: f.name + " · " + f.dev_id + (f.category ? " · " + f.category : "") + (f.online === false ? " · desconectado" : "") }), add));
+          el("code", { text: f.name + " · " + f.dev_id + (f.category ? " · " + f.category : "") + (f.online === false ? " · desconectado" : "") +
+            (/^vdevo/i.test(f.dev_id) ? " · virtual (solo pruebas)" : "") }), add));
       }
     } catch (err) { setMsg("#cloudMsg", err.message, false); }
   });

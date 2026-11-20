@@ -44,7 +44,7 @@ def _msg(resp: Any) -> str:
 # cambiar en iot.tuya.com). Se busca por código y por texto del mensaje.
 _AYUDA_PERMISOS = (
     (("28841105", "not authorized to call this api"),
-     "El proyecto de Tuya no está autorizado a usar IoT Core. En iot.tuya.com → Cloud → Cloud Services, si en la "
+     "El proyecto de Tuya no tiene permiso para esta llamada. En iot.tuya.com → Cloud → Cloud Services, si en la "
      "fila de «IoT Core» la columna «Authorized Projects» está vacía, pulsa «View Details» → «Authorized Projects» → "
      "«Add Authorization», marca tu proyecto y pulsa «Confirm Authorization» (o, dentro del proyecto: «Service API» → "
      "«Go to Authorize» → «IoT Core»). Comprueba también que no ha caducado («Extend Trial Period») y que en "
@@ -72,6 +72,17 @@ def _msg_codigo(resp: Any) -> str:
     if isinstance(resp, dict) and resp.get("code") and str(resp["code"]) not in m:
         m += " (código %s)" % resp["code"]
     return m
+
+
+# Los dispositivos virtuales que crea la consola de Tuya para pruebas tienen un
+# Device ID que empieza por «vdevo». Se leen, pero la nube no siempre acepta
+# órdenes para ellos (y no dan potencia, tensión ni corriente reales).
+AVISO_VIRTUAL = ("Es un dispositivo virtual de pruebas de la consola de Tuya (su Device ID empieza por «vdevo»): "
+                 "no es un enchufe real y la nube puede no aceptar órdenes para él. Puedes quitarlo de la app.")
+
+
+def es_virtual(dev_id: str) -> bool:
+    return str(dev_id).lower().startswith("vdevo")
 
 
 def _ok(resp: Any) -> bool:
@@ -290,6 +301,8 @@ class CloudHub:
                 # Se muestra el primer error (el del método principal) y, si es
                 # de permisos, qué cambiar en la consola de Tuya.
                 texto = "La nube rechazó la orden: %s" % fallos[0]
+                if es_virtual(dev_id):
+                    raise CloudError(texto + ". " + AVISO_VIRTUAL)
                 ayuda = _ayuda(" ".join(fallos))
                 raise CloudError(texto + (". " + ayuda if ayuda else ""))
             if dev_id in self._cache:  # actualización optimista: evita otra llamada
