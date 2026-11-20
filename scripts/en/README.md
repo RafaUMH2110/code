@@ -27,7 +27,7 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 
 `install-all*.sh` superseded the scripts of the old `clone-update/` folder, which no longer exists (they remain in the Git history).
 
-The collector program itself is not in this repository any more: its single source is [`RafaUMH2110/apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/telemetcollector) (`telemetria/telemetcollector/`), from which `install-all*.sh` install it.
+The collector program itself is not in this repository any more: its single source is [`RafaUMH2110/apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/meteo/telemetcollector) (`telemetria/meteo/telemetcollector/`), from which `install-all*.sh` install it.
 
 ## Option names (Spanish → English)
 
