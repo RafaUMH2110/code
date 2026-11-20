@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.2.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.2.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -78,6 +78,9 @@ Sirve cuando el programa no está en la misma red que los enchufes. Requisitos:
    datos **Central Europe** para España). Suscribe *IoT Core* y *Authorization* (plan de prueba gratuito).
 3. En el proyecto: *Devices → Link Tuya App Account → Add App Account* y escanea el QR desde la pestaña «Yo» de
    Smart Life. Deben aparecer tus enchufes.
+   **Para poder encender y apagar**, en esa misma lista pulsa *Change* en la columna *Device Permission* de cada
+   enchufe y elige **Controllable**: con *Read* (lo que suele salir por defecto) solo se puede leer y Tuya responde
+   «No permissions. This project is not authorized to call this API» al conmutar.
 4. Copia el **Access ID** y el **Access Secret** (pestaña *Overview*) en *Ajustes → Nube de Tuya*, pulsa
    *Ver dispositivos de la nube* y añádelos; o por línea de órdenes:
    `telehome-enchufes cloud-setup --region eu --access-id …` y `telehome-enchufes cloud-import`.
@@ -91,8 +94,10 @@ Notas:
 - Códigos de datos por defecto: `switch_1`, `cur_power` (÷10 → W), `cur_voltage` (÷10 → V), `cur_current` (mA).
   Se ajustan por enchufe en *Avanzado*; `telehome-enchufes probe <enchufe>` muestra lo que devuelve la nube.
 - Al importar desde la nube también se guarda la *Local Key*, así que el enchufe puede pasarse a modo local más tarde.
-- **El modo nube está probado con un cliente simulado, no contra una cuenta real de Tuya.** El programa prueba tres
-  formas de consulta de la API y se queda con la que funcione; si algo falla, el error de Tuya se ve en la tarjeta.
+- La lectura en modo nube se ha comprobado con una cuenta real de Tuya (proyecto *Smart Home*, Central Europe). Para
+  leer y para conmutar el programa prueba varias formas de llamar a la API (tres para cada cosa) y se queda con la que
+  el proyecto tenga autorizada. Si Tuya rechaza la orden, el mensaje incluye el código de error y, en los errores de
+  permisos (28841105, 28841106, 1106), qué cambiar en iot.tuya.com.
 
 ## Dar de alta los enchufes (modo local)
 
