@@ -14,7 +14,9 @@
     { "name": "Telemetría · Meteo",              "path": "telemetria/meteo" },
     { "name": "Telemetría · Home",               "path": "telemetria/home" },
     { "name": "Home · Enchufes",                "path": "telemetria/home/telehome-enchufes" },
-    { "name": "Home · Enchufes (vscode)",       "path": "telemetria/home/telehome-enchufes-vscode" }
+    { "name": "Home · Enchufes (vscode)",       "path": "telemetria/home/telehome-enchufes-vscode" },
+    { "name": "Home · Enchufes (iPhone)",       "path": "telemetria/home/telehome-enchufes-iphone" },
+    { "name": "Home · Enchufes (iPad)",         "path": "telemetria/home/telehome-enchufes-ipad" }
   ],
   "settings": {
     "files.exclude": { "**/.DS_Store": true, "**/__pycache__": true },
