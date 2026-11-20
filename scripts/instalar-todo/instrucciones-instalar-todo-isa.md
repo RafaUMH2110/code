@@ -29,7 +29,7 @@ Diferencia de fondo: el servidor ya tiene configuración propia (`<Directory /va
 
 - Debian 13 con Apache ya funcionando para isa.umh.es.
 - Usuario con `sudo`.
-- En la misma carpeta que el script: `index.html` (el portal) y su favicon (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
+- `index.html` (el portal) y su favicon: se toman del repo `code` ya actualizado (`scripts/instalar-todo/`); la copia que haya junto al script solo se usa si el repo no está disponible (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
   El portal tiene el mismo diseño que la página de entrada de GitHub Pages (https://rafaumh2110.github.io/apps/): cabecera *Herramientas de IA para la Docencia*, una tarjeta por área (Moda y textil, Telemetría —estación meteorológica y hogar—, Análisis de PDF, Consulta con IA, Código y utilidades) con cada app y sus versiones (Pro, ProMax, Lite…) como etiquetas, buscador y el mismo pie. Las apps salen de `apps.json`; si el repo `apps` está desplegado, añade los botones *Catálogo completo* y *Agrupado por tema* (que abren `apps/appindex/`).
 - Acceso a `api.github.com` y `github.com` (repos públicos de `RafaUMH2110`).
 
