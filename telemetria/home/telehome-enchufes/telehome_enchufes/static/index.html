@@ -41,39 +41,44 @@ button, select, input { font:inherit; color:inherit; }
 .num { font-variant-numeric:tabular-nums; }
 
 /* ===================== Cabecera ===================== */
-.top { background:linear-gradient(135deg,#0f2240 0%,#14386b 60%,#16407a 100%); color:#fff; padding:calc(env(safe-area-inset-top) + 22px) 0 70px; }
 .wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
-.brand { display:flex; align-items:center; gap:14px; }
-.logo { width:48px; height:48px; border-radius:14px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25); display:grid; place-items:center; flex:none; }
-.logo svg { width:26px; height:26px; }
+.top { position:sticky; top:0; z-index:20; background:color-mix(in srgb,var(--surface) 90%,transparent); -webkit-backdrop-filter:saturate(1.5) blur(12px); backdrop-filter:saturate(1.5) blur(12px);
+  border-bottom:1px solid var(--border); padding-top:env(safe-area-inset-top); }
+.hbar { display:flex; align-items:center; gap:16px; min-height:68px; }
+.brand { display:flex; align-items:center; gap:12px; min-width:0; }
+.logo { width:40px; height:40px; border-radius:12px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:0 4px 12px rgba(22,86,163,.35), inset 0 1px 0 rgba(255,255,255,.28); display:grid; place-items:center; flex:none; }
+.logo svg { width:22px; height:22px; }
 .brand .ttl { min-width:0; }
-.brand h1 { margin:0; font-size:24px; font-weight:800; letter-spacing:-.025em; line-height:1.15; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.mode-badge { font-size:11.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#ffe2a8; background:rgba(255,196,77,.14); border:1px solid rgba(255,196,77,.4); border-radius:999px; padding:2px 10px; }
-.brand .sub { font-size:14px; color:#c4d3ea; margin-top:2px; }
-.brand .spacer { flex:1; }
-.hright { display:flex; align-items:center; gap:14px; }
-.status { display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; text-align:right; }
-.status .st { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:650; }
-.status .when { font-size:12.5px; color:#b9c9e2; font-variant-numeric:tabular-nums; }
+.brand h1 { margin:0; font-size:19px; font-weight:750; letter-spacing:-.02em; line-height:1.2; display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:var(--ink); }
+.mode-badge { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--warn-ink); background:var(--warn-bg); border:1px solid color-mix(in srgb,var(--warn-ink) 30%,transparent); border-radius:999px; padding:1px 9px; }
+.brand .sub { font-size:13px; color:var(--ink2); line-height:1.3; }
+.hbar .spacer { flex:1; }
+.status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--border); border-radius:999px; background:var(--sunk); font-size:13.5px; line-height:1.2; white-space:nowrap; }
+.status .st { display:inline-flex; align-items:center; gap:8px; font-weight:650; }
+.status .when { color:var(--ink2); font-variant-numeric:tabular-nums; padding-left:8px; border-left:1px solid var(--border-strong); }
+.status .when:empty { display:none; }
 .status .dot { width:9px; height:9px; }
-.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 16px; border-radius:12px; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.1); color:#fff; font-weight:650; font-size:14.5px; cursor:pointer; transition:background .15s; }
-.hbtn:hover { background:rgba(255,255,255,.18); }
+.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px; border-radius:10px; border:1px solid transparent; background:var(--accent); color:var(--on-accent); font-weight:650; font-size:14px; cursor:pointer; transition:filter .15s, transform .15s; box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 35%,transparent); }
+.hbtn:hover { filter:brightness(1.08); }
+.hbtn:active { transform:translateY(1px); }
 .hbtn svg { width:18px; height:18px; }
 
-/* Indicadores: un solo panel con cuatro columnas separadas por líneas finas */
-.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:26px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); border-radius:18px; overflow:hidden; }
-.kpi { display:flex; gap:14px; align-items:flex-start; padding:18px 20px; min-width:0; }
-.kpi + .kpi { border-left:1px solid rgba(255,255,255,.12); }
-.ki { flex:none; width:38px; height:38px; border-radius:11px; display:grid; place-items:center; background:rgba(255,255,255,.1); color:#cfe0f7; }
-.ki svg { width:20px; height:20px; }
-.kpi > div { min-width:0; }
-.kpi .l { font-size:13.5px; color:#c4d3ea; font-weight:500; }
-.kpi .v { font-size:30px; font-weight:750; letter-spacing:-.025em; line-height:1.15; margin-top:2px; white-space:nowrap; }
-.kpi .v small { font-size:15px; font-weight:500; color:#c4d3ea; margin-left:4px; letter-spacing:0; }
-.kpi .s { font-size:12.5px; color:#a9bcd8; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kpi .s.warn { color:#ffc9c9; }
+main.wrap { padding-top:28px; padding-bottom:12px; }
 
-main { margin-top:-40px; padding-bottom:12px; }
+/* Indicadores: cuatro tarjetas independientes, separadas de la cabecera */
+.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:32px; }
+.kpi { display:flex; gap:14px; align-items:center; padding:16px 18px; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
+.ki { flex:none; width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--accent); }
+.ki svg { width:22px; height:22px; }
+.kpi > div { min-width:0; }
+.kpi .l { font-size:13px; color:var(--ink2); font-weight:600; }
+.kpi .v { font-size:28px; font-weight:750; letter-spacing:-.025em; line-height:1.15; margin-top:1px; white-space:nowrap; color:var(--ink); }
+.kpi .v small { font-size:14px; font-weight:500; color:var(--ink2); margin-left:4px; letter-spacing:0; }
+.kpi .s { font-size:12.5px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kpi .s.warn { color:var(--critical); }
+.sec-h { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
+.sec-h h2 { margin:0; font-size:18px; font-weight:700; letter-spacing:-.015em; }
+.sec-h span { font-size:13px; color:var(--muted); }
 .banner { display:flex; gap:10px; align-items:flex-start; background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:14px; box-shadow:var(--shadow); }
 .banner svg { flex:none; width:18px; height:18px; margin-top:2px; }
 
@@ -202,14 +207,16 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 
 @media (max-width:900px) {
   .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .kpi:nth-child(3) { border-left:none; }
-  .kpi:nth-child(n+3) { border-top:1px solid rgba(255,255,255,.12); }
+  .brand .sub { display:none; }
 }
 @media (max-width:640px) {
-  .wrap { padding:0 14px; } .top { padding-bottom:58px; }
-  .brand { flex-wrap:wrap; gap:12px; } .brand .ttl { flex:1; } .brand h1 { font-size:21px; } .logo { width:42px; height:42px; } .brand .spacer { display:none; } .hright { width:100%; justify-content:space-between; }
-  .status { align-items:flex-start; text-align:left; } .hbtn span { display:none; } .hbtn { padding:0 12px; }
-  .kpi { padding:14px; gap:10px; } .ki { display:none; } .kpi .v { font-size:24px; } form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
+  .wrap { padding:0 14px; }
+  .hbar { min-height:60px; gap:10px; }
+  .brand h1 { font-size:17px; } .logo { width:36px; height:36px; border-radius:10px; } .logo svg { width:20px; height:20px; }
+  .status { padding:6px 11px; } .status .when { display:none; }
+  .hbtn span { display:none; } .hbtn { padding:0 11px; }
+  main.wrap { padding-top:18px; } .kpis { gap:10px; margin-bottom:24px; }
+  .kpi { padding:12px; gap:10px; border-radius:14px; } .ki { display:none; } .kpi .v { font-size:23px; } form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
   .panel { padding:16px 14px; } #chart { height:280px; }
 }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
@@ -217,39 +224,38 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 </head>
 <body>
 <header class="top">
-  <div class="wrap">
+  <div class="wrap hbar">
     <div class="brand">
       <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.2 2.5 5 14.2h5.9L9.6 21.5 19 9.4h-6z"/></svg></span>
       <div class="ttl">
         <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span></h1>
         <div class="sub">Telemetría y control de enchufes Wi-Fi</div>
       </div>
-      <span class="spacer"></span>
-      <div class="hright">
-        <div class="status" id="status" role="status">
-          <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
-          <span class="when" id="statusWhen"></span>
-        </div>
-        <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
-          <span>Ajustes y enchufes</span></button>
-      </div>
     </div>
-    <div class="kpis" aria-label="Resumen de los enchufes">
-      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
-        <div><div class="l">Potencia ahora</div><div class="v num" id="kPower">—</div><div class="s" id="kPowerS"></div></div></div>
-      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-        <div><div class="l">Energía hoy</div><div class="v num" id="kToday">—</div><div class="s" id="kTodayS">desde las 00:00</div></div></div>
-      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><path d="M12 19.5v.01"/></svg></span>
-        <div><div class="l">En línea</div><div class="v num" id="kOnline">—</div><div class="s" id="kOnlineS"></div></div></div>
-      <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></span>
-        <div><div class="l">Encendidos</div><div class="v num" id="kOn">—</div><div class="s" id="kOnS"></div></div></div>
+    <span class="spacer"></span>
+    <div class="status" id="status" role="status">
+      <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
+      <span class="when" id="statusWhen"></span>
     </div>
+    <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+      <span>Ajustes y enchufes</span></button>
   </div>
 </header>
 
 <main class="wrap">
   <div id="simBanner" class="banner" hidden role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><span id="simText">Modo simulación: los datos no proceden de enchufes reales.</span></div>
+  <div class="kpis" aria-label="Resumen de los enchufes">
+    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
+      <div><div class="l">Potencia ahora</div><div class="v num" id="kPower">—</div><div class="s" id="kPowerS"></div></div></div>
+    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <div><div class="l">Energía hoy</div><div class="v num" id="kToday">—</div><div class="s" id="kTodayS">desde las 00:00</div></div></div>
+    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><path d="M12 19.5v.01"/></svg></span>
+      <div><div class="l">En línea</div><div class="v num" id="kOnline">—</div><div class="s" id="kOnlineS"></div></div></div>
+    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></span>
+      <div><div class="l">Encendidos</div><div class="v num" id="kOn">—</div><div class="s" id="kOnS"></div></div></div>
+  </div>
+  <div class="sec-h"><h2>Enchufes</h2><span>Pulsa una ficha para ver solo ese enchufe</span></div>
   <section class="grid" id="cards" aria-label="Enchufes"></section>
 
   <section class="panel" id="chartPanel">
@@ -288,7 +294,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 12:51</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:17</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
