@@ -645,16 +645,21 @@ $SUDO install -m 644 "$tmp_json" "$DESTINO/apps.json"
 rm -f "$tmp_json"
 log "Catálogo generado: $DESTINO/apps.json ($(jq '.apps|length' "$DESTINO/apps.json") apps)"
 
-# Página de entrada: plantilla index.html junto a este script (portal visual)
-PLANTILLA="$(dirname "$SCRIPT_ABS")/index.html"
-# Si no está junto al script, se usa la del repo code ya clonado
-if [ ! -f "$PLANTILLA" ] && [ -f "$ORIGEN/code/scripts/instalar-todo/index.html" ]; then PLANTILLA="$ORIGEN/code/scripts/instalar-todo/index.html"; fi
+# Página de entrada (portal visual). Se prefiere la plantilla del repo code recién
+# clonado/actualizado; la que haya junto al script (p. ej. una copia antigua en
+# ~/linux/github) solo se usa si el repo no está disponible.
+PLANTILLA_REPO="$ORIGEN/code/scripts/instalar-todo/index.html"
+PLANTILLA_LOCAL="$(dirname "$SCRIPT_ABS")/index.html"
+if [ -f "$PLANTILLA_REPO" ]; then PLANTILLA="$PLANTILLA_REPO"; else PLANTILLA="$PLANTILLA_LOCAL"; fi
+if [ -f "$PLANTILLA_REPO" ] && [ -f "$PLANTILLA_LOCAL" ] && ! cmp -s "$PLANTILLA_REPO" "$PLANTILLA_LOCAL"; then
+  log "AVISO: el index.html junto al script ($PLANTILLA_LOCAL) es distinto del del repo; se usa el del repo"
+fi
 if [ "$INDICE" -eq 1 ] && [ -f "$PLANTILLA" ]; then
   $SUDO install -m 644 "$PLANTILLA" "$DESTINO/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do
     if [ -f "$(dirname "$PLANTILLA")/$_f" ]; then $SUDO install -m 644 "$(dirname "$PLANTILLA")/$_f" "$DESTINO/$_f"; fi
   done
-  log "Portal instalado: $DESTINO/index.html"
+  log "Portal instalado: $DESTINO/index.html (plantilla: $PLANTILLA)"
 elif [ "$INDICE" -eq 1 ]; then
   log "AVISO: no se encontró la plantilla $PLANTILLA; se genera un índice simple"
   tmp="$(mktemp)"
