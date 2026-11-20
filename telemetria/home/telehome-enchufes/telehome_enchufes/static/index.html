@@ -45,12 +45,12 @@ main.wrap { padding-top:22px; padding-bottom:12px; }
 /* ===================== Contador (parte superior) ===================== */
 .meter { background:var(--meter); color:var(--meter-ink); border:1px solid var(--meter-line); border-radius:22px; padding:22px 30px 30px; }
 .m-top { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-.brand { display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 auto; }
-.logo { width:40px; height:40px; border-radius:12px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:inset 0 1px 0 rgba(255,255,255,.28); display:grid; place-items:center; flex:none; }
-.logo svg { width:22px; height:22px; }
+.brand { display:flex; align-items:center; gap:16px; min-width:0; flex:1 1 auto; }
+.logo { width:52px; height:52px; border-radius:15px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:inset 0 1px 0 rgba(255,255,255,.28); display:grid; place-items:center; flex:none; }
+.logo svg { width:28px; height:28px; }
 .brand .ttl { min-width:0; }
-.brand h1 { margin:0; font-size:18px; font-weight:650; letter-spacing:-.015em; line-height:1.25; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.brand .sub { font-size:13px; color:var(--meter-mut); line-height:1.3; }
+.brand h1 { margin:0; font-size:28px; font-weight:700; letter-spacing:-.025em; line-height:1.15; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.brand .sub { font-size:14.5px; color:var(--meter-mut); line-height:1.35; margin-top:2px; }
 .mode-badge { font-size:12px; font-weight:650; color:#ffd98a; background:rgba(255,196,77,.12); border:1px solid rgba(255,196,77,.38); border-radius:999px; padding:1px 10px; }
 .status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--meter-line); border-radius:999px; background:rgba(255,255,255,.06); font-size:13.5px; line-height:1.2; white-space:nowrap; }
 .status .st { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
@@ -229,7 +229,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   .wrap { padding:0 12px; }
   main.wrap { padding-top:12px; }
   .meter { padding:16px 16px 24px; border-radius:18px; }
-  .brand h1 { font-size:16.5px; } .brand .sub { display:none; } .logo { width:36px; height:36px; border-radius:10px; } .logo svg { width:20px; height:20px; }
+  .brand { gap:12px; } .brand h1 { font-size:22px; } .brand .sub { display:none; } .logo { width:42px; height:42px; border-radius:12px; } .logo svg { width:24px; height:24px; }
   .brand { flex:1 1 0; } .hbtn { order:2; } .status { order:3; flex:1 0 100%; padding:0; border:none; background:none; } .status .when { display:none; }
   .hbtn span { display:none; } .hbtn { padding:0 11px; }
   .m-body { margin-top:24px; gap:26px; }
@@ -319,7 +319,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:37</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:41</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
