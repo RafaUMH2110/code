@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.3.2): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.4.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -11,8 +11,9 @@ Cada enchufe se lee en **modo local** (misma red) o en **modo nube** (API de Tuy
 - Energía (kWh) de hoy y por intervalo, disponibilidad, gráficas de 1 h a 30 días y exportación a CSV.
 - **Modo local**: habla con los enchufes por la LAN (protocolo local de Tuya vía [TinyTuya](https://github.com/jasonacox/tinytuya)).
 - **Modo nube**: lee y conmuta a través de la API de Tuya IoT, sin estar en la red de los enchufes (p. ej. en una VM de Azure).
-- Interfaz web (un solo HTML, sin librerías externas) servida en `127.0.0.1`, con contraseña opcional: resumen con potencia
-  total, energía de hoy y enchufes en línea; una tarjeta por enchufe con minigráfica e interruptor; gráfica de potencia,
+- Interfaz web (un solo HTML, sin librerías externas) servida en `127.0.0.1`, con contraseña opcional: un contador arriba con la
+  potencia total, su reparto por enchufe y la energía de hoy en cifras de contador; una lista de enchufes con barra de carga,
+  minigráfica e interruptor (la gráfica empieza en la primera lectura si hay menos histórico que el intervalo); gráfica de potencia,
   tensión o corriente (1 h a 30 días) con valores al pasar el ratón o el dedo; tabla resumen con totales; ajustes por
   pestañas (Enchufes, Nube de Tuya, Buscar e importar, Opciones); modo oscuro automático.
 

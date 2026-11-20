@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TeleHome Enchufes</title>
 <meta name="description" content="Telemetría y control de enchufes Wi-Fi Energeeks (Tuya): potencia, tensión, corriente, energía, histórico y gráficas.">
-<meta name="theme-color" content="#0f2240">
+<meta name="theme-color" content="#0d1b26">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231656a3'/%3E%3Cpath d='M17.5 5 9 18h6.2l-1.4 9L23 13.6h-6.3z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
 /* ===================== Colores y tipografía ===================== */
 :root {
   color-scheme: light dark;
-  --page:#f3f6fa; --surface:#ffffff; --sunk:#f6f8fb; --ink:#0f1b2d; --ink2:#4f5d70; --muted:#8592a3;
-  --grid:#e6ebf1; --axis:#c7d0db; --border:#dde4ec; --border-strong:#c9d3df;
-  --brand:#1656a3; --brand-2:#0f2240; --accent:#1d6fd1; --on-accent:#fff;
-  --good:#12a150; --good-soft:#e5f6ec; --critical:#d03b3b; --critical-soft:#fdecec; --warn-bg:#fff6dc; --warn-ink:#7a5600;
-  --shadow:0 1px 2px rgba(15,34,64,.05), 0 8px 24px rgba(15,34,64,.06);
+  --page:#eceff2; --surface:#fbfcfd; --sunk:#f1f4f6; --ink:#101c26; --ink2:#46535f; --muted:#6f7c88;
+  --grid:#e3e8ec; --axis:#c3ccd4; --border:#d6dde3; --border-strong:#bcc7d1;
+  --accent:#1d63c8; --btn:#2467cf; --on-accent:#fff;
+  --good:#128a49; --good-soft:#dff3e8; --critical:#c33a3a; --critical-soft:#fbe9e9; --warn-bg:#fff4d6; --warn-ink:#765200;
+  --meter:#0d1b26; --meter-2:#16293a; --meter-line:rgba(255,255,255,.12); --meter-ink:#eaf2fa; --meter-mut:#93a8bb;
   --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#eda100;
   --series-5:#e87ba4; --series-6:#008300; --series-7:#6250d6;
   --font: -apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI",system-ui,Roboto,"Helvetica Neue",sans-serif;
@@ -23,11 +23,11 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --page:#0b1220; --surface:#121b2b; --sunk:#0f1726; --ink:#e8eef7; --ink2:#a9b6c8; --muted:#7c8a9e;
-    --grid:#1f2a3c; --axis:#2c3a50; --border:#223049; --border-strong:#2e3e5a;
-    --brand:#5b9bf0; --brand-2:#060c17; --accent:#4f8fe8;
-    --good:#2fbf6c; --good-soft:#123222; --critical:#ef6060; --critical-soft:#3a1717; --warn-bg:#352a0c; --warn-ink:#f1cf7a;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+    --page:#080f15; --surface:#101a23; --sunk:#0c141b; --ink:#e5ecf2; --ink2:#a2b0bd; --muted:#8190a0;
+    --grid:#1a2631; --axis:#2a3a49; --border:#1f2d3a; --border-strong:#2c3d4e;
+    --accent:#6aa5f5; --btn:#2467cf;
+    --good:#34c273; --good-soft:#12301f; --critical:#ef6666; --critical-soft:#3a1717; --warn-bg:#352a0c; --warn-ink:#f1cf7a;
+    --meter:#11222f; --meter-2:#1b3346; --meter-line:rgba(255,255,255,.1);
     --series-1:#3987e5; --series-2:#d95926; --series-3:#199e70; --series-4:#c98500;
     --series-5:#d55181; --series-6:#0ca30c; --series-7:#9085e9;
   }
@@ -39,73 +39,84 @@ body { margin:0; background:var(--page); color:var(--ink); font:15px/1.5 var(--f
 button, select, input { font:inherit; color:inherit; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
 .num { font-variant-numeric:tabular-nums; }
+.wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
+main.wrap { padding-top:22px; padding-bottom:12px; }
 
-/* ===================== Cabecera ===================== */
-.wrap { max-width:1200px; margin:0 auto; padding:0 24px; }
-.top { position:sticky; top:0; z-index:20; background:color-mix(in srgb,var(--surface) 90%,transparent); -webkit-backdrop-filter:saturate(1.5) blur(12px); backdrop-filter:saturate(1.5) blur(12px);
-  border-bottom:1px solid var(--border); padding-top:env(safe-area-inset-top); }
-.hbar { display:flex; align-items:center; gap:16px; min-height:68px; }
-.brand { display:flex; align-items:center; gap:12px; min-width:0; }
-.logo { width:40px; height:40px; border-radius:12px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:0 4px 12px rgba(22,86,163,.35), inset 0 1px 0 rgba(255,255,255,.28); display:grid; place-items:center; flex:none; }
+/* ===================== Contador (parte superior) ===================== */
+.meter { background:var(--meter); color:var(--meter-ink); border:1px solid var(--meter-line); border-radius:22px; padding:22px 30px 30px; }
+.m-top { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.brand { display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 auto; }
+.logo { width:40px; height:40px; border-radius:12px; background:linear-gradient(145deg,#2a78d6,#1656a3); box-shadow:inset 0 1px 0 rgba(255,255,255,.28); display:grid; place-items:center; flex:none; }
 .logo svg { width:22px; height:22px; }
 .brand .ttl { min-width:0; }
-.brand h1 { margin:0; font-size:19px; font-weight:750; letter-spacing:-.02em; line-height:1.2; display:flex; align-items:center; gap:10px; flex-wrap:wrap; color:var(--ink); }
-.mode-badge { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--warn-ink); background:var(--warn-bg); border:1px solid color-mix(in srgb,var(--warn-ink) 30%,transparent); border-radius:999px; padding:1px 9px; }
-.brand .sub { font-size:13px; color:var(--ink2); line-height:1.3; }
-.hbar .spacer { flex:1; }
-.status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--border); border-radius:999px; background:var(--sunk); font-size:13.5px; line-height:1.2; white-space:nowrap; }
-.status .st { display:inline-flex; align-items:center; gap:8px; font-weight:650; }
-.status .when { color:var(--ink2); font-variant-numeric:tabular-nums; padding-left:8px; border-left:1px solid var(--border-strong); }
+.brand h1 { margin:0; font-size:18px; font-weight:650; letter-spacing:-.015em; line-height:1.25; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.brand .sub { font-size:13px; color:var(--meter-mut); line-height:1.3; }
+.mode-badge { font-size:12px; font-weight:650; color:#ffd98a; background:rgba(255,196,77,.12); border:1px solid rgba(255,196,77,.38); border-radius:999px; padding:1px 10px; }
+.status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--meter-line); border-radius:999px; background:rgba(255,255,255,.06); font-size:13.5px; line-height:1.2; white-space:nowrap; }
+.status .st { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
+.status .when { color:var(--meter-mut); font-variant-numeric:tabular-nums; padding-left:8px; border-left:1px solid var(--meter-line); }
 .status .when:empty { display:none; }
-.status .dot { width:9px; height:9px; }
-.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px; border-radius:10px; border:1px solid transparent; background:var(--accent); color:var(--on-accent); font-weight:650; font-size:14px; cursor:pointer; transition:filter .15s, transform .15s; box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 35%,transparent); }
-.hbtn:hover { filter:brightness(1.08); }
-.hbtn:active { transform:translateY(1px); }
+.status .dot { box-shadow:none; }
+.hbtn { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:var(--btn); color:#fff; font-weight:600; font-size:14px; cursor:pointer; transition:filter .15s; }
+.hbtn:hover { filter:brightness(1.12); }
 .hbtn svg { width:18px; height:18px; }
+.meter .banner { display:flex; gap:10px; align-items:flex-start; margin-top:18px; padding:9px 13px; border-radius:11px; font-size:13.5px; color:#ffdf9c; background:rgba(255,196,77,.1); border:1px solid rgba(255,196,77,.28); }
+.meter .banner svg { flex:none; width:18px; height:18px; margin-top:2px; }
 
-main.wrap { padding-top:28px; padding-bottom:12px; }
+.m-body { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:34px 64px; margin-top:34px; align-items:end; }
+.m-label { font-size:14px; color:var(--meter-mut); margin-bottom:6px; }
+.m-num { font-size:clamp(64px,10vw,116px); font-weight:300; letter-spacing:-.045em; line-height:1; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.m-num small { font-size:.28em; font-weight:400; color:var(--meter-mut); margin-left:.2em; letter-spacing:0; }
+.m-split { display:flex; gap:3px; height:12px; border-radius:6px; overflow:hidden; background:rgba(255,255,255,.08); margin-top:26px; }
+.m-split i { display:block; background:var(--c); min-width:6px; transition:flex-grow .5s; }
+.m-leg { list-style:none; margin:13px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:6px 22px; font-size:13.5px; }
+.m-leg li { display:inline-flex; align-items:center; gap:8px; }
+.m-leg .sw { width:10px; height:10px; border-radius:3px; background:var(--c); flex:none; }
+.m-leg .mut { color:var(--meter-mut); font-variant-numeric:tabular-nums; }
+.m-leg li.none .mut { color:var(--meter-mut); }
 
-/* Indicadores: cuatro tarjetas independientes, separadas de la cabecera */
-.kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-bottom:32px; }
-.kpi { display:flex; gap:14px; align-items:center; padding:16px 18px; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
-.ki { flex:none; width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--accent); }
-.ki svg { width:22px; height:22px; }
-.kpi > div { min-width:0; }
-.kpi .l { font-size:13px; color:var(--ink2); font-weight:600; }
-.kpi .v { font-size:28px; font-weight:750; letter-spacing:-.025em; line-height:1.15; margin-top:1px; white-space:nowrap; color:var(--ink); }
-.kpi .v small { font-size:14px; font-weight:500; color:var(--ink2); margin-left:4px; letter-spacing:0; }
-.kpi .s { font-size:12.5px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.kpi .s.warn { color:var(--critical); }
-.sec-h { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; }
-.sec-h h2 { margin:0; font-size:18px; font-weight:700; letter-spacing:-.015em; }
+/* Contador de energía: las cifras decimales van invertidas, como en un contador real */
+.odo { display:inline-flex; align-items:center; gap:4px; font-size:clamp(34px,5vw,48px); }
+.odo i { font-style:normal; display:grid; place-items:center; width:.8em; height:1.3em; font-size:1em; font-weight:500; line-height:1; background:var(--meter-2); border:1px solid var(--meter-line); border-radius:6px; font-variant-numeric:tabular-nums; box-shadow:inset 0 -12px 14px -12px rgba(0,0,0,.55); }
+.odo i.d { background:#e8eff6; color:#0d1b26; border-color:transparent; }
+.odo b { font-weight:600; align-self:flex-end; margin:0 1px 6px; font-size:.7em; color:var(--meter-mut); }
+.odo .u { font-size:.34em; font-weight:500; color:var(--meter-mut); margin-left:10px; align-self:flex-end; margin-bottom:8px; }
+.m-sub { font-size:13px; color:var(--meter-mut); margin-top:10px; }
+.m-chips { display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:20px; font-size:13.5px; color:var(--meter-mut); }
+.m-chips b { color:var(--meter-ink); font-weight:600; }
+.m-chips .warn { color:#ffb4b4; }
+.m-chips .warn:empty { display:none; }
+
+/* ===================== Enchufes (lista) ===================== */
+.sec-h { display:flex; align-items:baseline; justify-content:space-between; gap:4px 14px; flex-wrap:wrap; margin:40px 0 12px; }
+.sec-h h2 { margin:0; font-size:18px; font-weight:650; letter-spacing:-.015em; }
 .sec-h span { font-size:13px; color:var(--muted); }
-.banner { display:flex; gap:10px; align-items:flex-start; background:var(--warn-bg); color:var(--warn-ink); border:1px solid var(--border); border-radius:12px; padding:10px 14px; margin-bottom:16px; font-size:14px; box-shadow:var(--shadow); }
-.banner svg { flex:none; width:18px; height:18px; margin-top:2px; }
-
-/* ===================== Tarjetas de enchufe ===================== */
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px; }
-.card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px 18px 14px; cursor:pointer; position:relative; box-shadow:var(--shadow);
-  transition:transform .15s, border-color .15s, box-shadow .15s; overflow:hidden; }
-.card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c); }
-.card:hover { transform:translateY(-2px); border-color:var(--border-strong); }
-.card.sel { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent), var(--shadow); }
-.card .hd { display:flex; align-items:center; gap:8px; }
-.card h3 { margin:0; font-size:15.5px; font-weight:650; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex:1; min-width:0; }
-.card .hd { align-items:flex-start; }
-.tag { font-size:11px; font-weight:600; color:var(--ink2); background:var(--sunk); border:1px solid var(--border); border-radius:6px; padding:1px 6px; flex:none; }
-.pill { font-size:12.5px; color:var(--ink2); display:inline-flex; align-items:center; gap:6px; flex:none; }
-.dot { width:9px; height:9px; border-radius:50%; background:var(--good); display:inline-block; box-shadow:0 0 0 3px var(--good-soft); }
+.plugs { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+.plug { position:relative; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(130px,.85fr) 128px minmax(0,1.35fr) auto; grid-template-areas:"id pow spark meta sw";
+  align-items:center; gap:8px 26px; padding:18px 24px 18px 30px; cursor:pointer; border-top:1px solid var(--grid); }
+.plug:first-child { border-top:none; }
+.plug::before { content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--c); transition:width .15s; }
+.plug:hover { background:var(--sunk); }
+.plug.sel { background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }
+.plug.sel::before { width:10px; }
+.p-id { grid-area:id; min-width:0; }
+.p-id h3 { margin:0; font-size:16px; font-weight:650; letter-spacing:-.01em; line-height:1.3; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.p-state { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink2); margin-top:3px; }
+.p-state .on { color:var(--good); font-weight:600; }
+.p-pow { grid-area:pow; }
+.power { font-size:30px; font-weight:350; letter-spacing:-.03em; line-height:1; }
+.power small { font-size:14px; font-weight:500; color:var(--ink2); margin-left:4px; letter-spacing:0; }
+.loadbar { height:4px; border-radius:2px; background:var(--grid); margin-top:10px; overflow:hidden; }
+.loadbar i { display:block; height:100%; background:var(--c); width:var(--w,0%); transition:width .5s; }
+.p-spark { grid-area:spark; }
+.spark { width:128px; height:36px; display:block; overflow:visible; }
+.p-meta { grid-area:meta; display:flex; gap:4px 22px; flex-wrap:wrap; font-size:13px; color:var(--ink2); }
+.p-meta b { color:var(--ink); font-weight:600; }
+.p-sw { grid-area:sw; justify-self:end; }
+.plug .err { grid-column:1/-1; margin:0; }
+.dot { width:9px; height:9px; border-radius:50%; background:var(--good); display:inline-block; box-shadow:0 0 0 3px var(--good-soft); flex:none; }
 .dot.off { background:var(--critical); box-shadow:0 0 0 3px var(--critical-soft); }
 .dot.wait { background:var(--muted); box-shadow:none; }
-.card .mid { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin:10px 0 4px; }
-.power { font-size:36px; font-weight:750; letter-spacing:-.03em; line-height:1; }
-.power small { font-size:15px; font-weight:500; color:var(--ink2); margin-left:4px; letter-spacing:0; }
-.spark { width:112px; height:38px; flex:none; overflow:visible; }
-.meta { display:flex; gap:16px; color:var(--ink2); font-size:13px; flex-wrap:wrap; margin-top:6px; }
-.meta b { color:var(--ink); font-weight:600; }
-.card .ft { display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:10px; border-top:1px solid var(--grid); }
-.state-txt { font-size:13px; font-weight:600; color:var(--ink2); }
-.state-txt.on { color:var(--good); }
 .err { color:var(--critical); font-size:12.5px; margin-top:8px; line-height:1.4; max-height:4.2em; overflow:auto; }
 .err:empty { display:none; }
 /* Interruptor: área táctil ampliada con borde transparente */
@@ -116,27 +127,26 @@ main.wrap { padding-top:28px; padding-bottom:12px; }
 .switch:disabled { opacity:.4; cursor:not-allowed; }
 .switch.busy::after { animation:pulse .8s ease-in-out infinite alternate; }
 @keyframes pulse { to { transform:scale(.8); } }
-.empty-card { grid-column:1/-1; text-align:center; padding:42px 20px; background:var(--surface); border:1px dashed var(--border-strong); border-radius:16px; color:var(--ink2); }
+.empty-card { text-align:center; padding:44px 20px; color:var(--ink2); }
 .empty-card h3 { margin:0 0 6px; color:var(--ink); font-size:18px; }
 
 /* ===================== Paneles ===================== */
-.panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; margin-top:20px; box-shadow:var(--shadow); }
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 22px; margin-top:20px; }
 .panel-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-.panel-h h2 { font-size:17px; margin:0; font-weight:700; letter-spacing:-.01em; flex:1; min-width:180px; }
+.panel-h h2 { font-size:17px; margin:0; font-weight:650; letter-spacing:-.01em; flex:1; min-width:180px; }
 .panel-h h2 small { font-weight:500; color:var(--ink2); font-size:14px; }
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--border); background:var(--surface); border-radius:10px; min-height:36px; padding:0 14px; cursor:pointer; font-weight:600; font-size:14px; }
 .btn:hover { background:var(--sunk); border-color:var(--border-strong); }
 .btn svg { width:16px; height:16px; }
-.btn.primary { background:var(--accent); color:var(--on-accent); border-color:transparent; }
-.btn.primary:hover { filter:brightness(1.07); background:var(--accent); }
+.btn.primary { background:var(--btn); color:#fff; border-color:transparent; }
+.btn.primary:hover { filter:brightness(1.1); background:var(--btn); }
 .btn.danger { color:var(--critical); }
 .btn:disabled { opacity:.45; cursor:not-allowed; }
 .seg { display:inline-flex; background:var(--sunk); border:1px solid var(--border); border-radius:11px; padding:3px; gap:2px; }
 .seg button { border:none; background:transparent; padding:0 12px; min-height:30px; border-radius:8px; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--ink2); }
 .seg button:hover { color:var(--ink); }
-.seg button[aria-pressed="true"] { background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(15,34,64,.15); }
+.seg button[aria-pressed="true"] { background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(15,34,64,.18); }
 .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:10px; }
-.toolbar .spacer { flex:1; }
 .legend { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px; }
 .legend button { background:var(--sunk); border:1px solid var(--border); border-radius:999px; padding:3px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--ink); min-height:30px; }
 .legend button[aria-pressed="false"] { opacity:.45; text-decoration:line-through; }
@@ -150,12 +160,14 @@ main.wrap { padding-top:28px; padding-bottom:12px; }
 .tip .r b { font-weight:650; min-width:70px; text-align:right; font-variant-numeric:tabular-nums; }
 .tip .r span.n { color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .chart-empty { padding:56px 10px; text-align:center; color:var(--ink2); }
+.note { font-size:13px; color:var(--ink2); margin:0 0 6px; padding:7px 12px; background:var(--sunk); border-radius:9px; }
+.note:empty { display:none; }
 .hint { color:var(--ink2); font-size:13px; margin:6px 0 0; }
 .tbl { overflow-x:auto; }
 table { border-collapse:collapse; width:100%; font-size:14px; }
-th, td { text-align:right; padding:10px 10px; border-bottom:1px solid var(--grid); white-space:nowrap; }
+th, td { text-align:right; padding:11px 10px; border-bottom:1px solid var(--grid); white-space:nowrap; }
 th:first-child, td:first-child { text-align:left; }
-th { color:var(--ink2); font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; }
+th { color:var(--ink2); font-weight:600; font-size:13px; }
 tbody tr { cursor:pointer; }
 tbody tr:hover td { background:var(--sunk); }
 tbody tr.sel td { background:color-mix(in srgb,var(--accent) 9%,transparent); }
@@ -163,7 +175,7 @@ tfoot td { font-weight:700; border-bottom:none; border-top:2px solid var(--borde
 .bar { display:inline-block; vertical-align:middle; height:6px; border-radius:3px; background:var(--c); margin-left:8px; opacity:.85; }
 
 /* ===================== Pie ===================== */
-footer.pie { color:var(--muted); font-size:12.5px; text-align:center; padding:26px 24px calc(env(safe-area-inset-bottom) + 30px); line-height:1.7; }
+footer.pie { color:var(--muted); font-size:12.5px; text-align:center; padding:30px 24px calc(env(safe-area-inset-bottom) + 30px); line-height:1.7; }
 footer.pie a { color:inherit; }
 footer.pie p { margin:0; }
 
@@ -206,57 +218,69 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 .toast button { border:none; background:transparent; color:#fff; opacity:.8; cursor:pointer; font-size:18px; line-height:1; padding:0 2px; }
 
 @media (max-width:900px) {
-  .kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .brand .sub { display:none; }
+  .m-body { grid-template-columns:1fr; gap:30px; }
+}
+@media (max-width:760px) {
+  .plug { grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"id sw" "pow spark" "meta meta"; gap:12px 16px; padding:16px 16px 16px 22px; }
+  .spark { width:112px; }
+  .p-spark { justify-self:end; }
 }
 @media (max-width:640px) {
-  .wrap { padding:0 14px; }
-  .hbar { min-height:60px; gap:10px; }
-  .brand h1 { font-size:17px; } .logo { width:36px; height:36px; border-radius:10px; } .logo svg { width:20px; height:20px; }
-  .status { padding:6px 11px; } .status .when { display:none; }
+  .wrap { padding:0 12px; }
+  main.wrap { padding-top:12px; }
+  .meter { padding:16px 16px 24px; border-radius:18px; }
+  .brand h1 { font-size:16.5px; } .brand .sub { display:none; } .logo { width:36px; height:36px; border-radius:10px; } .logo svg { width:20px; height:20px; }
+  .brand { flex:1 1 0; } .hbtn { order:2; } .status { order:3; flex:1 0 100%; padding:0; border:none; background:none; } .status .when { display:none; }
   .hbtn span { display:none; } .hbtn { padding:0 11px; }
-  main.wrap { padding-top:18px; } .kpis { gap:10px; margin-bottom:24px; }
-  .kpi { padding:12px; gap:10px; border-radius:14px; } .ki { display:none; } .kpi .v { font-size:23px; } form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
+  .m-body { margin-top:24px; gap:26px; }
+  .odo { gap:3px; }
+  .sec-h { margin-top:30px; }
+  form.f { grid-template-columns:1fr; } details .adv { grid-template-columns:1fr 1fr; }
   .panel { padding:16px 14px; } #chart { height:280px; }
 }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="wrap hbar">
-    <div class="brand">
-      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.2 2.5 5 14.2h5.9L9.6 21.5 19 9.4h-6z"/></svg></span>
-      <div class="ttl">
-        <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span></h1>
-        <div class="sub">Telemetría y control de enchufes Wi-Fi</div>
+<main class="wrap">
+  <section class="meter" aria-label="Consumo total">
+    <div class="m-top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.2 2.5 5 14.2h5.9L9.6 21.5 19 9.4h-6z"/></svg></span>
+        <div class="ttl">
+          <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span></h1>
+          <div class="sub">Telemetría y control de enchufes Wi-Fi</div>
+        </div>
+      </div>
+      <div class="status" id="status" role="status">
+        <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
+        <span class="when" id="statusWhen"></span>
+      </div>
+      <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+        <span>Ajustes y enchufes</span></button>
+    </div>
+    <div id="simBanner" class="banner" hidden role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><span id="simText">Modo simulación: los datos no proceden de enchufes reales.</span></div>
+    <div class="m-body">
+      <div>
+        <div class="m-label">Potencia ahora</div>
+        <div class="m-num num" id="kPower">—</div>
+        <div class="m-split" id="split" aria-hidden="true"></div>
+        <ul class="m-leg" id="splitLeg" aria-label="Reparto del consumo por enchufe"></ul>
+      </div>
+      <div>
+        <div class="m-label">Energía hoy</div>
+        <div class="odo" id="kToday" role="img" aria-label="Energía hoy"></div>
+        <div class="m-sub" id="kTodayS">acumulada desde las 00:00</div>
+        <div class="m-chips">
+          <span id="kOnline"></span><span id="kOn"></span><span class="warn" id="kOnlineS"></span>
+        </div>
       </div>
     </div>
-    <span class="spacer"></span>
-    <div class="status" id="status" role="status">
-      <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
-      <span class="when" id="statusWhen"></span>
-    </div>
-    <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
-      <span>Ajustes y enchufes</span></button>
-  </div>
-</header>
+  </section>
 
-<main class="wrap">
-  <div id="simBanner" class="banner" hidden role="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg><span id="simText">Modo simulación: los datos no proceden de enchufes reales.</span></div>
-  <div class="kpis" aria-label="Resumen de los enchufes">
-    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
-      <div><div class="l">Potencia ahora</div><div class="v num" id="kPower">—</div><div class="s" id="kPowerS"></div></div></div>
-    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-      <div><div class="l">Energía hoy</div><div class="v num" id="kToday">—</div><div class="s" id="kTodayS">desde las 00:00</div></div></div>
-    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><path d="M12 19.5v.01"/></svg></span>
-      <div><div class="l">En línea</div><div class="v num" id="kOnline">—</div><div class="s" id="kOnlineS"></div></div></div>
-    <div class="kpi"><span class="ki" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></svg></span>
-      <div><div class="l">Encendidos</div><div class="v num" id="kOn">—</div><div class="s" id="kOnS"></div></div></div>
-  </div>
-  <div class="sec-h"><h2>Enchufes</h2><span>Pulsa una ficha para ver solo ese enchufe</span></div>
-  <section class="grid" id="cards" aria-label="Enchufes"></section>
+  <div class="sec-h"><h2>Enchufes</h2><span>Pulsa un enchufe para ver solo ese en el histórico</span></div>
+  <section class="plugs" id="cards" aria-label="Enchufes"></section>
 
   <section class="panel" id="chartPanel">
     <div class="panel-h">
@@ -269,12 +293,13 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
       <div class="seg" id="metricGrp" role="group" aria-label="Magnitud"></div>
     </div>
     <div class="legend" id="legend" role="group" aria-label="Series visibles"></div>
+    <p class="note" id="chartNote"></p>
     <div id="chartWrap">
       <svg id="chart" tabindex="0" role="img" aria-label="Gráfica de telemetría"></svg>
       <div class="tip" id="tip" hidden></div>
     </div>
     <div class="chart-empty" id="chartEmpty" hidden>Aún no hay datos en este intervalo. Las lecturas aparecerán aquí en cuanto lleguen.</div>
-    <p class="hint">Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa una tarjeta para ver solo ese enchufe.</p>
+    <p class="hint">Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa un enchufe de la lista para ver solo ese.</p>
   </section>
 
   <section class="panel">
@@ -294,7 +319,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:17</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:37</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -454,24 +479,35 @@ function toast(text, bad = false) {
   clearTimeout(toastT); toastT = setTimeout(() => { $("#toast").hidden = true; }, bad ? 12000 : 3500);
 }
 
-/* ---------- cabecera e indicadores ---------- */
-function renderHeader() {
+/* ---------- contador (potencia, reparto y energía) ---------- */
+function odometer(v) {
+  const box = $("#kToday"), [ent, dec] = (Math.round(v * 1000) / 1000).toFixed(3).split(".");
+  box.setAttribute("aria-label", fmt(v, 3) + " kilovatios hora hoy"); box.replaceChildren();
+  for (const ch of ent.padStart(3, "0")) box.append(el("i", { text: ch, "aria-hidden": "true" }));
+  box.append(el("b", { text: ",", "aria-hidden": "true" }));
+  for (const ch of dec) box.append(el("i", { class: "d", text: ch, "aria-hidden": "true" }));
+  box.append(el("span", { class: "u", text: "kWh", "aria-hidden": "true" }));
+}
+function renderMeter() {
   const devs = S.state.devices, online = devs.filter(d => d.reading && d.reading.online);
   const total = online.reduce((a, d) => a + (d.reading.power_w || 0), 0);
   const today = devs.reduce((a, d) => a + (d.energy_today_kwh || 0), 0);
   $("#kPower").replaceChildren(devs.length ? fmt(total, total < 100 ? 1 : 0) : "—", el("small", { text: "W" }));
-  $("#kToday").replaceChildren(devs.length ? fmt(today, 3) : "—", el("small", { text: "kWh" }));
-  $("#kOnline").replaceChildren(String(online.length), el("small", { text: "de " + devs.length }));
-  const encendidos = online.filter(d => d.reading.on);
-  $("#kOn").replaceChildren(String(encendidos.length), el("small", { text: "de " + devs.length }));
-  // Líneas secundarias: el detalle que ayuda a leer cada cifra
-  const mayor = online.slice().sort((a, b) => (b.reading.power_w || 0) - (a.reading.power_w || 0))[0];
-  $("#kPowerS").textContent = !devs.length ? "sin enchufes" : mayor && total > 0 ? "Mayor consumo: " + mayor.name : "ningún consumo ahora";
-  const caidos = devs.filter(d => !(d.reading && d.reading.online));
-  $("#kOnlineS").textContent = !devs.length ? "" : caidos.length ? "Sin conexión: " + caidos.map(d => d.name).join(", ") : "todos responden";
-  $("#kOnlineS").classList.toggle("warn", caidos.length > 0);
-  const apagados = online.filter(d => !d.reading.on);
-  $("#kOnS").textContent = !devs.length ? "" : apagados.length ? "Apagados: " + apagados.map(d => d.name).join(", ") : "todos encendidos";
+  odometer(today);
+  // Reparto del consumo: un tramo por enchufe que consume ahora
+  const act = online.filter(d => (d.reading.power_w || 0) > 0.05).sort((a, b) => b.reading.power_w - a.reading.power_w);
+  $("#split").replaceChildren(...act.map(d => el("i", { style: "--c:" + color(d) + ";flex:" + d.reading.power_w + " 1 0%" })));
+  const leg = $("#splitLeg"); leg.replaceChildren();
+  if (!devs.length) leg.append(el("li", { class: "none" }, el("span", { class: "mut", text: "Aún no hay enchufes configurados." })));
+  else if (!act.length) leg.append(el("li", { class: "none" }, el("span", { class: "mut", text: online.length ? "Ningún enchufe consume ahora." : "Ningún enchufe responde." })));
+  for (const d of act) leg.append(el("li", {}, el("span", { class: "sw", style: "--c:" + color(d) }), d.name,
+    el("span", { class: "mut", text: fmt(d.reading.power_w, 1) + " W · " + fmt(d.reading.power_w / total * 100, 0) + " %" })));
+  // Estado de los enchufes
+  const caidos = devs.filter(d => !(d.reading && d.reading.online)), enc = online.filter(d => d.reading.on);
+  $("#kOnline").replaceChildren(el("b", { text: online.length + " de " + devs.length }), " en línea");
+  $("#kOn").replaceChildren(el("b", { text: String(enc.length) }), enc.length === 1 ? " encendido" : " encendidos");
+  $("#kOnlineS").textContent = caidos.length ? "Sin conexión: " + caidos.map(d => d.name).join(", ") : "";
+  $("#kOnline").hidden = $("#kOn").hidden = !devs.length;
 }
 function setStatus(ok, text, when) {
   $("#status").querySelector(".dot").className = "dot" + (ok ? "" : " off");
@@ -479,18 +515,22 @@ function setStatus(ok, text, when) {
   $("#statusWhen").textContent = when || "";
 }
 
-/* ---------- tarjetas ---------- */
+/* ---------- lista de enchufes ---------- */
 function sparkline(d) {
   const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 112 38"); svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "spark"); svg.setAttribute("viewBox", "0 0 128 36"); svg.setAttribute("aria-hidden", "true");
   const pts = S.hist && S.hist.series[d.id] ? S.hist.series[d.id].filter(p => p.p != null) : [];
   if (pts.length < 2) return svg;
-  const t0 = S.hist.from, t1 = S.hist.to, hi = Math.max(...pts.map(p => p.p), 1);
-  const X = (t) => (t - t0) / (t1 - t0) * 110 + 1, Y = (v) => 35 - v / hi * 32;
+  // Empieza en la primera lectura: con poco histórico no deja la mayor parte del ancho vacía
+  const t0 = Math.max(S.hist.from, pts[0].t), t1 = S.hist.to, hi = Math.max(...pts.map(p => p.p), 1);
+  if (!(t1 > t0)) return svg;
+  const X = (t) => (t - t0) / (t1 - t0) * 126 + 1, Y = (v) => 33 - v / hi * 30;
   let line = "";
   pts.forEach((p, k) => { line += (k ? "L" : "M") + X(p.t).toFixed(1) + " " + Y(p.p).toFixed(1); });
-  const area = line + "L" + X(pts[pts.length - 1].t).toFixed(1) + " 36L" + X(pts[0].t).toFixed(1) + " 36Z";
-  svg.append(sv("path", { d: area, fill: color(d), opacity: ".12" }), sv("path", { d: line, fill: "none", stroke: color(d), "stroke-width": 1.6, "stroke-linejoin": "round" }));
+  const area = line + "L" + X(pts[pts.length - 1].t).toFixed(1) + " 34L" + X(pts[0].t).toFixed(1) + " 34Z";
+  svg.append(sv("line", { x1: 0, x2: 128, y1: 34.5, y2: 34.5, stroke: "var(--grid)", "stroke-width": 1 }),
+    sv("path", { d: area, fill: color(d), opacity: ".13" }),
+    sv("path", { d: line, fill: "none", stroke: color(d), "stroke-width": 1.6, "stroke-linejoin": "round" }));
   return svg;
 }
 
@@ -516,27 +556,34 @@ function renderCards() {
   }
   for (const d of devs) {
     const r = d.reading, online = !!(r && r.online), busy = S.busy.has(d.id);
-    const card = el("article", { class: "card" + (S.sel === d.id ? " sel" : ""), tabindex: "0", style: "--c:" + color(d),
+    const row = el("article", { class: "plug" + (S.sel === d.id ? " sel" : ""), tabindex: "0", style: "--c:" + color(d),
+      "aria-current": S.sel === d.id ? "true" : "false",
       "aria-label": d.name + (online ? ", " + fmt(r.power_w, 1) + " vatios" : ", sin conexión") + ". Pulsa para ver solo este enchufe en la gráfica." });
-    card.addEventListener("click", () => selectPlug(S.sel === d.id ? "all" : d.id));
-    card.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === card) { e.preventDefault(); card.click(); } });
+    row.addEventListener("click", () => selectPlug(S.sel === d.id ? "all" : d.id));
+    row.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); row.click(); } });
     const sw = el("button", { class: "switch" + (busy ? " busy" : ""), role: "switch", type: "button", "aria-label": "Alimentación de " + d.name,
       "aria-checked": String(!!(r && r.on)) });
     sw.disabled = !online || busy;
     sw.addEventListener("click", (e) => { e.stopPropagation(); togglePlug(d, sw); });
+    const modo = d.mode === "nube" ? "nube de Tuya" : "red local";
     const estado = online ? (r.on ? "Encendido" : "Apagado") : (r ? "Sin conexión" : "Conectando…");
-    card.append(
-      el("div", { class: "hd" }, el("h3", { text: d.name, title: d.name }),
-        el("span", { class: "tag", text: d.mode === "nube" ? "Nube" : "Local", title: d.mode === "nube" ? "Leído a través de la nube de Tuya" : "Leído en la red local" })),
-      el("div", { class: "mid" }, el("div", { class: "power num" }, online && r.power_w != null ? fmt(r.power_w, 1) : "—", el("small", { text: "W" })), sparkline(d)),
-      el("div", { class: "meta num" },
+    // Barra de carga: potencia actual frente al máximo del intervalo elegido
+    const pk = S.sum && S.sum.plugs[d.id] ? (S.sum.plugs[d.id].max_w || 0) : 0, pw = online ? (r.power_w || 0) : 0;
+    const frac = pw > 0 ? Math.min(100, pw / Math.max(pk, pw) * 100) : 0;
+    row.append(
+      el("div", { class: "p-id" }, el("h3", { text: d.name, title: d.name }),
+        el("div", { class: "p-state" }, el("span", { class: "dot" + (online ? "" : r ? " off" : " wait") }),
+          el("span", { class: online && r.on ? "on" : "", text: estado }), el("span", { text: "· " + modo }))),
+      el("div", { class: "p-pow" }, el("div", { class: "power num" }, online && r.power_w != null ? fmt(r.power_w, 1) : "—", el("small", { text: "W" })),
+        el("div", { class: "loadbar", style: "--w:" + frac.toFixed(1) + "%", title: "Potencia actual frente al máximo del intervalo", "aria-hidden": "true" }, el("i"))),
+      el("div", { class: "p-spark", title: "Potencia en el intervalo elegido" }, sparkline(d)),
+      el("div", { class: "p-meta num" },
         el("span", {}, el("b", { text: online ? fmt(r.voltage_v, 1) : "—" }), " V"),
         el("span", {}, el("b", { text: online ? fmt(r.current_a, 3) : "—" }), " A"),
         el("span", {}, "Hoy ", el("b", { text: fmt(d.energy_today_kwh, 3) }), " kWh")),
-      el("div", { class: "ft" }, el("span", { class: "pill" }, el("span", { class: "dot" + (online ? "" : r ? " off" : " wait"), title: online ? "En línea" : "Sin conexión" }),
-        el("span", { class: "state-txt" + (online && r.on ? " on" : ""), text: online ? estado + " · en línea" : estado })), sw),
+      el("div", { class: "p-sw" }, sw),
       el("div", { class: "err", text: !online && r && r.error ? r.error : "" }));
-    box.append(card);
+    box.append(row);
   }
 }
 
@@ -562,28 +609,36 @@ function visibleDevs() { return S.state.devices.filter(d => (S.sel === "all" || 
 
 function drawChart() {
   const svg = $("#chart"), H = svg.clientHeight || 330, W = Math.max(svg.clientWidth, 320);
-  svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+  svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + H); $("#chartNote").textContent = "";
   const hist = S.hist;
   if (!hist) { $("#chartEmpty").hidden = !(S.state && S.state.devices.length); svg.style.display = "none"; return; }
   const M = { l: 54, r: 16, t: 26, b: 28 }, iw = W - M.l - M.r, ih = H - M.t - M.b;
   const m = METRICS[S.metric], devs = visibleDevs();
   const bucket = Math.max(1, Math.ceil((hist.to - hist.from) / 400));
-  let lo = Infinity, hi = -Infinity, any = false;
-  for (const d of devs) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { any = true; lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+  let lo = Infinity, hi = -Infinity, any = false, minT = Infinity;
+  for (const d of devs) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { any = true; lo = Math.min(lo, v); hi = Math.max(hi, v); minT = Math.min(minT, p.t); } }
   $("#chartEmpty").hidden = any; svg.style.display = any ? "block" : "none";
   if (!any) return;
   if (m.zero) lo = 0; else { const padv = Math.max((hi - lo) * 0.15, 1); lo -= padv; hi += padv; }
   const ticks = niceTicks(lo, hi), y0 = ticks[0], y1 = ticks[ticks.length - 1];
-  const X = (t) => M.l + (t - hist.from) / (hist.to - hist.from) * iw;
+  // Si las lecturas empiezan bastante después del inicio del intervalo, el eje empieza en la primera lectura
+  const span0 = hist.to - hist.from;
+  const t0 = (minT - hist.from) > span0 * 0.06 ? Math.max(hist.from, minT - span0 * 0.01) : hist.from, span = hist.to - t0;
+  if (t0 > hist.from) {
+    const d0 = new Date(minT * 1000), hoy = d0.toDateString() === new Date(hist.to * 1000).toDateString();
+    $("#chartNote").textContent = "Hay lecturas desde " + (hoy ? "las " + tlabel(minT, false) : "el " + d0.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) +
+      "; el intervalo elegido es más largo que el histórico disponible, así que la gráfica empieza ahí.";
+  }
+  const X = (t) => M.l + (t - t0) / span * iw;
   const Y = (v) => M.t + ih - (v - y0) / (y1 - y0 || 1) * ih;
   const decT = m.dec > 1 && (y1 - y0) < 5 ? 2 : (y1 - y0) < 5 ? 1 : 0;
   for (const tv of ticks) {
     svg.append(sv("line", { x1: M.l, x2: W - M.r, y1: Y(tv), y2: Y(tv), stroke: tv === y0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
     svg.append(sv("text", { x: M.l - 10, y: Y(tv) + 4, "text-anchor": "end" }, fmt(tv, decT)));
   }
-  const withDate = (hist.to - hist.from) > 86400 * 1.2, nx = W < 520 ? 3 : 5;
+  const withDate = span > 86400 * 1.2, nx = W < 520 ? 3 : 5;
   for (let k = 0; k <= nx; k++) {
-    const t = hist.from + (hist.to - hist.from) * k / nx;
+    const t = t0 + span * k / nx;
     svg.append(sv("text", { x: M.l + iw * k / nx, y: H - 8, "text-anchor": k === 0 ? "start" : k === nx ? "end" : "middle" }, tlabel(t, withDate)));
   }
   svg.append(sv("text", { x: M.l - 10, y: 12, "text-anchor": "end", "font-weight": "600" }, m.unit));
@@ -614,7 +669,7 @@ function drawChart() {
     if (path) svg.append(sv("path", { d: path, fill: "none", stroke: color(d), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
     if (last) svg.append(sv("circle", { cx: X(last.t), cy: Y(last[S.metric]), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
   }
-  S.geo = { M, iw, ih, W, H, X, Y, bucket };
+  S.geo = { M, iw, ih, W, H, X, Y, bucket, t0 };
   svg.append(sv("line", { class: "cross", y1: M.t, y2: M.t + ih, stroke: "var(--ink2)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }));
   svg.append(sv("rect", { class: "hit", x: M.l, y: M.t, width: iw, height: ih, fill: "transparent" }));
   if (S.hover != null) showHover(S.hover);
@@ -623,7 +678,7 @@ function drawChart() {
 function showHover(t) {
   const g = S.geo, hist = S.hist; if (!g || !hist) return;
   const svg = $("#chart"), tip = $("#tip"), devs = visibleDevs();
-  t = Math.min(Math.max(t, hist.from), hist.to);
+  t = Math.min(Math.max(t, g.t0), hist.to);
   const rows = []; let snap = null, best = Infinity;
   for (const d of devs) {
     const pts = hist.series[d.id] || []; let near = null, nd = Infinity;
@@ -656,7 +711,7 @@ function clearHover() {
 function bindChart() {
   const svg = $("#chart");
   const tAt = (e) => { const r = svg.getBoundingClientRect(), g = S.geo; if (!g) return null;
-    const px = (e.clientX - r.left) * g.W / r.width; return S.hist.from + (px - g.M.l) / g.iw * (S.hist.to - S.hist.from); };
+    const px = (e.clientX - r.left) * g.W / r.width; return g.t0 + (px - g.M.l) / g.iw * (S.hist.to - g.t0); };
   svg.addEventListener("pointermove", (e) => { const t = tAt(e); if (t != null) showHover(t); });
   svg.addEventListener("pointerdown", (e) => { const t = tAt(e); if (t != null) showHover(t); });
   svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") clearHover(); });
@@ -666,7 +721,7 @@ function bindChart() {
     if (!S.geo || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
     e.preventDefault(); const step = S.geo.bucket * (e.shiftKey ? 10 : 1);
     let t = S.hover ?? S.hist.to;
-    t = e.key === "ArrowLeft" ? t - step : e.key === "ArrowRight" ? t + step : e.key === "Home" ? S.hist.from : S.hist.to;
+    t = e.key === "ArrowLeft" ? t - step : e.key === "ArrowRight" ? t + step : e.key === "Home" ? S.geo.t0 : S.hist.to;
     showHover(t);
   });
   let w = 0;
@@ -700,7 +755,7 @@ function renderFilters() {
   }
   const unico = S.sel !== "all" || S.state.devices.length === 1;
   $("#btnCsv").disabled = !unico;
-  $("#btnCsv").title = unico ? "Descargar las lecturas del enchufe seleccionado" : "Pulsa una tarjeta para elegir el enchufe que quieres exportar";
+  $("#btnCsv").title = unico ? "Descargar las lecturas del enchufe seleccionado" : "Pulsa un enchufe de la lista para elegir el que quieres exportar";
 }
 
 function renderSummary() {
@@ -901,7 +956,7 @@ async function refresh() {
   setStatus(true, BACKEND && BACKEND.label ? BACKEND.label() : "Conectado",
     "Actualizado a las " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
-  renderHeader(); renderCards(); renderFilters();
+  renderMeter(); renderCards(); renderFilters();
   if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); }
 }
 async function init() {
