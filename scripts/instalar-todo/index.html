@@ -3,405 +3,372 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portal de aplicaciones</title>
+<title>Herramientas de IA para la Docencia · Apps del servidor</title>
+<meta name="description" content="Página de entrada a las apps web de Rafa (UMH) alojadas en este servidor: moda, telemetría, análisis de PDF, consulta con IA y utilidades.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#7c3aed">
-<meta name="description" content="Portal con las aplicaciones web alojadas en este servidor, organizadas por categorías.">
+<meta name="theme-color" content="#081b33">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Fraunces:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<!--
+  Página de entrada del servidor (plantilla de instalar-todo). Mismo diseño que la
+  de GitHub Pages (https://rafaumh2110.github.io/apps/), pero el contenido sale de
+  apps.json, que genera instalar-todo con todas las apps desplegadas.
+-->
 <style>
-  :root{
-    --bg:#f6f4fb; --surface:#ffffff; --text:#1f1b2e; --muted:#6b6784; --line:#e6e2f2;
-    --accent:#6d28d9; --accent-2:#e11d48; --chip:#efeafa; --chip-on:#6d28d9; --chip-on-text:#fff;
-    --shadow:0 1px 2px rgba(31,27,46,.06), 0 8px 24px rgba(109,40,217,.08);
-    --shadow-hover:0 2px 4px rgba(31,27,46,.08), 0 16px 36px rgba(109,40,217,.18);
-    --radius:16px;
+  :root {
+    --bg:#eff5fc; --surface:#fff; --sunk:#f4f9ff; --ink:#0f1f35; --muted:#5c6c82;
+    --border:#d9e4f3; --border-strong:#c3d6ee; --blue-700:#1656a3; --blue-600:#1d6fd1;
+    --accent:#c98a1f; --accent-soft:#fbead0; --shadow:0 4px 22px rgba(15,45,90,.08);
+    --hero-a:#081b33; --hero-b:#123a6b; --on-hero:#fff; --on-hero-soft:#c9d8ee;
+    --font-hero:"Plus Jakarta Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+    --font-display:"Fraunces",Georgia,"Times New Roman",serif;
+    --font-body:"Figtree","Segoe UI",system-ui,-apple-system,sans-serif;
+    color-scheme:light;
   }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#14111f; --surface:#1d1930; --text:#f1eefb; --muted:#a29db8; --line:#2f2a47;
-      --accent:#a78bfa; --accent-2:#fb7185; --chip:#2a2542; --chip-on:#a78bfa; --chip-on-text:#14111f;
-      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
-      --shadow-hover:0 2px 4px rgba(0,0,0,.5), 0 16px 36px rgba(167,139,250,.22);
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0a1526; --surface:#111f36; --sunk:#0d1a2e; --ink:#e9eef8; --muted:#93a4bf;
+      --border:#203454; --border-strong:#2b4367; --blue-700:#6fa3f4; --blue-600:#4a85e6;
+      --accent:#e6b35c; --accent-soft:#3a2c15; --shadow:0 4px 24px rgba(0,0,0,.4);
+      --hero-a:#050f1e; --hero-b:#1c3f72; color-scheme:dark;
     }
   }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-    line-height:1.5; -webkit-font-smoothing:antialiased;
-  }
-  a{color:inherit}
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 var(--font-body); }
+  a { color:inherit; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:3px; border-radius:6px; }
+  .wrap { max-width:1120px; margin:0 auto; padding:0 24px; }
 
-  /* ---------- Cabecera ---------- */
-  .hero{
-    position:relative; overflow:hidden; color:#fff;
-    background:linear-gradient(120deg,#4c1d95 0%,#7c3aed 45%,#e11d48 100%);
-    padding:56px 20px 88px;
-  }
-  .hero::before,.hero::after{
-    content:""; position:absolute; border-radius:50%; background:rgba(255,255,255,.10); pointer-events:none;
-  }
-  .hero::before{width:380px;height:380px;right:-90px;top:-140px}
-  .hero::after{width:240px;height:240px;left:-70px;bottom:-130px}
-  .wrap{max-width:1120px; margin:0 auto; position:relative}
-  .eyebrow{
-    display:inline-block; font-size:.78rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600;
-    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); padding:5px 12px; border-radius:999px;
-  }
-  h1{font-size:clamp(1.9rem,4.6vw,3rem); line-height:1.1; margin:16px 0 10px; letter-spacing:-.02em}
-  .lead{max-width:640px; margin:0; font-size:1.05rem; opacity:.92}
-  .stats{display:flex; flex-wrap:wrap; gap:12px; margin-top:26px}
-  .stat{background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); border-radius:14px; padding:10px 18px; backdrop-filter:blur(4px)}
-  .stat b{display:block; font-size:1.5rem; line-height:1.1}
-  .stat span{font-size:.8rem; opacity:.9}
+  /* Cabecera */
+  .hero { background:linear-gradient(135deg,var(--hero-a),var(--hero-b)); color:var(--on-hero); padding:56px 0 92px; }
+  .eyebrow { display:inline-block; font-size:.78rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:999px; padding:4px 12px; }
+  .hero h1 { font:800 clamp(2.1rem,5.4vw,3.5rem)/1.05 var(--font-hero); margin:16px 0 14px; letter-spacing:-.035em; }
+  .hero h1 em { font-style:normal; color:var(--accent); }
+  .hero p.lead { margin:0; max-width:660px; font-size:1.08rem; color:var(--on-hero-soft); }
+  .cta { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; }
+  .btn { display:inline-flex; align-items:center; gap:8px; min-height:46px; padding:0 22px; border-radius:12px; font-weight:600; text-decoration:none; border:1px solid transparent; transition:transform .15s, box-shadow .15s; }
+  .btn:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,.25); }
+  .btn.main { background:var(--accent); color:#1b1204; }
+  .btn.ghost { background:rgba(255,255,255,.08); color:var(--on-hero); border-color:rgba(255,255,255,.28); }
+  .versiones { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:18px; font-size:.88rem; color:var(--on-hero-soft); }
+  .versiones a { color:var(--on-hero); text-decoration:none; border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:5px 12px; min-height:32px; display:inline-flex; align-items:center; }
+  .versiones a:hover { background:rgba(255,255,255,.1); }
+  .cifras { display:flex; flex-wrap:wrap; gap:8px 26px; list-style:none; margin:22px 0 0; padding:0; color:var(--on-hero-soft); font-size:.95rem; }
+  .cifras b { color:var(--on-hero); font:800 1.35rem/1 var(--font-hero); margin-right:4px; }
 
-  /* ---------- Barra de búsqueda y filtros ---------- */
-  .toolbar{
-    max-width:1120px; margin:-48px auto 0; padding:0 20px; position:relative; z-index:2;
-  }
-  .panel{
-    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-    box-shadow:var(--shadow); padding:18px;
-  }
-  .search{position:relative}
-  .search svg{position:absolute; left:14px; top:50%; transform:translateY(-50%); width:20px; height:20px; color:var(--muted)}
-  .search input{
-    width:100%; padding:13px 64px 13px 44px; font:inherit; color:var(--text);
-    background:var(--bg); border:1px solid var(--line); border-radius:12px; outline:none;
-  }
-  .search input:focus{border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
-  .search kbd{
-    position:absolute; right:12px; top:50%; transform:translateY(-50%);
-    font:600 .75rem ui-monospace,monospace; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:2px 7px; background:var(--surface);
-  }
-  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
-  .chip{
-    font:inherit; font-size:.88rem; cursor:pointer; color:var(--text);
-    background:var(--chip); border:1px solid transparent; border-radius:999px; padding:6px 14px;
-    transition:background .15s, transform .15s;
-  }
-  .chip:hover{transform:translateY(-1px)}
-  .chip[aria-pressed="true"]{background:var(--chip-on); color:var(--chip-on-text); font-weight:600}
-  .chip small{opacity:.7; margin-left:4px}
-  .chip:focus-visible,.card:focus-visible{outline:3px solid var(--accent-2); outline-offset:2px}
+  /* Buscador */
+  main { position:relative; margin-top:-48px; padding-bottom:12px; }
+  .search { display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:6px 8px 6px 16px; margin-bottom:22px; }
+  .search svg { width:20px; height:20px; color:var(--muted); flex:none; }
+  .search input { flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:1rem; color:var(--ink); padding:10px 0; outline:none; }
+  .search input::-webkit-search-cancel-button { display:none; }
+  .search kbd { font:600 .75rem ui-monospace,monospace; color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:2px 7px; }
+  .search .clear { border:0; background:transparent; color:var(--muted); width:38px; height:38px; border-radius:10px; cursor:pointer; display:grid; place-items:center; }
+  .search .clear:hover { background:var(--sunk); color:var(--ink); }
 
-  /* ---------- Contenido ---------- */
-  main{max-width:1120px; margin:0 auto; padding:28px 20px 56px}
-  .group{margin-top:34px}
-  .group h2{
-    display:flex; align-items:center; gap:10px; font-size:1.15rem; margin:0 0 14px; letter-spacing:-.01em;
-  }
-  .group h2 .repo-tag{font-size:.72rem; font-weight:600; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:1px 8px; font-family:ui-monospace,monospace}
-  .group h2 .count{font-size:.78rem; font-weight:600; color:var(--muted); background:var(--chip); border-radius:999px; padding:2px 10px}
-  .group h2::after{content:""; flex:1; height:1px; background:var(--line)}
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:16px}
-  .card{
-    display:flex; flex-direction:column; gap:12px; text-decoration:none;
-    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
-    padding:18px; box-shadow:var(--shadow);
-    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-  }
-  .card:hover{transform:translateY(-4px); box-shadow:var(--shadow-hover); border-color:var(--accent)}
-  .card-top{display:flex; align-items:center; gap:14px}
-  .logo{
-    flex:none; width:48px; height:48px; border-radius:13px; display:grid; place-items:center;
-    color:#fff; font-weight:700; font-size:1.05rem; letter-spacing:.02em;
-  }
-  .card h3{margin:0; font-size:1.05rem; line-height:1.25}
-  .ver{display:inline-block; vertical-align:middle; margin-left:6px; padding:1px 9px; border-radius:999px; font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:linear-gradient(120deg,var(--accent),var(--accent-2))}
-  .card .path{font:.76rem ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); word-break:break-all}
-  .card p{margin:0; font-size:.9rem; color:var(--muted); flex:1}
-  .card-foot{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:.82rem}
-  .tag{background:var(--chip); border-radius:999px; padding:3px 10px; color:var(--muted)}
-  .card .proj{font-size:.8rem; color:var(--muted); border-left:3px solid var(--line); padding-left:9px}
-  .card .proj b{color:var(--text); font-weight:600}
-  .card .meta{font-size:.78rem; color:var(--muted)}
-  .tags{display:flex; flex-wrap:wrap; gap:6px}
-  .tag.os{font-weight:600; color:#fff}
-  .tag.os-linux{background:#d97706}
-  .tag.os-macos{background:#475569}
-  .tag.os-windows{background:#0369a1}
-  .open{color:var(--accent); font-weight:600; display:inline-flex; align-items:center; gap:4px}
-  .card:hover .open svg{transform:translateX(3px)}
-  .open svg{width:16px;height:16px;transition:transform .18s}
+  /* Áreas */
+  .grid { display:grid; gap:20px; align-items:start; grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr)); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); padding:24px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .card header { display:flex; align-items:center; gap:14px; }
+  .ico { flex:none; width:48px; height:48px; border-radius:14px; display:grid; place-items:center; background:var(--sunk); border:1px solid var(--border-strong); color:var(--blue-700); }
+  .ico svg { width:26px; height:26px; }
+  .card h2 { margin:0; font:700 1.35rem/1.2 var(--font-display); flex:1; }
+  .card .n { font:600 .78rem ui-monospace,monospace; color:var(--muted); background:var(--sunk); border:1px solid var(--border); border-radius:999px; padding:2px 10px; }
+  .card p.blurb { margin:0; color:var(--muted); font-size:.97rem; }
+  .group { margin:6px 0 0; font-size:.74rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  /* Lista de apps de cada área: altura máxima con barra de desplazamiento si no cabe */
+  .apps { list-style:none; margin:0; padding:0 6px 0 0; display:flex; flex-direction:column; gap:6px; max-height:360px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--border-strong) transparent; }
+  .apps::-webkit-scrollbar { width:6px; }
+  .apps::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:999px; }
+  .fam { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .fam a { text-decoration:none; display:inline-flex; align-items:center; min-height:38px; border-radius:10px; border:1px solid var(--border); background:var(--sunk); transition:background .15s, border-color .15s, transform .15s; }
+  .fam a:hover { background:var(--surface); border-color:var(--blue-600); transform:translateY(-1px); }
+  .fam .fname { padding:0 14px; font-weight:600; font-size:.93rem; color:var(--blue-700); }
+  .fam .v { padding:0 10px; min-height:30px; font-size:.78rem; font-weight:700; color:var(--muted); border-radius:999px; }
+  .fam .v.pro, .fam .v.promax { color:var(--accent); border-color:var(--accent-soft); }
+  .fam .fname.solo { color:var(--muted); font-weight:500; cursor:default; }
+  .card footer { margin-top:auto; padding-top:4px; display:flex; flex-wrap:wrap; gap:6px 14px; }
+  .more { font-size:.9rem; font-weight:600; color:var(--blue-700); text-decoration:none; }
+  .more:hover { text-decoration:underline; }
 
-  /* ---------- Estados ---------- */
-  .state{
-    text-align:center; padding:52px 20px; margin-top:28px; color:var(--muted);
-    background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius);
-  }
-  .state h2{color:var(--text); margin:0 0 6px; font-size:1.15rem}
-  .state code{background:var(--chip); padding:2px 7px; border-radius:6px; font-size:.85rem}
-  .skeleton{height:150px; border-radius:var(--radius); background:linear-gradient(90deg,var(--chip),var(--surface),var(--chip)); background-size:200% 100%; animation:sh 1.3s infinite linear}
-  @keyframes sh{to{background-position:-200% 0}}
-  [hidden]{display:none!important}
+  .note { margin:28px 0 0; background:var(--accent-soft); border:1px solid var(--border-strong); border-radius:16px; padding:18px 22px; display:flex; gap:14px; align-items:flex-start; }
+  .note svg { flex:none; width:24px; height:24px; color:var(--accent); margin-top:2px; }
+  .note p { margin:0; font-size:.96rem; }
+  .state { text-align:center; padding:48px 20px; color:var(--muted); background:var(--surface); border:1px dashed var(--border-strong); border-radius:18px; }
+  .state h2 { color:var(--ink); margin:0 0 6px; font:700 1.2rem var(--font-display); }
+  .state code { background:var(--sunk); padding:2px 7px; border-radius:6px; }
+  .skeleton { height:220px; border-radius:18px; background:linear-gradient(90deg,var(--sunk),var(--surface),var(--sunk)); background-size:200% 100%; animation:sh 1.3s infinite linear; }
+  @keyframes sh { to { background-position:-200% 0; } }
 
-  /* ---------- Pie ---------- */
-  footer{border-top:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:.84rem}
-  footer .wrap{padding:22px 20px; display:flex; flex-wrap:wrap; gap:10px 28px; justify-content:space-between}
-  footer b{color:var(--text)}
-  footer .legend{display:inline-block; margin-top:2px; font-style:italic}
+  /* Pie (el mismo que el de GitHub Pages) */
+  .site-foot { text-align:center; color:var(--muted); font-size:.82rem; padding:30px 0 40px; line-height:1.7; border-top:1px solid var(--border); margin-top:34px; }
+  .site-foot p { margin:2px 0; }
+  .site-foot a { color:var(--blue-700); }
+  .foot-nav { display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px 10px; margin-bottom:10px; font-weight:600; }
+  .foot-nav a { text-decoration:none; padding:4px 2px; }
+  .foot-nav a:hover { text-decoration:underline; }
+  .foot-nav a[aria-current="page"] { color:var(--ink); text-decoration:underline; text-underline-offset:4px; text-decoration-color:var(--accent); }
+  .foot-nav span { color:var(--border-strong); }
 
-  @media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
+  @media (max-width:520px) { .hero { padding:40px 0 78px; } .card { padding:20px; } .search kbd { display:none; } }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
-
-<header class="hero">
+<div class="hero">
   <div class="wrap">
-    <span class="eyebrow">Universidad Miguel Hernández de Elche</span>
-    <h1>Portal de aplicaciones</h1>
-    <p class="lead">Aplicaciones y herramientas web para docencia e investigación, organizadas por categorías. Elige una para abrirla.</p>
-    <div class="stats" aria-live="polite">
-      <div class="stat"><b id="stApps">–</b><span>aplicaciones</span></div>
-      <div class="stat"><b id="stCats">–</b><span>categorías</span></div>
-      <div class="stat"><b id="stRepos">–</b><span>repositorios</span></div>
+    <span class="eyebrow">HIAD · Universidad Miguel Hernández</span>
+    <h1>Herramientas de <em>IA</em> para la Docencia</h1>
+    <p class="lead">Apps web de un solo archivo para generar imágenes y patrones de moda, estudiar telemetría de una estación meteorológica y enchufes inteligentes, analizar PDF y hacer consultas con IA, además de utilidades de programación. Se abren en el navegador, sin instalar nada.</p>
+    <div class="cta" id="cta" hidden>
+      <a class="btn main" id="btnCatalogo" href="apps/appindex/">Catálogo completo
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="btn ghost" id="btnTemas" href="apps/appindex/temas/">Agrupado por tema</a>
     </div>
-  </div>
-</header>
-
-<div class="toolbar">
-  <div class="panel">
-    <div class="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="Buscar aplicación…" aria-label="Buscar aplicación" autocomplete="off">
-      <kbd aria-hidden="true">/</kbd>
-    </div>
-    <div class="chips" id="chips" role="group" aria-label="Filtrar por categoría"></div>
+    <nav class="versiones" id="versiones" aria-label="Ir a una versión" hidden>
+      <span>Por versión:</span>
+      <a href="apps/appindex/#v=normal">Normales</a>
+      <a href="apps/appindex/#v=lite">Lite</a>
+      <a href="apps/appindex/#v=pro">Pro</a>
+      <a href="apps/appindex/#v=promax">ProMax</a>
+      <a href="apps/appindex/#v=alumnos">Para el aula</a>
+    </nav>
+    <ul class="cifras" aria-label="Las apps del servidor en cifras" aria-live="polite">
+      <li><b id="stApps">–</b> herramientas</li><li><b id="stAreas">–</b> áreas</li><li><b id="stRepos">–</b> repositorios</li>
+    </ul>
   </div>
 </div>
 
-<main>
-  <div id="loading" class="grid" aria-hidden="true">
-    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
-  </div>
-  <div id="content"></div>
-  <div id="empty" class="state" hidden>
-    <h2>Sin resultados</h2>
-    <p>Ninguna aplicación coincide con tu búsqueda.</p>
-  </div>
+<main class="wrap">
+  <label class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="search" placeholder="Buscar una app por nombre, descripción o carpeta…" aria-label="Buscar una app" autocomplete="off">
+    <button class="clear" id="clear" type="button" aria-label="Borrar búsqueda" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    <kbd aria-hidden="true">/</kbd>
+  </label>
+
+  <div id="loading" class="grid" aria-hidden="true"><div class="skeleton"></div><div class="skeleton"></div></div>
+  <div id="areas" class="grid"></div>
+  <div id="empty" class="state" hidden><h2>Sin resultados</h2><p>Ninguna app coincide con la búsqueda.</p></div>
   <div id="error" class="state" hidden>
     <h2>No se pudo cargar el catálogo</h2>
     <p>Falta el fichero <code>apps.json</code> junto a esta página. Se genera al ejecutar <code>instalar-todo.sh</code>.</p>
   </div>
+
+  <aside class="note" role="note">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+    <p><strong>Tu clave de API es solo tuya.</strong> Las apps de IA llaman directamente desde tu navegador a Anthropic, OpenAI, Google Gemini o fal.ai con la clave que tú escribes. Las de telemetría usan los datos de la estación o el servicio TeleHome de este servidor.</p>
+  </aside>
 </main>
 
-<footer>
+<footer class="site-foot">
   <div class="wrap">
-    <div>
-      <b>Rafael Puerto</b> · Departamento de Ingeniería de Sistemas y Automática · UMH<br>
-      <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a><br>
-      <span class="legend">Generado con IA · Revisado por el autor</span>
-    </div>
-    <div>
-      Última modificación: <b>20/11/2026 02:26</b><br>
-      Catálogo actualizado: <b id="gen">–</b>
-    </div>
+    <nav class="foot-nav" aria-label="Páginas del portal" id="footNav">
+      <a href="./" aria-current="page">Inicio</a><span aria-hidden="true">·</span><a href="apps/appindex/" data-catalogo>Catálogo completo</a><span aria-hidden="true" data-catalogo>·</span><a href="apps/appindex/temas/" data-catalogo>Agrupado por tema</a><span aria-hidden="true" data-catalogo>·</span><a href="https://rafaumh2110.github.io/apps/" target="_blank" rel="noopener">Versión en GitHub Pages</a>
+    </nav>
+    <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
+    <p>Generado con IA · Revisado por el autor · Última actualización: <span id="gen">–</span></p>
   </div>
 </footer>
 
 <script>
-(function(){
+(function () {
   'use strict';
+  var $ = function (id) { return document.getElementById(id); };
 
-  // Descripciones de las aplicaciones conocidas (clave: nombre de carpeta en minúsculas)
-  var INFO = {
-    genimod:        {t:'GenImOd',        d:'Genera imágenes de moda con Claude y FLUX (fal.ai). Versión para docencia.'},
-    genimoda:       {t:'GenImOda',       d:'Versión para alumnos de GenImOd, con opción de mejorar o no el prompt con Claude.'},
-    genoutfit:      {t:'GenOutFit',      d:'Crea un outfit completo a partir de la foto de una prenda.'},
-    genoutfitface:  {t:'GenOutFitFace',  d:'GenOutFit con foto de la persona: genera el modelo conservando el rostro.'},
-    genoutfitfacem: {t:'GenOutFitFaceM', d:'Hasta dos prendas y selección de complementos: gafas, collares, bolsos, zapatos…'},
-    genoutfits:     {t:'GenOutFitS',     d:'Versión para alumnos de GenOutFit con modelos y parámetros limitados.'},
-    genpatmod:      {t:'GenPatMod',      d:'Genera patrones de corte en SVG y los exporta a PDF A4.'},
-    genpatmoda:     {t:'GenPatModa',     d:'Versión para alumnos de GenPatMod con catálogo de modelos y tokens limitados.'},
-    searchlogmod:   {t:'SearchLogMod',   d:'Consulta la logística de empresas de moda; exporta a Markdown, texto o Word.'},
-    searchlogmodcb: {t:'SearchLogModCB', d:'SearchLogMod con caché de resultados y prompts, y modo por lotes.'},
-    consultar:      {t:'ConSultar',      d:'Consulta con IA en dos pasos.'},
-    detectiapdf:    {t:'DetectIApdf',    d:'Analiza hasta 3 PDF en busca de indicios de uso de IA.'}
+  // ---------- áreas (mismo orden y textos que la página de GitHub) ----------
+  var ICON = {
+    moda: '<path d="M8 3 3 6l2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/>',
+    telemetria: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    pdfs: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+    consulta: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h6M9 14h3"/>',
+    codigo: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/>',
+    otro: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
   };
-
-  var $ = function(id){ return document.getElementById(id); };
-  var state = {apps:[], repo:'*', q:''};
-
-  function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
-  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-  function titleCase(s){ return s.replace(/[-_]+/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
-
-  function hue(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))%360; } return h; }
-
-  // Carpetas/ficheros que son versiones de una app (…/genimod/pro/index.html → GenImOd · Pro)
+  var AREAS = {
+    moda: { label: 'Moda y textil', orden: 1, blurb: 'Genera imágenes de moda, outfits completos y patrones de corte en SVG con Claude, OpenAI, Gemini y FLUX; y consulta la logística de empresas del sector.', tema: 'moda' },
+    telemetria: { label: 'Telemetría', orden: 2, blurb: 'Monitoriza en vivo una estación meteorológica personal y los enchufes Wi-Fi con medidor de consumo, con gráficas, histórico y exportación a CSV.', tema: 'telemetria',
+      subs: { meteo: 'Estación meteorológica', home: 'Hogar · enchufes inteligentes' } },
+    pdfs: { label: 'Análisis de PDF', orden: 3, blurb: 'Analiza documentos PDF y genera un informe con indicios de uso de IA en su redacción, pensado para el profesorado universitario.', tema: 'pdfs' },
+    consulta: { label: 'Consulta con IA', orden: 4, blurb: 'Mejora automáticamente tu consulta, se la envía a Claude y devuelve una respuesta completa en Markdown, exportable a Word o PDF.', tema: 'consultar' },
+    codigo: { label: 'Código y utilidades', orden: 5, blurb: 'Interfaces web de las apps de escritorio en Python (macOS, Windows y Linux), generadores y herramientas de apoyo del repositorio de código.' }
+  };
+  var CAT_APPS = { moda: 'moda', telemetria: 'telemetria', pdfs: 'pdfs', consultar: 'consulta' };
+  var OS = { linux: 'Linux', macos: 'macOS', windows: 'Windows' };
   var VARIANT = /^(pro|promax|lite|plus|free|basic|demo|beta|standard|light|max|mini|premium|v\d+(\.\d+)*)$/i;
-  // Nombres demasiado genéricos para servir de título
   var GENERIC = /^(ui|app|web|src|public|dist|build|static|html|plantilla|plantilla[-_]base|template|index|main|home)$/i;
-  var OS = {linux:'Linux', macos:'macOS', windows:'Windows'};
-  // Repos cuya primera carpeta es una categoría (apps/moda/…, apps/telemetria/…)
-  var CATEGORY_REPOS = {apps:true};
-  var CAT = {moda:'Moda', telemetria:'Meteo', meteo:'Meteo', home:'Home', appindex:'Índice de apps'};
+  var ORDEN_V = { '': 0, lite: 1, pro: 2, promax: 3 };
+  var PAGINAS = { mapa: 'Mapa', map: 'Mapa' };   // páginas secundarias de una app (se muestran como etiqueta)
   var PRETTY = {
-    'notas-rapidas':'Notas rápidas', 'generador-apps':'Generador de apps', 'mejora-de-codigo':'Mejora de código',
-    'python-app-api-anthropic':'Python App API Anthropic', 'plantilla_base':'Plantilla base',
-    'app_web':'App web', 'app_tk':'App Tkinter', 'app_wx':'App wxPython', 'app_toga':'App Toga',
-    'app_pyside6':'App PySide6', 'app_pyobjc':'App PyObjC', 'appindex':'Índice de apps'
+    'notas-rapidas': 'Notas rápidas', 'generador-apps': 'Generador de apps', 'mejora-de-codigo': 'Mejora de código',
+    'python-app-api-anthropic': 'Python App API Anthropic', 'plantilla_base': 'Plantilla base', 'instalar-todo': 'Instalar todo',
+    'app_web': 'App web', 'app_tk': 'App Tkinter', 'app_wx': 'App wxPython', 'app_toga': 'App Toga',
+    'app_pyside6': 'App PySide6', 'app_pyobjc': 'App PyObjC', 'telehome-enchufes-iphone': 'TeleHome Enchufes · iPhone',
+    'telehome-enchufes-ipad': 'TeleHome Enchufes · iPad', 'scripts': 'Scripts', 'macos': 'macOS', 'linux': 'Linux', 'windows': 'Windows'
   };
-  function pretty(s){ return PRETTY[s.toLowerCase()] || titleCase(s); }
-  function placeholder(t){ return !t || /\{\{|\}\}|\$\{|%\(|^(index|untitled|document|nombre de la app)$/i.test(t.trim()); }
 
-  function fmtSize(n){ n = +n || 0; return n < 1024 ? n+' B' : n < 1048576 ? (n/1024).toFixed(n<10240?1:0)+' KB' : (n/1048576).toFixed(1)+' MB'; }
-  function fmtDate(d){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d||''); return m ? m[3]+'/'+m[2]+'/'+m[1] : ''; }
+  function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function titleCase(s) { return s.replace(/[-_]+/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+  function pretty(s) { return PRETTY[s.toLowerCase()] || titleCase(s); }
+  function head(t) { return String(t || '').split(/\s+[·—–|:]\s+|\s+-\s+/)[0].trim(); }
+  function placeholder(t) { return !t || /\{\{|\}\}|\$\{|%\(|^(index|untitled|document|nombre de la app)$/i.test(t.trim()); }
+  function sinVersion(t) { return t.replace(/\s*(pro\s*max|promax|pro|lite)\s*$/i, '').trim(); }
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function fechaLarga(s) {   // «20/11/2026 12:30» → «20 de noviembre de 2026, 12:30»
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2})/.exec(s || '');
+    return m ? (+m[1]) + ' de ' + MESES[+m[2] - 1] + ' de ' + m[3] + ', ' + m[4] : (s || '–');
+  }
 
-  // Convierte una entrada del catálogo en datos de tarjeta
-  // Nombre corto de una página: parte del <title> anterior al primer separador (· — | -)
-  function head(t){ return String(t||'').split(/\s+[·—–|]\s+|\s+-\s+/)[0].trim(); }
-  var PAGES = {};
-  var PAGE_NAMES = {mapa:'Mapa', map:'Mapa'};
-  function toApp(e){
-    // Entradas con URL propia (p. ej. TeleHome, servido por un proxy de Apache)
-    if (e.url) {
-      var ck = (e.category || 'home');
-      return {
-        repo: e.repo, path: e.path, key: 'telehome-enchufes', os: '', title: e.title, desc: e.description || '',
-        gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: '', project: '', crumb: '',
-        size: '', updated: fmtDate(e.updated), variant: '', href: e.url
-      };
+  // Entrada de apps.json → app con área, subgrupo, familia y versión
+  function toApp(e) {
+    if (e.url) {   // TeleHome Enchufes: lo sirve un servicio detrás del proxy de Apache
+      return { area: 'telemetria', sub: 'home', fam: 'telehome-enchufes', name: e.title, v: '', os: '', pag: '', desc: e.description || '', href: e.url, path: e.path, repo: e.repo };
     }
-    var folders = e.path.split('/');
-    var file    = folders.pop();
-    var base    = file.replace(/\.html?$/i,'');
-    var os = '', cat = '';
-    if (folders.length && OS[folders[0].toLowerCase()]) { os = OS[folders.shift().toLowerCase()]; }
-    if (folders.length && CATEGORY_REPOS[e.repo.toLowerCase()]) { cat = folders.shift(); }
-    // telemetria/meteo/… y telemetria/home/… son categorías propias (Meteo y Home), comunes a todos los repos
-    var sub = false;
-    if (/^telemetria$/i.test(cat) && folders.length && /^(meteo|home)$/i.test(folders[0])) { cat = folders.shift(); sub = true; }
-    var gid = e.repo, glabel = e.repo, gsub = '';
-    if (cat) { gid = sub ? cat.toLowerCase() : e.repo + '/' + cat; glabel = CAT[cat.toLowerCase()] || titleCase(cat); gsub = sub ? '' : e.repo; }
-    var last = folders.length ? folders[folders.length-1] : '';
-    var key = base, variant = '', extra = '';
+    var folders = e.path.split('/'), file = folders.pop(), base = file.replace(/\.html?$/i, '');
+    if (e.repo === 'apps' && (e.path === 'index.html' || /^appindex\//.test(e.path))) return null;   // portada y catálogo de apps: van en los botones
+    // Plantillas de esta misma página de entrada (instalar-todo, install-all, panel de servidores): no son apps
+    if (e.repo === 'code' && /(^|\/)(instalar-todo|install-all)[^\/]*\/index\.html$|\/recursos\/index\.html$/.test(e.path)) return null;
+    var area = '', sub = '', os = '', carpetaCat = '';
+    if (e.repo === 'apps' && folders.length && CAT_APPS[folders[0]]) { carpetaCat = folders[0]; area = CAT_APPS[folders.shift()]; }
+    if (/^telemetria$/i.test(folders[0] || '')) { folders.shift(); area = 'telemetria'; }
+    if (area === 'telemetria' && /^(meteo|home)$/i.test(folders[0] || '')) sub = folders.shift().toLowerCase();
+    if (!area) area = e.repo === 'code' ? 'codigo' : 'repo:' + e.repo;
+    if (folders.length && OS[folders[0].toLowerCase()]) os = OS[folders.shift().toLowerCase()];
+    if (area === 'codigo' && !sub) sub = os ? 'escritorio' : (folders[0] || '');
 
+    var last = folders.length ? folders[folders.length - 1] : carpetaCat, key = base, v = '';
     if (/^index$/i.test(base) && last) {
-      if (VARIANT.test(last) && folders.length > 1) { variant = last; key = folders[folders.length-2]; }
-      else { key = last; }
-    } else if (VARIANT.test(base) && last) {
-      variant = base; key = last;
-    } else if (/^index[-_].+/i.test(base) && last) {
-      extra = titleCase(base.replace(/^index[-_]/i,'')); key = last;
-    }
+      if (VARIANT.test(last) && folders.length > 1) { v = last.toLowerCase(); key = folders[folders.length - 2]; }
+      else key = last;
+    } else if (VARIANT.test(base) && last) { v = base.toLowerCase(); key = last; }
+    else if (last && VARIANT.test(last)) v = last.toLowerCase();   // p. ej. multi/promax/mapa.html → ProMax · Mapa
 
-    var info = INFO[key.toLowerCase()] || null;
-    var generic = GENERIC.test(key);
-    var names = folders.filter(function(f){ return !GENERIC.test(f) && !VARIANT.test(f); });
-    var title, ht = head(e.title);
-    if (info) title = info.t;
-    else if (!generic && !placeholder(ht) && ht.length <= 60) title = ht;
-    else if (generic && key === base) title = (names.length ? pretty(names[names.length-1]) + ' · ' : '') + pretty(base);
-    else if (generic && !placeholder(e.title) && e.title.length <= 60) title = e.title;
-    else if (generic) title = names.slice(-2).map(pretty).join(' · ') || pretty(key);
-    else title = pretty(key);
-    if (extra) title += ' · ' + extra;
-    // Página secundaria (mapa.html, map.html…): nombre de la página principal de su carpeta + su función
-    var sib = (!info && !extra && base.toLowerCase() !== 'index') ? PAGES[e.repo + '/' + e.path.replace(/[^\/]*$/, '') + 'index.html'] : null;
-    if (sib && head(sib.title) && !placeholder(head(sib.title))) { title = head(sib.title) + ' · ' + (PAGE_NAMES[base.toLowerCase()] || titleCase(base)); variant = ''; }
-    if (!info && variant && title.toLowerCase().indexOf(variant.toLowerCase()) >= 0) variant = '';
-    if (cat && !folders.length && /^index$/i.test(base)) title = glabel;
-
-    var crumb = folders.filter(function(f){ return !GENERIC.test(f); }).map(pretty).join(' › ');
-    var desc = info ? info.d : (e.description || e.summary || '');
+    var ht = head(e.title), name, carpetas = folders.filter(function (f) { return !GENERIC.test(f) && !VARIANT.test(f); });
+    if (!placeholder(ht) && ht.length <= 60) name = ht;
+    else name = (carpetas.length ? pretty(carpetas[carpetas.length - 1]) : '') + (/^index$/i.test(base) ? '' : (carpetas.length ? ' · ' : '') + pretty(base)) || pretty(key);
+    var resto = String(e.title || '').slice(ht.length).replace(/^\s*[·—–|:-]\s*/, '').trim();
+    var pagina = /^index$/i.test(base) || VARIANT.test(base) ? '' : base;
     return {
-      repo: e.repo, path: e.path, key: key, os: os, title: title, desc: desc,
-      gid: gid, glabel: glabel, gsub: gsub,
-      project: (!info && e.project && e.project !== title) ? e.project : '',
-      crumb: crumb,
-      size: e.size ? fmtSize(e.size) : '', updated: fmtDate(e.updated),
-      variant: variant ? variant.charAt(0).toUpperCase() + variant.slice(1).toLowerCase() : '',
+      area: area, sub: sub, fam: area + '|' + sub + '|' + folders.filter(function (f) { return !VARIANT.test(f); }).join('/'),
+      pag: pagina ? (PAGINAS[pagina.toLowerCase()] || pretty(pagina)) : '',
+      resto: resto.length <= 34 ? resto : '',
+      name: name, v: v, os: os, desc: e.description || e.summary || '', path: e.path, repo: e.repo,
       href: [e.repo].concat(e.path.split('/')).map(encodeURIComponent).join('/')
     };
   }
 
-  function card(a){
-    var h = hue(a.key);
-    var ini = a.title.replace(/[^A-Za-z0-9]/g,'').slice(0,2) || '·';
-    var texto = a.desc ? esc(a.desc)
-      : (a.crumb ? 'Ubicación: <b>'+esc(a.crumb)+'</b>' : 'Aplicación HTML alojada en el repositorio <b>'+esc(a.repo)+'</b>.');
-    var meta = [];
-    if (a.size) meta.push(esc(a.size));
-    if (a.updated) meta.push('Actualizado '+esc(a.updated));
-    return '<a class="card" href="'+esc(a.href)+'" target="_blank" rel="noopener">'+
-      '<div class="card-top">'+
-        '<div class="logo" style="background:linear-gradient(135deg,hsl('+h+' 70% 48%),hsl('+((h+40)%360)+' 75% 58%))" aria-hidden="true">'+esc(ini)+'</div>'+
-        '<div><h3>'+esc(a.title)+(a.variant ? ' <span class="ver">'+esc(a.variant)+'</span>' : '')+'</h3><div class="path">'+esc(a.path)+'</div></div>'+
-      '</div>'+
-      '<p>'+texto+'</p>'+
-      (a.project ? '<div class="proj"><b>Proyecto:</b> '+esc(a.project)+'</div>' : '')+
-      (meta.length ? '<div class="meta">'+meta.join(' · ')+'</div>' : '')+
-      '<div class="card-foot"><span class="tags"><span class="tag">'+esc(a.repo)+'</span>'+
-        (a.os ? '<span class="tag os os-'+esc(a.os.toLowerCase())+'">'+esc(a.os)+'</span>' : '')+'</span>'+
-      '<span class="open">Abrir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>'+
-    '</a>';
-  }
+  var state = { apps: [], q: '', hayCatalogo: false };
 
-  function render(){
-    var q = norm(state.q);
-    var list = state.apps.filter(function(a){
-      if(state.repo !== '*' && a.gid !== state.repo) return false;
-      return !q || norm(a.title+' '+a.variant+' '+a.os+' '+a.desc+' '+a.project+' '+a.glabel+' '+a.repo+' '+a.path).indexOf(q) !== -1;
+  // Agrupa en familias: una fila por app con sus versiones (Pro, ProMax…) o sistemas como etiquetas pequeñas
+  function familias(lista) {
+    var map = {}, orden = [];
+    lista.forEach(function (a) {
+      var f = map[a.fam];
+      if (!f) { f = map[a.fam] = { base: null, otras: [] }; orden.push(a.fam); }
+      if (!a.v && !a.os && !a.pag && !f.base) f.base = a; else f.otras.push(a);
     });
+    var filas = orden.map(function (k) {
+      var f = map[k];
+      if (!f.base) {   // sin index.html: la primera página sin versión ni sistema hace de principal
+        var i = f.otras.findIndex(function (a) { return !a.v && !a.os; });
+        if (i >= 0) f.base = f.otras.splice(i, 1)[0];
+      }
+      var primero = f.base || f.otras[0];
+      f.name = f.base ? f.base.name : sinVersion(primero.name);
+      f.resto = primero.resto;
+      f.otras.sort(function (x, y) { return (ORDEN_V[x.v] || 0) - (ORDEN_V[y.v] || 0) || x.pag.localeCompare(y.pag) || x.os.localeCompare(y.os); });
+      return f;
+    });
+    // Dos apps con el mismo nombre (p. ej. GenImOd y «GenImOd — Versión para alumnos»): se distinguen con el resto del título
+    var veces = {};
+    filas.forEach(function (f) { veces[f.name] = (veces[f.name] || 0) + 1; });
+    filas.forEach(function (f) { if (veces[f.name] > 1 && f.resto) f.name += ' · ' + f.resto; });
+    return filas.sort(function (x, y) { return x.name.localeCompare(y.name, 'es'); });
+  }
 
-    var groups = {};
-    var label = {}, sub = {};
-    list.forEach(function(a){ (groups[a.gid] = groups[a.gid] || []).push(a); label[a.gid] = a.glabel; sub[a.gid] = a.gsub; });
-
-    var html = Object.keys(groups).sort(function(a,b){ return label[a].localeCompare(label[b],'es'); }).map(function(r){
-      var items = groups[r].sort(function(a,b){ return a.title.localeCompare(b.title,'es') || (a.variant ? 1 : 0) - (b.variant ? 1 : 0) || a.variant.localeCompare(b.variant,'es') || a.os.localeCompare(b.os,'es'); });
-      return '<section class="group"><h2>'+esc(label[r])+(sub[r] ? ' <span class="repo-tag">'+esc(sub[r])+'</span>' : '')+' <span class="count">'+items.length+'</span></h2>'+
-             '<div class="grid">'+items.map(card).join('')+'</div></section>';
+  function etiquetaV(a) {
+    var v = a.v === 'promax' ? 'ProMax' : a.v ? a.v.charAt(0).toUpperCase() + a.v.slice(1) : '';
+    return [a.os, v, a.pag].filter(Boolean).join(' · ') || a.name;
+  }
+  function filaHtml(f) {
+    var b = f.base;
+    var nombre = b ? '<a class="fname" href="' + esc(b.href) + '" target="_blank" rel="noopener" title="' + esc(b.desc || b.path) + '">' + esc(f.name) + '</a>'
+                   : '<span class="fname solo">' + esc(f.name) + '</span>';
+    var vers = f.otras.map(function (a) {
+      return '<a class="v ' + esc(a.v) + '" href="' + esc(a.href) + '" target="_blank" rel="noopener" title="' + esc((a.name + (a.desc ? ' — ' + a.desc : ''))) + '">' + esc(etiquetaV(a)) + '</a>';
     }).join('');
-
-    $('content').innerHTML = html;
-    $('empty').hidden = list.length > 0;
+    return '<li class="fam">' + nombre + vers + '</li>';
   }
 
-  function renderChips(){
-    var counts = {}, label = {}, repos = {};
-    state.apps.forEach(function(a){ counts[a.gid] = (counts[a.gid]||0)+1; label[a.gid] = a.glabel; repos[a.repo] = 1; });
-    var ids = Object.keys(counts).sort(function(a,b){ return label[a].localeCompare(label[b],'es'); });
-    var html = '<button class="chip" data-repo="*" aria-pressed="true">Todos<small>'+state.apps.length+'</small></button>' +
-      ids.map(function(r){ return '<button class="chip" data-repo="'+esc(r)+'" aria-pressed="false">'+esc(label[r])+'<small>'+counts[r]+'</small></button>'; }).join('');
-    $('chips').innerHTML = html;
-    $('stCats').textContent  = ids.length;
-    $('stRepos').textContent = Object.keys(repos).length;
-    $('stApps').textContent  = state.apps.length;
+  function areaInfo(id) {
+    if (AREAS[id]) return AREAS[id];
+    var repo = id.replace(/^repo:/, '');
+    return { label: pretty(repo), orden: 10, blurb: 'Apps web del repositorio ' + repo + '.', icon: 'otro' };
   }
 
-  $('chips').addEventListener('click', function(ev){
-    var b = ev.target.closest('.chip'); if(!b) return;
-    state.repo = b.getAttribute('data-repo');
-    Array.prototype.forEach.call($('chips').children, function(c){ c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
-    render();
-  });
-  $('q').addEventListener('input', function(){ state.q = this.value; render(); });
-  document.addEventListener('keydown', function(ev){
+  function render() {
+    var q = norm(state.q);
+    var lista = state.apps.filter(function (a) { return !q || norm([a.name, a.v, a.os, a.desc, a.path, a.repo].join(' ')).indexOf(q) !== -1; });
+    var porArea = {};
+    lista.forEach(function (a) { (porArea[a.area] = porArea[a.area] || []).push(a); });
+    var ids = Object.keys(porArea).sort(function (x, y) { return areaInfo(x).orden - areaInfo(y).orden || x.localeCompare(y); });
+    $('areas').innerHTML = ids.map(function (id) {
+      var info = areaInfo(id), apps = porArea[id];
+      var subs = {}, ordenSubs = [];
+      apps.forEach(function (a) { if (!subs[a.sub]) { subs[a.sub] = []; ordenSubs.push(a.sub); } subs[a.sub].push(a); });
+      var claves = info.subs ? Object.keys(info.subs) : [];
+      ordenSubs.sort(function (x, y) { return ((claves.indexOf(x) + 1) || 99) - ((claves.indexOf(y) + 1) || 99) || x.localeCompare(y); });
+      var cuerpo = ordenSubs.map(function (s) {
+        var titulo = ordenSubs.length > 1 || (info.subs && s) ? (info.subs && info.subs[s]) || (s === 'escritorio' ? 'Apps de escritorio' : s ? pretty(s) : 'General') : '';
+        return (titulo ? '<h3 class="group">' + esc(titulo) + '</h3>' : '') + '<ul class="apps">' + familias(subs[s]).map(filaHtml).join('') + '</ul>';
+      }).join('');
+      var pie = '';
+      if (state.hayCatalogo && info.tema) {
+        pie = info.subs
+          ? '<footer><a class="more" href="apps/appindex/temas/#cat=meteo">Todas las de meteo →</a><a class="more" href="apps/appindex/temas/#cat=hogar">Todas las de hogar →</a></footer>'
+          : '<footer><a class="more" href="apps/appindex/temas/#cat=' + esc(info.tema === 'telemetria' ? 'telemetria' : info.tema) + '">Ver en el catálogo →</a></footer>';
+      }
+      return '<section class="card" aria-label="' + esc(info.label) + '"><header><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+        (ICON[info.icon || id] || ICON.otro) + '</svg></span><h2>' + esc(info.label) + '</h2><span class="n">' + apps.length + '</span></header>' +
+        '<p class="blurb">' + esc(info.blurb) + '</p>' + cuerpo + pie + '</section>';
+    }).join('');
+    $('empty').hidden = lista.length > 0;
+    $('clear').hidden = !state.q;
+  }
+
+  $('q').addEventListener('input', function () { state.q = this.value; render(); });
+  $('clear').addEventListener('click', function () { $('q').value = ''; state.q = ''; render(); $('q').focus(); });
+  document.addEventListener('keydown', function (ev) {
     var tag = (document.activeElement && document.activeElement.tagName) || '';
-    if(ev.key === '/' && tag !== 'INPUT'){ ev.preventDefault(); $('q').focus(); }
-    if(ev.key === 'Escape' && document.activeElement === $('q')){ $('q').value=''; state.q=''; render(); $('q').blur(); }
+    if (ev.key === '/' && tag !== 'INPUT') { ev.preventDefault(); $('q').focus(); }
+    if (ev.key === 'Escape' && document.activeElement === $('q')) { $('q').value = ''; state.q = ''; render(); $('q').blur(); }
   });
 
-  fetch('apps.json', {cache:'no-store'})
-    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(data){
+  fetch('apps.json', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (data) {
       var entries = Array.isArray(data) ? data : (data.apps || []);
-      entries.forEach(function(e){ PAGES[e.repo + '/' + e.path] = e; });
-      state.apps = entries.map(toApp);
-      $('gen').textContent = data.generated || '–';
+      state.hayCatalogo = entries.some(function (e) { return e.repo === 'apps' && e.path === 'appindex/index.html'; });
+      state.apps = entries.map(toApp).filter(Boolean);
+      var repos = {}, areas = {};
+      state.apps.forEach(function (a) { repos[a.repo] = 1; areas[a.area] = 1; });
+      $('stApps').textContent = state.apps.length;
+      $('stAreas').textContent = Object.keys(areas).length;
+      $('stRepos').textContent = Object.keys(repos).length;
+      $('gen').textContent = fechaLarga(data.generated);
+      // Sin el repo apps desplegado no hay catálogo completo: se ocultan sus enlaces
+      $('cta').hidden = $('versiones').hidden = !state.hayCatalogo;
+      if (!state.hayCatalogo) Array.prototype.forEach.call(document.querySelectorAll('[data-catalogo]'), function (n) { n.hidden = true; });
       $('loading').hidden = true;
-      renderChips();
       render();
     })
-    .catch(function(){
-      $('loading').hidden = true;
-      $('error').hidden = false;
-    });
+    .catch(function () { $('loading').hidden = true; $('error').hidden = false; });
 })();
 </script>
 </body>
