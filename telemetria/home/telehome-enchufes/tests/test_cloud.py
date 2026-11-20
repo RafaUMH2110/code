@@ -212,3 +212,12 @@ def test_password_and_live_reload_from_cli(cloud_app):
     assert call(base, "/api/state", auth="rafa:secreto-largo")[0] == 200
     with pytest.raises(ConfigError):
         cfg.set_password("corta")
+
+
+def test_virtual_device_error_says_so():
+    fake = FakeCloud(cmd_ok=())
+    fake.state["vdevo123"] = {"switch_1": False}
+    hub = make_hub(fake)
+    with pytest.raises(CloudError) as e:
+        hub.command("vdevo123", "switch_1", True)
+    assert "virtual" in str(e.value) and "Controllable" not in str(e.value)
