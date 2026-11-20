@@ -11,6 +11,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 |---|---|---|
 | `instalar-todo/` | `instalar-todo.sh` | Todo en uno para el servidor local (selección de repos, despliegue, colector, entrada `/rafa/`) |
 | | `instalar-todo-isa.sh` | Variante para https://isa.umh.es (DocumentRoot `/var/www/htdocs`; no toca la configuración existente) |
+| | `instalar-todo-lorca.sh` | Variante de la anterior para http://lorca.umh.es con acceso solo por http (`--url` debe empezar por `http://`) |
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | Portal de entrada y su favicon; deben estar junto a los scripts |
 | | `instrucciones-instalar-todo.md` | Guía de `instalar-todo.sh` |
 | | `instrucciones-instalar-todo-isa.md` | Guía de `instalar-todo-isa.sh` |
@@ -34,9 +35,10 @@ Los scripts `instalar-todo*.sh` sustituyeron a los de la antigua carpeta `clonar
 
 ```bash
 cd instalar-todo
-chmod +x instalar-todo.sh instalar-todo-isa.sh
+chmod +x instalar-todo.sh instalar-todo-isa.sh instalar-todo-lorca.sh
 ./instalar-todo.sh -h        # servidor local
 ./instalar-todo-isa.sh -h    # isa.umh.es
+./instalar-todo-lorca.sh -h   # lorca.umh.es (solo http)
 
 cd ../clonar-code
 chmod +x clonar-code.sh
