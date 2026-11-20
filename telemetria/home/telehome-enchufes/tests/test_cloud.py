@@ -20,15 +20,29 @@ IDS = ["bfaaaaaaaa", "bfbbbbbbbb"]
 class FakeCloud:
     """Imita tinytuya.Cloud: estado por lotes, órdenes y lista de dispositivos."""
 
-    def __init__(self, v1_ok=True, online=None):
+    def __init__(self, v1_ok=True, online=None, cmd_ok=("iot03", "v1", "shadow")):
         self.token = "t"
         self.v1_ok = v1_ok
+        self.cmd_ok = cmd_ok
         self.online = online or {i: True for i in IDS}
         self.state = {i: {"switch_1": True, "cur_power": 1234, "cur_voltage": 2301, "cur_current": 543} for i in IDS}
         self.requests = []
 
     def cloudrequest(self, url, action=None, post=None, query=None):
         self.requests.append(url)
+        for nombre, sufijo in (("iot03", "/commands"), ("v1", "/commands"), ("shadow", "/shadow/properties/issue")):
+            pref = {"iot03": "/v1.0/iot-03/devices/", "v1": "/v1.0/devices/", "shadow": "/v2.0/cloud/thing/"}[nombre]
+            if url.startswith(pref) and url.endswith(sufijo):
+                assert action == "POST"
+                if nombre not in self.cmd_ok:
+                    return {"success": False, "code": 28841105, "msg": "No permissions. This project is not authorized to call this API."}
+                dev = url[len(pref):-len(sufijo)]
+                if nombre == "shadow":
+                    self.state[dev].update(json.loads(post["properties"]))
+                else:
+                    c = post["commands"][0]
+                    self.state[dev][c["code"]] = c["value"]
+                return {"success": True, "result": True}
         ids = (query or {}).get("device_ids", "").split(",")
         if url == "/v1.0/devices":
             if not self.v1_ok:
@@ -42,11 +56,6 @@ class FakeCloud:
         if url == "/v1.0/iot-03/devices":
             return {"success": True, "result": {"list": [{"id": i, "online": self.online[i]} for i in ids if i in self.state]}}
         return {"success": False, "msg": "?"}
-
-    def sendcommand(self, dev_id, commands):
-        c = commands["commands"][0]
-        self.state[dev_id][c["code"]] = c["value"]
-        return {"success": True, "result": True}
 
     def getdevices(self):
         return [{"id": i, "name": "Enchufe %s" % i[-1], "key": "k" * 16, "category": "cz", "online": True} for i in IDS]
@@ -92,10 +101,30 @@ def test_command_is_optimistic():
     hub = make_hub(fake)
     p = CloudPlug(DEV, hub, lambda: 60)
     p.read()
-    n = len(fake.requests)
     p.set_power(False)
+    n = len(fake.requests)
     r = p.read()
     assert r.on is False and len(fake.requests) == n and fake.state[IDS[0]]["switch_1"] is False
+    assert fake.requests[-1] == "/v1.0/iot-03/devices/%s/commands" % IDS[0]
+
+
+def test_command_falls_back_and_remembers_method():
+    fake = FakeCloud(cmd_ok=("shadow",))
+    hub = make_hub(fake)
+    hub.command(IDS[0], "switch_1", False)
+    assert fake.state[IDS[0]]["switch_1"] is False and hub._cmd_strategy == "shadow"
+    fake.requests.clear()
+    hub.command(IDS[0], "switch_1", True)
+    assert fake.requests == ["/v2.0/cloud/thing/%s/shadow/properties/issue" % IDS[0]] and fake.state[IDS[0]]["switch_1"] is True
+
+
+def test_command_permission_error_explains_fix():
+    fake = FakeCloud(cmd_ok=())
+    hub = make_hub(fake)
+    with pytest.raises(CloudError) as e:
+        hub.command(IDS[0], "switch_1", True)
+    msg = str(e.value)
+    assert "28841105" in msg and "IoT Core" in msg and "Controllable" in msg
 
 
 def test_errors_are_cached_and_unconfigured():
