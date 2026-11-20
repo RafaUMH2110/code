@@ -468,11 +468,11 @@ SECRETOS=(--exclude='.env*' --exclude='*.key' --exclude='*.pem' --exclude='*secr
 RSYNC_OPTS=(-a --delete --delete-excluded --filter='P datos/' --exclude='.git/' --exclude='.github/' "${SECRETOS[@]}")
 case "$MODO" in
   web)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
     for e in "${EXT_WEB[@]}"; do RSYNC_OPTS+=(--include="*.$e"); done
     RSYNC_OPTS+=(--exclude='*') ;;
   html)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
   todo)
     RSYNC_OPTS+=(--exclude='.gitignore') ;;
 esac
@@ -481,9 +481,10 @@ copiados=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$ORIGEN/$r/.git" ] || [ -f "$ORIGEN/$r/.git" ] || continue
   extra=()
+  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-enchufes/') # de code no se copia TeleHome (es un servicio; se publica por proxy)
   [ -n "$BKP" ] && extra=(--backup --backup-dir="$BKP/$r")
   salida_rs="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${pre[@]}" "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
     copiados=$((copiados+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$salida_rs")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$salida_rs" | tr -d ',.')"; bytes="${bytes:-0}"
@@ -626,7 +627,7 @@ for repo in sorted(os.listdir(destino)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            if 'telehome-enchufes/' in rel:
+            if repo == 'code' and 'telehome-enchufes/' in rel:
                 continue  # su interfaz se publica por proxy (ver más abajo)
             # clon que contiene este fichero (el de esta ejecución puede ser parcial)
             clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
