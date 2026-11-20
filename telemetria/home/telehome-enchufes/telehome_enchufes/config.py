@@ -22,6 +22,9 @@ MIN_CLOUD_POLL = 60     # s; la cuenta gratuita de Tuya tiene un cupo de llamada
 MAX_POLL = 3600
 VERSIONS = ("3.1", "3.2", "3.3", "3.4", "3.5")
 MODES = ("local", "nube")
+# Tipos de dispositivo que sabe leer este servicio. La app genérica TeleHome los
+# consulta en api/health y api/state y deshabilita en el alta los que no estén.
+DEVICE_TYPES = ("enchufe",)
 CLOUD_REGIONS = ("eu", "eu-w", "us", "us-e", "in", "sg", "cn")
 
 OPTION_DEFAULTS: Dict[str, Any] = {
@@ -38,6 +41,8 @@ SECRET_OPTIONS = ("cloud_api_secret", "password_hash")
 # Valores típicos de un enchufe Tuya con medidor. En modo local se usan los
 # números de DPS; en modo nube, los códigos estándar de Tuya.
 DEVICE_DEFAULTS: Dict[str, Any] = {
+    "type": "enchufe",
+    "room": "",
     "mode": "local",
     "ip": "Auto",
     "version": "3.3",
@@ -102,6 +107,10 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
     base = dict(existing) if existing else {}
     merged = {**DEVICE_DEFAULTS, **base, **{k: v for k, v in raw.items() if v is not None}}
 
+    dtype = str(merged.get("type") or "enchufe").strip().lower()
+    if dtype not in DEVICE_TYPES:
+        raise ConfigError("Tipo de dispositivo no admitido por este servicio (%s)" % ", ".join(DEVICE_TYPES))
+
     mode = str(merged.get("mode") or "local").strip().lower()
     if mode not in MODES:
         raise ConfigError("Modo no válido (local o nube)")
@@ -111,6 +120,10 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
         raise ConfigError("El nombre del enchufe es obligatorio")
     if len(name) > 40:
         raise ConfigError("El nombre no puede superar 40 caracteres")
+
+    room = re.sub(r"\s+", " ", str(merged.get("room") or "")).strip()
+    if len(room) > 24:
+        raise ConfigError("La estancia no puede superar 24 caracteres")
 
     dev_id = str(merged.get("dev_id", "")).strip()
     if not _DEV_ID_RE.match(dev_id):
@@ -138,8 +151,10 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
     return {
         "id": base.get("id") or raw.get("id") or "",
         "slot": base.get("slot", raw.get("slot")),  # color fijo del enchufe (0-6)
+        "type": dtype,
         "mode": mode,
         "name": name,
+        "room": room,
         "dev_id": dev_id,
         "local_key": key,
         "ip": ip,

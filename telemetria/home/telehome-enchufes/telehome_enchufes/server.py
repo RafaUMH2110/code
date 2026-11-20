@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import APP_NAME, __version__
 from .cloud import REGIONS, CloudError
-from .config import MAX_DEVICES, Config, ConfigError, public_device, verify_password
+from .config import DEVICE_TYPES, MAX_DEVICES, Config, ConfigError, public_device, verify_password
 from .devices import PlugError, scan_network
 from .monitor import Monitor
 from .store import Store
@@ -175,6 +175,11 @@ def _range(h: Handler, q: Dict[str, str]) -> Tuple[float, float]:
     return t1 - span, t1
 
 
+def _wanted(q: Dict[str, str], default: str = "all") -> str:
+    """Identificador pedido: «dev» es el nombre genérico; «plug», el de las apps anteriores."""
+    return q.get("dev") or q.get("plug") or default
+
+
 def r_index(h: Handler, q):
     h._send(200, STATIC_INDEX.read_bytes(), "text/html; charset=utf-8",
             {"Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -183,7 +188,10 @@ def r_index(h: Handler, q):
 
 
 def r_health(h: Handler, q):
-    h._json(200, {"app": APP_NAME, "version": __version__, "ok": True})
+    # «app» no cambia, para que las apps anteriores sigan reconociendo el servicio;
+    # «api» y «types» le dicen a la app genérica TeleHome que puede hablarle directamente.
+    h._json(200, {"app": APP_NAME, "version": __version__, "ok": True,
+                  "api": "telehome", "types": list(DEVICE_TYPES)})
 
 
 def r_state(h: Handler, q):
@@ -197,6 +205,7 @@ def r_state(h: Handler, q):
     hub = c.hub
     h._json(200, {"app": APP_NAME, "version": __version__, "simulate": c.simulate,
                   "max_devices": MAX_DEVICES, "server_time": time.time(),
+                  "api": "telehome", "types": list(DEVICE_TYPES),
                   "options": c.config.public_options(), "regions": REGIONS,
                   "cloud": {"configured": bool(hub and hub.configured()), "calls": getattr(hub, "calls", 0)},
                   "devices": devices})
@@ -210,10 +219,23 @@ def r_power(h: Handler, q, dev_id):
     h._json(200, {"id": dev_id, "on": r.on, "online": r.online, "error": r.error})
 
 
+def r_command(h: Handler, q, dev_id):
+    """Orden genérica de TeleHome: {"action": "switch", "value": true|false}."""
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    try:
+        r = h.ctx.monitor.command(dev_id, str(body.get("action") or ""), body.get("value"))
+    except ValueError as exc:
+        raise ConfigError(str(exc))
+    h._json(200, {"id": dev_id, "online": r.online, "error": r.error,
+                  "state": {"on": r.on}, "on": r.on})
+
+
 def r_history(h: Handler, q):
     t0, t1 = _range(h, q)
     pts = max(50, min(int(q.get("points", 400)), 2000))
-    wanted = q.get("plug", "all")
+    wanted = _wanted(q)
     ids = [d["id"] for d in h.ctx.config.devices]
     if wanted != "all":
         if wanted not in ids:
@@ -226,14 +248,15 @@ def r_history(h: Handler, q):
 def r_summary(h: Handler, q):
     t0, t1 = _range(h, q)
     mon = h.ctx.monitor
-    h._json(200, {"from": t0, "to": t1,
-                  "plugs": {d["id"]: h.ctx.store.summary(d["id"], t0, t1, max(120.0, 6.0 * mon.interval_for(d["id"])))
-                            for d in h.ctx.config.devices}})
+    rows = {d["id"]: h.ctx.store.summary(d["id"], t0, t1, max(120.0, 6.0 * mon.interval_for(d["id"])))
+            for d in h.ctx.config.devices}
+    # «devices» es el nombre genérico; «plugs» se mantiene para las apps anteriores.
+    h._json(200, {"from": t0, "to": t1, "devices": rows, "plugs": rows})
 
 
 def r_csv(h: Handler, q):
     t0, t1 = _range(h, q)
-    plug = q.get("plug", "")
+    plug = _wanted(q, "")
     if h.ctx.config.get(plug) is None:
         raise KeyError(plug)
     data = "".join(h.ctx.store.export_csv(plug, t0, t1)).encode("utf-8")
@@ -327,6 +350,9 @@ def r_cloud_import(h: Handler, q):
     ids = body.get("dev_ids") if isinstance(body, dict) else None
     if not isinstance(ids, list) or not ids:
         raise ConfigError("Se esperaba {\"dev_ids\": [...]}")
+    dtype = str((body.get("type") if isinstance(body, dict) else None) or "enchufe").strip().lower()
+    if dtype not in DEVICE_TYPES:
+        raise ConfigError("Tipo de dispositivo no admitido por este servicio (%s)" % ", ".join(DEVICE_TYPES))
     wanted = {str(i) for i in ids}
     rows = [d for d in h.ctx.hub.list_devices() if d["dev_id"] in wanted]
     report = h.ctx.config.import_devices(rows, "nube")
@@ -365,7 +391,8 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("GET", _r(r"/api/history"), r_history),
     ("GET", _r(r"/api/summary"), r_summary),
     ("GET", _r(r"/api/export\.csv"), r_csv),
-    ("POST", _r(r"/api/plugs/([a-z0-9-]+)/power"), r_power),
+    ("POST", _r(r"/api/plugs/([a-z0-9-]+)/power"), r_power),      # compatibilidad
+    ("POST", _r(r"/api/devices/([a-z0-9-]+)/command"), r_command),
     ("POST", _r(r"/api/devices"), r_dev_add),
     ("POST", _r(r"/api/devices/import"), r_import),
     ("PUT", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_upd),

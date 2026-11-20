@@ -83,16 +83,25 @@ class Store:
     def summary(self, plug: str, t0: float, t1: float, max_gap: float = 120.0) -> Dict:
         with self._conn() as c:
             row = c.execute(
-                "SELECT AVG(power), MAX(power), COUNT(*), SUM(online), MAX(voltage), MIN(voltage) "
+                "SELECT AVG(power), MAX(power), COUNT(*), SUM(online), MAX(voltage), MIN(voltage), "
+                "MIN(power), AVG(voltage), AVG(current), MIN(current), MAX(current), AVG(on_) "
                 "FROM readings WHERE plug = ? AND ts BETWEEN ? AND ?", (plug, int(t0), int(t1))).fetchone()
         n = row[2] or 0
+        rnd = lambda v, d: None if v is None else round(v, d)
         return {
             "energy_kwh": round(self.energy_kwh(plug, t0, t1, max_gap), 4),
-            "avg_w": None if row[0] is None else round(row[0], 1),
+            "avg_w": rnd(row[0], 1),
             "max_w": row[1],
             "samples": n,
             "availability": None if not n else round((row[3] or 0) / n, 4),
             "v_max": row[4], "v_min": row[5],
+            # Bloque genérico de TeleHome: una entrada por magnitud medida.
+            "m": {
+                "p": {"avg": rnd(row[0], 1), "min": row[6], "max": row[1]},
+                "v": {"avg": rnd(row[7], 1), "min": row[5], "max": row[4]},
+                "i": {"avg": rnd(row[8], 3), "min": row[9], "max": row[10]},
+            },
+            "on_ratio": rnd(row[11], 4),
         }
 
     def export_csv(self, plug: str, t0: float, t1: float) -> Iterator[str]:

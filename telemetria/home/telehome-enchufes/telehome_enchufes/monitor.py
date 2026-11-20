@@ -149,6 +149,23 @@ class Monitor:
         self._record(dev_id, r, self._stops.get(dev_id))
         return r
 
+    # Órdenes que admite cada tipo de dispositivo (protocolo genérico TeleHome).
+    ACTIONS: Dict[str, tuple] = {"enchufe": ("switch",)}
+
+    def actions_for(self, dev_id: str) -> tuple:
+        dev = self.config.get(dev_id)
+        if dev is None:
+            raise KeyError(dev_id)
+        return self.ACTIONS.get(dev.get("type", "enchufe"), ())
+
+    def command(self, dev_id: str, action: str, value: Any) -> Reading:
+        """Orden genérica: de momento solo «switch», el único que admite un enchufe."""
+        if action not in self.actions_for(dev_id):
+            raise ValueError("Orden «%s» no admitida por este dispositivo" % action)
+        if not isinstance(value, bool):
+            raise ValueError("«value» debe ser true o false")
+        return self.set_power(dev_id, value)
+
     # ---- Estado --------------------------------------------------------------
     def state(self) -> List[Dict[str, Any]]:
         out = []
@@ -156,11 +173,17 @@ class Monitor:
             for dev in self.config.devices:
                 r = self.latest.get(dev["id"])
                 acc = self._energy.get(dev["id"])
+                kwh = None if acc is None else round(acc["kwh"], 4)
                 out.append({
                     "id": dev["id"],
+                    # «state» y «values» son el modelo genérico de TeleHome; los campos
+                    # planos (on, power_w...) se conservan para las apps anteriores.
                     "reading": None if r is None else {
                         "ts": r.ts, "online": r.online, "on": r.on, "power_w": r.power_w,
-                        "voltage_v": r.voltage_v, "current_a": r.current_a, "error": r.error},
-                    "energy_today_kwh": None if acc is None else round(acc["kwh"], 4),
+                        "voltage_v": r.voltage_v, "current_a": r.current_a, "error": r.error,
+                        "state": {"on": r.on},
+                        "values": {"p": r.power_w, "v": r.voltage_v, "i": r.current_a}},
+                    "energy_today_kwh": kwh,
+                    "accum": {"energy_today_kwh": kwh},
                 })
         return out

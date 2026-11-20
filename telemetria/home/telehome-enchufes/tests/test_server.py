@@ -121,3 +121,52 @@ def test_import_and_discover(app):
     assert st == 200 and rep["añadidos"] == ["Importado"]
     st, d = call(base, "/api/discover", "POST", {})
     assert st == 200 and d["found"]
+
+
+def test_generic_protocol(app):
+    """api/health, api/state y api/summary hablan también el modelo genérico de TeleHome."""
+    base, cfg, mon = app
+    st, h = call(base, "/api/health")
+    assert st == 200 and h["api"] == "telehome" and h["types"] == ["enchufe"]
+    st, state = call(base, "/api/state")
+    assert state["api"] == "telehome" and state["types"] == ["enchufe"]
+    d = state["devices"][0]
+    assert d["type"] == "enchufe" and "room" in d
+    assert d["reading"]["state"]["on"] is True
+    assert d["reading"]["values"]["p"] == d["reading"]["power_w"]
+    assert d["accum"]["energy_today_kwh"] == d["energy_today_kwh"]
+    pid = d["id"]
+    st, s = call(base, "/api/summary?range=3600")
+    assert st == 200 and s["devices"][pid] == s["plugs"][pid]
+    assert s["devices"][pid]["m"]["p"]["avg"] == s["devices"][pid]["avg_w"]
+    assert s["devices"][pid]["on_ratio"] == 1.0
+    # «dev» es el alias genérico de «plug»
+    assert pid in call(base, "/api/history?dev=all&range=3600")[1]["series"]
+    assert call(base, "/api/export.csv?dev=%s&range=3600" % pid)[0] == 200
+    assert call(base, "/api/history?dev=zzz")[0] == 404
+
+
+def test_generic_command(app):
+    base, cfg, mon = app
+    pid = cfg.devices[0]["id"]
+    st, r = call(base, "/api/devices/%s/command" % pid, "POST", {"action": "switch", "value": False})
+    assert st == 200 and r["state"]["on"] is False and r["on"] is False
+    d = next(x for x in call(base, "/api/state")[1]["devices"] if x["id"] == pid)
+    assert d["reading"]["values"]["p"] == 0.0
+    st, r = call(base, "/api/devices/%s/command" % pid, "POST", {"action": "switch", "value": True})
+    assert st == 200 and r["state"]["on"] is True
+    # órdenes de otros tipos de dispositivo y valores no booleanos: 400
+    assert call(base, "/api/devices/%s/command" % pid, "POST", {"action": "level", "value": 50})[0] == 400
+    assert call(base, "/api/devices/%s/command" % pid, "POST", {"action": "switch", "value": "si"})[0] == 400
+    assert call(base, "/api/devices/nope/command", "POST", {"action": "switch", "value": True})[0] == 404
+
+
+def test_type_and_room(app):
+    base, cfg, mon = app
+    st, dev = call(base, "/api/devices", "POST",
+                   {"name": "Caldera", "room": "  Garaje  ", "type": "enchufe",
+                    "dev_id": "bf7777777777", "local_key": "0123456789abcdef"})
+    assert st == 201 and dev["room"] == "Garaje" and dev["type"] == "enchufe"
+    st, err = call(base, "/api/devices", "POST",
+                   {"name": "Lámpara", "type": "luz", "dev_id": "bf8888888888", "local_key": "0123456789abcdef"})
+    assert st == 400 and "no admitido" in err["error"]

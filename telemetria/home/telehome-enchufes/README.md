@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.4.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.5.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -151,10 +151,47 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 
 ## API (JSON)
 
-`GET /api/state` · `POST /api/plugs/<id>/power {"on":true}` · `GET /api/history?plug=all&range=3600` ·
-`GET /api/summary?range=86400` · `GET /api/export.csv?plug=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
+`GET /api/state` · `POST /api/devices/<id>/command {"action":"switch","value":true}` ·
+`GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
+`GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·
 `POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}`
+
+### Protocolo genérico de TeleHome (0.5.0)
+
+La app genérica [TeleHome](https://rafaumh2110.github.io/apps/telemetria/home/telehome/) sirve para
+varios tipos de dispositivo, no solo enchufes, y este servicio ya habla su protocolo. Nada de lo
+anterior desaparece: las apps TeleHome Enchufes (web, iPhone, iPad) siguen funcionando igual.
+
+- `GET /api/health` y `GET /api/state` añaden `"api": "telehome"` y `"types": ["enchufe"]`.
+  `app` sigue siendo `TeleHome Enchufes`, así que las apps anteriores lo reconocen; la app genérica
+  ve `api` y le habla directamente, sin su adaptador de compatibilidad. En `types` están los tipos que
+  este servicio sabe leer: la app deshabilita en el alta los que no estén.
+- Cada dispositivo lleva `type` (de momento solo `enchufe`) y `room` (estancia, opcional, hasta 24
+  caracteres; la app agrupa por ella).
+- Cada lectura añade el modelo común `state` y `values`, junto a los campos de siempre:
+
+  ```json
+  { "ts": 1763645000, "online": true, "error": null,
+    "on": true, "power_w": 517.7, "voltage_v": 227.9, "current_a": 2.271,
+    "state":  { "on": true },
+    "values": { "p": 517.7, "v": 227.9, "i": 2.271 } }
+  ```
+
+  Y el acumulado del día va también en `accum` (`{"energy_today_kwh": 6.23}`).
+- `POST /api/devices/<id>/command` con `{"action": "switch", "value": true|false}` es la orden
+  genérica; un enchufe solo admite `switch`, y cualquier otra (`level`, `position`, `setpoint`) se
+  rechaza con 400. `POST /api/plugs/<id>/power {"on":…}` se mantiene como alias.
+- `GET /api/summary` devuelve los mismos datos en `devices` (nombre genérico) y en `plugs`
+  (compatibilidad), y cada fila añade el bloque `m` con una entrada por magnitud
+  (`{"p":{"avg","min","max"},"v":{…},"i":{…}}`) y `on_ratio`.
+- En `history`, `export.csv` y `summary`, `dev=` es el nombre genérico y `plug=` sigue valiendo.
+- `POST /api/cloud/import` acepta `type` y lo valida contra `types`.
+
+Para añadir un tipo nuevo (sensor, luz, persiana): añádelo a `DEVICE_TYPES` en `config.py` con sus
+campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnitudes en
+`reading.values` y declara sus órdenes en `Monitor.ACTIONS`. En la app, una entrada en su catálogo
+`TYPES` con las mismas claves de magnitud.
 
 ## Órdenes
 
