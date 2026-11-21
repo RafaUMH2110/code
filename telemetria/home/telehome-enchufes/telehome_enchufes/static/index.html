@@ -225,10 +225,9 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 .toast.bad { background:#7f1d1d; }
 .toast button { border:none; background:transparent; color:#fff; opacity:.8; cursor:pointer; font-size:18px; line-height:1; padding:0 2px; }
 
-/* Ocultar gráficas (botón «Ocultar gráficas»; la elección se recuerda en el navegador) */
+/* Ocultar minigráficas de la lista (botón «Ocultar gráficas»; la elección se recuerda en el navegador) */
 html.sin-graficas .p-spark { display:none; }
-html.sin-graficas #chartPanel .toolbar, html.sin-graficas #chartPanel .legend, html.sin-graficas #chartPanel .note,
-html.sin-graficas #chartPanel #chartWrap, html.sin-graficas #chartPanel .chart-empty, html.sin-graficas #chartPanel .hint { display:none; }
+html.sin-historico #chartPanel { display:none; }
 @media (min-width:761px) {
   html.sin-graficas .plug { grid-template-columns:minmax(0,1.25fr) minmax(130px,.85fr) minmax(0,1.35fr) auto; grid-template-areas:"id pow meta sw"; }
 }
@@ -295,7 +294,7 @@ html.sin-graficas #chartPanel #chartWrap, html.sin-graficas #chartPanel .chart-e
     </div>
   </section>
 
-  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas y el histórico">Ocultar gráficas</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
+  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <button class="btn" id="btnHist" type="button" aria-pressed="false" title="Oculta o muestra la ficha del histórico con su gráfica">Ocultar histórico</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
   <section class="plugs" id="cards" aria-label="Enchufes"></section>
 
   <section class="panel" id="chartPanel">
@@ -336,7 +335,7 @@ html.sin-graficas #chartPanel #chartWrap, html.sin-graficas #chartPanel .chart-e
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 23:36</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 00:15</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -497,6 +496,13 @@ function setGraphsHidden(hide, save) {
   const b = document.getElementById("btnGraphs");
   if (b) { b.textContent = hide ? "Mostrar gráficas" : "Ocultar gráficas"; b.setAttribute("aria-pressed", hide ? "true" : "false"); }
   if (save) { try { localStorage.setItem(GRAPHS_KEY, hide ? "1" : "0"); } catch (e) { /* sin almacenamiento */ } }
+}
+const HIST_KEY = "telehome_sin_historico";
+function setHistHidden(hide, save) {
+  document.documentElement.classList.toggle("sin-historico", hide);
+  const b = document.getElementById("btnHist");
+  if (b) { b.textContent = hide ? "Mostrar histórico" : "Ocultar histórico"; b.setAttribute("aria-pressed", hide ? "true" : "false"); }
+  if (save) { try { localStorage.setItem(HIST_KEY, hide ? "1" : "0"); } catch (e) { /* sin almacenamiento */ } }
 }
 const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
 
@@ -1060,6 +1066,13 @@ async function init() {
   document.getElementById("btnGraphs").addEventListener("click", () => {
     const hide = !document.documentElement.classList.contains("sin-graficas");
     setGraphsHidden(hide, true);
+  });
+  let sinHist = false;
+  try { sinHist = localStorage.getItem(HIST_KEY) === "1"; } catch (e) { /* sin almacenamiento */ }
+  setHistHidden(sinHist, false);
+  document.getElementById("btnHist").addEventListener("click", () => {
+    const hide = !document.documentElement.classList.contains("sin-historico");
+    setHistHidden(hide, true);
     if (!hide) drawChart();
   });
   bindChart(); bindDialog();
