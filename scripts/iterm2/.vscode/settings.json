@@ -53,5 +53,12 @@
   //  Terminal: abre en la carpeta del kit, con zsh como el resto del Mac.
   // -------------------------------------------------------------------
   "terminal.integrated.cwd": "${workspaceFolder}",
-  "terminal.integrated.defaultProfile.osx": "zsh"
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
 }
