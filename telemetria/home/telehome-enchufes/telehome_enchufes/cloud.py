@@ -13,7 +13,7 @@ import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-log = logging.getLogger("telehome-enchufes")
+log = logging.getLogger("telehome")
 
 REGIONS = {
     "eu": "Europa central",

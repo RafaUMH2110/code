@@ -502,7 +502,7 @@ done
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
 telehome_disponible() { find "$ORIGEN" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
-if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
 python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -867,14 +867,19 @@ instalar_telehome() {
   args=(--puerto "$puerto")
   for h in "${hosts[@]:-}"; do if [ -n "$h" ]; then args+=(--allow-host "$h"); fi; done
   if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
-    log "Servicio telehome-enchufes instalado (escucha en 127.0.0.1:$puerto)"
+    log "Servicio telehome instalado (escucha en 127.0.0.1:$puerto)"
   else
-    log "ERROR instalando telehome-enchufes (revisa $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errores=$((errores+1)); return 0
+    log "ERROR instalando telehome (revisa $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errores=$((errores+1)); return 0
   fi
 
   # Apache: proxy inverso del servicio bajo $ruta (la interfaz usa rutas relativas)
   $SUDO a2enmod proxy proxy_http >/dev/null 2>&1 || true
-  $SUDO tee /etc/apache2/conf-available/telehome-enchufes.conf >/dev/null <<EOF
+  # nombre anterior de la conf (el servicio se llamaba telehome-enchufes): se sustituye por «telehome»
+  if [ -e /etc/apache2/conf-available/telehome-enchufes.conf ]; then
+    $SUDO a2disconf telehome-enchufes >/dev/null 2>&1 || true
+    $SUDO rm -f /etc/apache2/conf-available/telehome-enchufes.conf
+  fi
+  $SUDO tee /etc/apache2/conf-available/telehome.conf >/dev/null <<EOF
 # TeleHome Enchufes: el servicio escucha en 127.0.0.1:$puerto y se publica en $ruta
 RedirectMatch "^${ruta%/}\$" "$ruta"
 <Location "$ruta">
@@ -883,9 +888,9 @@ RedirectMatch "^${ruta%/}\$" "$ruta"
     ProxyPassReverse "http://127.0.0.1:$puerto/"
 </Location>
 EOF
-  $SUDO a2enconf telehome-enchufes >/dev/null
+  $SUDO a2enconf telehome >/dev/null
   TELEHOME_CONF=1
-  log "Apache: TeleHome Enchufes publicado en $ruta (conf telehome-enchufes)"
+  log "Apache: TeleHome Enchufes publicado en $ruta (conf telehome)"
 }
 
 if [ "$COLECTOR" -eq 1 ]; then
@@ -953,7 +958,7 @@ else
   log "ERROR en la configuración de Apache: restaurando copia de seguridad"
   $SUDO a2disconf entrada-rafa >/dev/null 2>&1 || true
   [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-historial >/dev/null 2>&1 || true
-  [ "$TELEHOME_CONF" -eq 1 ] && $SUDO a2disconf telehome-enchufes >/dev/null 2>&1 || true
+  [ "$TELEHOME_CONF" -eq 1 ] && $SUDO a2disconf telehome >/dev/null 2>&1 || true
   for f in "${cambios[@]}"; do $SUDO cp -a "$COPIA$f" "$f"; done
   log "Restaurado desde $COPIA. Revisa: sudo apache2ctl configtest"
   exit 1
@@ -977,11 +982,12 @@ if [ "$COLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/sy
   log "telemet-colector         : $(systemctl is-active telemet-colector 2>/dev/null || true)"
 fi
 
-if [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
-  tele_estado="$(systemctl is-active telehome-enchufes 2>/dev/null || true)"
+if [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
+  tele_srv=telehome; systemctl cat telehome >/dev/null 2>&1 || tele_srv=telehome-enchufes  # nombre anterior, si aún no se ha migrado
+  tele_estado="$(systemctl is-active "$tele_srv" 2>/dev/null || true)"
   TELEHOME_RUTA="${ENTRADA}telehome/enchufes/"
   tele_http="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$TELEHOME_RUTA" || echo "sin respuesta")"
-  log "telehome-enchufes       : $tele_estado (servicio)  ·  $tele_http (HTTP en $TELEHOME_RUTA)"
+  log "telehome                : $tele_estado (servicio)  ·  $tele_http (HTTP en $TELEHOME_RUTA)"
 fi
 
 if [ -n "$CRON_EXPR" ]; then

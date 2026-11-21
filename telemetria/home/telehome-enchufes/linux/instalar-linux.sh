@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TeleHome Enchufes - instalador para Linux (servicio systemd)
+# TeleHome Enchufes - instalador para Linux (servicio systemd «telehome»)
 #   sudo ./linux/instalar-linux.sh                    instala o actualiza y arranca el servicio
 #   sudo ./linux/instalar-linux.sh --quitar           detiene y elimina el servicio (conserva los datos)
 #   ./linux/instalar-linux.sh --solo-servicio         imprime la unidad systemd y sale
@@ -7,12 +7,13 @@
 #           --allow-origin ORIGEN (repetible, p. ej. https://usuario.github.io: permite usar la API desde esa web)
 set -euo pipefail
 
-SERVICIO="telehome-enchufes"
-USUARIO="telehome-enchufes"
-DESTINO="/opt/telehome-enchufes"
-DATOS="/var/lib/telehome-enchufes"
+SERVICIO="telehome"
+USUARIO="telehome"
+DESTINO="/opt/telehome"
+DATOS="/var/lib/telehome"
 UNIDAD="/etc/systemd/system/$SERVICIO.service"
-ENVOLTORIO="/usr/local/bin/telehome-enchufes"
+ENVOLTORIO="/usr/local/bin/telehome"
+ANTES="telehome-enchufes"   # nombre anterior del servicio (se migra solo)
 PUERTO=8765
 HOST="127.0.0.1"
 EXTRA=()
@@ -43,6 +44,16 @@ for o in "${ORIGENES[@]+"${ORIGENES[@]}"}"; do
   case "$o" in http://*|https://*) ;; *) echo "Origen no válido (usa http(s)://dominio[:puerto]): $o" >&2; exit 2 ;; esac
   case "$o" in *[!0-9A-Za-z.:/-]*) echo "Origen no válido: $o" >&2; exit 2 ;; esac
 done
+
+# Retira el servicio y la orden con el nombre anterior (no toca los datos)
+retirar_antiguo() {
+  if [ -e "/etc/systemd/system/$ANTES.service" ]; then
+    systemctl disable --now "$ANTES" 2>/dev/null || true
+    rm -f "/etc/systemd/system/$ANTES.service"
+    systemctl daemon-reload
+  fi
+  rm -f "/usr/local/bin/$ANTES"
+}
 
 generar_unidad() {
   local extra=""
@@ -80,6 +91,7 @@ if [ "$(id -u)" -ne 0 ]; then echo "Ejecuta con sudo." >&2; exit 1; fi
 if [ "$ACCION" = "quitar" ]; then
   systemctl disable --now "$SERVICIO" 2>/dev/null || true
   rm -f "$UNIDAD" "$ENVOLTORIO"
+  retirar_antiguo
   systemctl daemon-reload
   echo "Servicio eliminado. Se conservan $DESTINO y los datos de $DATOS."
   exit 0
@@ -94,6 +106,20 @@ if [ -z "$PY" ]; then echo "Falta python3 (Debian/Ubuntu: apt install python3 py
 "$PY" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' || { echo "Se necesita Python 3.9 o superior." >&2; exit 1; }
 "$PY" -c 'import venv, ensurepip' 2>/dev/null || { echo "Falta el módulo venv (Debian/Ubuntu: apt install python3-venv)." >&2; exit 1; }
 
+# 1b) Migración desde «telehome-enchufes»: mismo servicio con el nombre nuevo, conservando datos y usuario
+retirar_antiguo
+if [ -d "/var/lib/$ANTES" ] && [ ! -e "$DATOS" ]; then
+  mv "/var/lib/$ANTES" "$DATOS"
+  echo "Datos migrados: /var/lib/$ANTES -> $DATOS"
+elif [ -d "/var/lib/$ANTES" ]; then
+  echo "AVISO: existen /var/lib/$ANTES y $DATOS; se usa $DATOS (revisa si quieres traer algo de la carpeta antigua)." >&2
+fi
+if id "$ANTES" >/dev/null 2>&1 && ! id "$USUARIO" >/dev/null 2>&1; then
+  groupmod -n "$USUARIO" "$ANTES" 2>/dev/null || true
+  usermod -l "$USUARIO" -d "$DATOS" "$ANTES"
+fi
+rm -rf "/opt/$ANTES"   # el entorno virtual no se puede mover: se vuelve a crear abajo
+
 # 2) Usuario de servicio y carpetas
 if ! id "$USUARIO" >/dev/null 2>&1; then
   useradd --system --home-dir "$DATOS" --shell /usr/sbin/nologin "$USUARIO"
@@ -102,7 +128,7 @@ install -d -m 0750 -o "$USUARIO" -g "$USUARIO" "$DATOS"
 install -d -m 0755 "$DESTINO"
 
 # 3) Código y dependencias
-rm -rf /opt/telehome-enchufes/telehome_enchufes
+rm -rf "$DESTINO/telehome_enchufes"
 cp -a "$REPO/telehome_enchufes" "$DESTINO/"
 cp "$REPO/requirements.txt" "$DESTINO/"
 find "$DESTINO/telehome_enchufes" -name __pycache__ -prune -exec rm -r {} +
@@ -110,7 +136,7 @@ find "$DESTINO/telehome_enchufes" -name __pycache__ -prune -exec rm -r {} +
 "$DESTINO/.venv/bin/python" -m pip install --quiet --upgrade pip
 "$DESTINO/.venv/bin/python" -m pip install --quiet -r "$DESTINO/requirements.txt"
 
-# 4) Orden «telehome-enchufes» que actúa como el usuario del servicio
+# 4) Orden «telehome» que actúa como el usuario del servicio
 cat > "$ENVOLTORIO" <<WRAP
 #!/bin/sh
 # Ejecuta TeleHome Enchufes sobre los datos del servicio (p. ej. cloud-setup, cloud-import, password, list)
@@ -134,9 +160,9 @@ cat <<FIN
 Instalado. Interfaz en http://$HOST:$PUERTO/ (servicio «$SERVICIO», datos en $DATOS).
 
 Siguientes pasos (modo nube):
-  sudo telehome-enchufes cloud-setup --region eu --access-id TU_ACCESS_ID   # pide el Access Secret
-  sudo telehome-enchufes cloud-import                                       # añade tus enchufes (máx. 7)
-  sudo telehome-enchufes password                                           # recomendable
+  sudo telehome cloud-setup --region eu --access-id TU_ACCESS_ID   # pide el Access Secret
+  sudo telehome cloud-import                                       # añade tus enchufes (máx. 7)
+  sudo telehome password                                           # recomendable
 
 Para verla desde tu ordenador sin abrir puertos:
   ssh -L $PUERTO:127.0.0.1:$PUERTO usuario@tu-vm   y abre http://127.0.0.1:$PUERTO/

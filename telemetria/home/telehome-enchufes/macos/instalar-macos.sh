@@ -7,7 +7,8 @@
 # Opciones: --puerto N (8765 por defecto)
 set -euo pipefail
 
-LABEL="es.umh.telehome-enchufes"
+LABEL="es.umh.telehome"
+ANTES="es.umh.telehome-enchufes"   # nombre anterior del LaunchAgent (se migra solo)
 PUERTO=8765
 ACCION="instalar"
 USAR_LAUNCHD=0
@@ -30,7 +31,7 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$AQUI/.." && pwd)"
 VENV="$REPO/.venv"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG="$HOME/Library/Logs/telehome-enchufes.log"
+LOG="$HOME/Library/Logs/telehome.log"
 UID_NUM="$(id -u)"
 
 xml_escape() { local s="$1"; s="${s//&/&amp;}"; s="${s//</&lt;}"; s="${s//>/&gt;}"; printf '%s' "$s"; }
@@ -67,7 +68,8 @@ if [ "$ACCION" = "plist" ]; then generar_plist; exit 0; fi
 
 if [ "$ACCION" = "quitar" ]; then
   launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
-  rm -f "$PLIST"
+  launchctl bootout "gui/$UID_NUM/$ANTES" 2>/dev/null || true
+  rm -f "$PLIST" "$HOME/Library/LaunchAgents/$ANTES.plist"
   echo "LaunchAgent eliminado. Los datos (histórico y configuración) se conservan."
   exit 0
 fi
@@ -101,6 +103,8 @@ echo "Dependencias instaladas."
 # 3) LaunchAgent (opcional)
 if [ "$USAR_LAUNCHD" = "1" ]; then
   mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+  launchctl bootout "gui/$UID_NUM/$ANTES" 2>/dev/null || true   # nombre anterior
+  rm -f "$HOME/Library/LaunchAgents/$ANTES.plist"
   launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
   generar_plist > "$PLIST"
   launchctl bootstrap "gui/$UID_NUM" "$PLIST"
