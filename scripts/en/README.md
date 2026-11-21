@@ -20,18 +20,23 @@ Scripts to clone the public repos of `RafaUMH2110`, deploy their web apps to Apa
 | `install-all-telemetry/` | `install-all.sh` | `instalar-todo-telemetria/instalar-todo.sh` | Reduced version: clones **only** `apps/telemetria` (partial clone), deploys it to Apache and lets you choose to install `telemet-collector` (`--collector` / `--no-collector`). Its Spanish counterpart installs `telemet-colector` |
 | | `index.html`, `favicon.svg`, `favicon.ico`, `apple-touch-icon.png` | same | Entry portal (lists **all** the cloned apps, not only the telemetry ones) and its favicon; must sit next to the script |
 | | `install-all-guide.md` | `instrucciones-instalar-todo.md` | Guide for `install-all.sh` |
+| `clone-code/` | `clone-code.sh` | `clonar-code/clonar-code.sh` | Clones or updates the **complete** `code` repo (no sparse; completes a partial clone), reports new directories (e.g. `telemetria/home/…`) and checks the required ones exist. `--cron` to schedule it |
+| | `clone-code-guide.md` | `instrucciones-clonar-code.md` | Guide for `clone-code.sh` |
 | `../telemet-collector-info/` | `telemet-collector-info.py` | `telemet-collector-info.py` | Shows all the TeleMet Collector parameters (bilingual output, `--lang en`). Standalone, read-only |
 | | `telemet-collector-info-ssh.py` | `telemet-collector-info-ssh.py` | Runs on your computer (CLI or VS Code): connects by SSH (password or RSA key) and shows the report of one or several servers. `--check-key` / `--install-key` / `--generate-key` validate or install `authorized_keys` login. Manual in Spanish: `MANUAL.md` |
 
 `install-all*.sh` superseded the scripts of the old `clone-update/` folder, which no longer exists (they remain in the Git history).
 
-The collector program itself is not in this repository any more: its single source is [`RafaUMH2110/apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/telemetcollector) (`telemetria/telemetcollector/`), from which `install-all*.sh` install it.
+The collector program itself is not in this repository any more: its single source is [`RafaUMH2110/apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/meteo/telemetcollector) (`telemetria/meteo/telemetcollector/`), from which `install-all*.sh` install it.
 
 ## Option names (Spanish → English)
 
 | Spanish | English |
 |---|---|
 | `--forzar` | `--force` |
+| `--exigir` | `--require` |
+| `--sin-comprobar` | `--no-check` |
+| `--arbol` | `--tree` |
 | `--interactivo` | `--interactive` |
 | `--excluir` | `--exclude` |
 | `--todos` | `--all` |
@@ -40,6 +45,8 @@ The collector program itself is not in this repository any more: its single sour
 | `--solo-html` | `--html-only` |
 | `--sin-indice` | `--no-index` |
 | `--colector` | `--collector` |
+| `--telehome` | `--telehome` |
+| `--sin-telehome` | `--no-telehome` |
 | `--entrada-raiz` | `--root-entry` |
 | `-u USUARIO` / `-o ORIGEN` / `-d DESTINO` | `-u USER` / `-o SOURCE` / `-d DEST` |
 
@@ -52,4 +59,8 @@ cd install-all
 chmod +x install-all.sh install-all-isa.sh
 ./install-all.sh -h        # local server
 ./install-all-isa.sh -h    # isa.umh.es
+
+cd ../clone-code
+chmod +x clone-code.sh
+./clone-code.sh -h         # clone the complete code repo
 ```

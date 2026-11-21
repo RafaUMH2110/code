@@ -1,0 +1,32 @@
+{
+  // Tareas (Terminal → Ejecutar tarea…).
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Crear .venv e instalar dependencias",
+      "type": "shell",
+      "command": "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest",
+      "windows": { "command": "py -m venv .venv; .venv\\Scripts\\pip install -r requirements.txt pytest" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Pruebas automáticas (pytest)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m pytest -q",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Enchufes: estado",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} telehome-enchufes-pruebas.py estado",
+      "problemMatcher": []
+    },
+    {
+      "label": "Enchufes: configuración efectiva",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} telehome-enchufes-pruebas.py config",
+      "problemMatcher": []
+    }
+  ]
+}

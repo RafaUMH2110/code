@@ -10,7 +10,13 @@
     { "name": "Generador · Mejora de código",    "path": "generador-apps/mejora-de-codigo" },
     { "name": "Generador · App con API Anthropic","path": "generador-apps/python-app-api-anthropic" },
     { "name": "Scripts",                         "path": "scripts" },
-    { "name": "Telemetría",                      "path": "telemetria" }
+    { "name": "Telemetría",                      "path": "telemetria" },
+    { "name": "Telemetría · Meteo",              "path": "telemetria/meteo" },
+    { "name": "Telemetría · Home",               "path": "telemetria/home" },
+    { "name": "Home · Enchufes",                "path": "telemetria/home/telehome-enchufes" },
+    { "name": "Home · Enchufes (vscode)",       "path": "telemetria/home/telehome-enchufes-vscode" },
+    { "name": "Home · Enchufes (iPhone)",       "path": "telemetria/home/telehome-enchufes-iphone" },
+    { "name": "Home · Enchufes (iPad)",         "path": "telemetria/home/telehome-enchufes-ipad" }
   ],
   "settings": {
     "files.exclude": { "**/.DS_Store": true, "**/__pycache__": true },

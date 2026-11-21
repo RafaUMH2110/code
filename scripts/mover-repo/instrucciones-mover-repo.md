@@ -139,7 +139,7 @@ Qué suele haber que tocar:
 | README de `code` / `apps` | Enlaces `github.com/RafaUMH2110/telemetria` → `github.com/RafaUMH2110/code/tree/main/telemetria` |
 | Guías de los scripts `instalar-todo*.sh` | Ejemplos con `--repos "…,telemetria"` → `…,code/telemetria`; quitar el repo de los menús de ejemplo |
 | Portales / índices | Las entradas que apunten al repo viejo |
-| Documentos que citen la ruta de los ficheros | La ruta nueva es `telemetria/<fichero>` |
+| Documentos que citen la ruta de los ficheros | La ruta nueva era `telemetria/<fichero>`; hoy los ficheros de la estación están en `telemetria/meteo/<fichero>` |
 
 Cada cambio se sube con su commit habitual:
 

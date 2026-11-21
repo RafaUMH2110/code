@@ -117,6 +117,8 @@ Common combinations:
 | Option | Description |
 |---|---|
 | `--collector` | Installs the telemetry collector as a service. See [section 8](#8-telemetry-collector). |
+| `--no-telehome` | Does not install TeleHome Enchufes. By default it is installed when `code/telemetria/home` is among the cloned repos. |
+| `--telehome` | Installs **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) as a systemd service on `127.0.0.1:8765`, publishes it in Apache at `<entry>telehome/` (reverse proxy, conf `telehome-enchufes`) and adds the **Home** category (the `telemetria` apps of the `apps` repo are grouped under **Weather**) to the portal. This is the default when `code/telemetria/home` is among the cloned repos (the option forces it and warns if it is missing). Once installed, the portal keeps listing it. The service only accepts the server's names (`hostname`, FQDN and IPs), passed as `--allow-host`. |
 | `--cron "EXPR"` | Schedules periodic execution, e.g. `--cron "0 3 * * *"`. |
 | `-h`, `--help` | Shows the help. |
 
@@ -251,7 +253,7 @@ The descriptions of the known apps (GenImOd, GenOutFit, GenPatMod…) are in the
 
 ## 8. Telemetry collector
 
-The `apps` repo contains in `telemetria/telemetcollector/` a Python program that reads your weather station (Weather Underground) every 5 minutes, keeps the last 24 hours (configurable) in SQLite and exports a `history.json` used by the **TeleMet History** app. **It is not a web page**: it is a service that has to be running on the server. It only uses the Python standard library.
+The `apps` repo contains in `telemetria/meteo/telemetcollector/` a Python program that reads your weather station (Weather Underground) every 5 minutes, keeps the last 24 hours (configurable) in SQLite and exports a `history.json` used by the **TeleMet History** app. **It is not a web page**: it is a service that has to be running on the server. It only uses the Python standard library.
 
 ### 8.1 Installation
 
@@ -278,14 +280,14 @@ Requirement: the `apps` repo with the `telemetria` folder must be in the selecti
 | Program and configuration | `/opt/telemet-collector/` (`telemet_collector.py`, `config.ini`, `config.example.ini`) |
 | Database | `/opt/telemet-collector/data/telemet.sqlite` |
 | systemd service | `/etc/systemd/system/telemet-collector.service` |
-| Published JSON | next to the History app: `/var/www/html/rafa/apps/telemetria/telemet/history/data/history.json` |
+| Published JSON | next to the History app: `/var/www/html/rafa/apps/telemetria/meteo/telemet/history/data/history.json` |
 | Anti-cache header for the JSON | `/etc/apache2/conf-available/telemet-history.conf` |
 
 - The service is generated from the repo's `.service`, with the JSON folder adapted to this server.
 - `config.ini` is created from the template **only if it does not exist**: running the script again does not overwrite your credentials. The `telemet_collector.py` program is always updated.
 - `config.ini` ends up with `600` permissions and owned by `telemet`.
 - The `data/` folder where the JSON is written keeps the `telemet` owner even if it is deployed again.
-- The JSON can be seen at `http://192.168.0.129/rafa/apps/telemetria/telemet/history/data/history.json`.
+- The JSON can be seen at `http://192.168.0.129/rafa/apps/telemetria/meteo/telemet/history/data/history.json`.
 
 ### 8.3 With and without credentials
 
@@ -363,7 +365,7 @@ If you change the destination (`-d /var/www/html/apps`), the entry becomes `/app
     ├── index.html                    ← portal
     ├── apps.json                     ← catalog read by the portal
     ├── apps/moda/…  apps/telemetria/…  ← one folder per repo, original structure
-    └── apps/telemetria/telemet/history/data/history.json   ← written by the collector
+    └── apps/telemetria/meteo/telemet/history/data/history.json   ← written by the collector
 
 /opt/telemet-collector/                ← collector (if --collector was used)
 /etc/systemd/system/telemet-collector.service
@@ -401,7 +403,7 @@ systemctl status apache2
 
 # Collector
 systemctl status telemet-collector
-curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/history/data/history.json | head -c 300
+curl -s http://192.168.0.129/rafa/apps/telemetria/meteo/telemet/history/data/history.json | head -c 300
 ```
 
 ### Information shown on each update
@@ -410,7 +412,7 @@ On every run the log (screen and `install-all.log`) details what changed:
 
 ```
 Updated: apps  [folders: telemetria]  ·  +4 commits  ·  files: 1 (0 new, 1 modified, 0 deleted)  ·  lines +33/-12  ·  download ≈ 4.0 KB
-      ~ telemetria/telemet/multi/index.html
+      ~ telemetria/meteo/telemet/multi/index.html
 No changes: code  [folders: linux]
 Git summary -> commits: 4 | files: +0 ~1 -0 | lines: +33/-12 | download ≈ 4.0 KB
 Deployed: apps  ·  0 new  ·  1 modified  ·  0 deleted  ·  transferred 191.4 KB

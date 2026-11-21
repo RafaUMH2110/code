@@ -1,0 +1,22 @@
+{
+  "comentario": "Copia este fichero como config-pruebas.json (no se sube a git) y rellena tus datos. Lo que pongas aquí tiene prioridad sobre las variables del código.",
+  "nube": {
+    "region": "eu",
+    "access_id": "TU_ACCESS_ID",
+    "access_secret": ""
+  },
+  "opciones": {
+    "intervalo_vigilancia": 60,
+    "tiempo_espera": 5,
+    "tiempo_busqueda": 12
+  },
+  "enchufes": [
+    {"nombre": "Prueba", "modo": "simulado", "dev_id": "sim00000001"},
+    {"nombre": "Nevera", "modo": "nube", "dev_id": "bf0123456789abcdefxyz"},
+    {"nombre": "Router", "modo": "nube", "dev_id": "bf9876543210fedcbaxyz", "protegido": true,
+     "comentario": "protegido: no se apaga sin --forzar"},
+    {"nombre": "Lampara", "modo": "local", "dev_id": "bf1111111111111111abc",
+     "local_key": "0123456789abcdef", "ip": "Auto", "version": "3.3",
+     "dp_potencia": 19, "escala_potencia": 10}
+  ]
+}

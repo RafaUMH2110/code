@@ -225,7 +225,7 @@ sync_repo() {   # sync_repo repo "folders"
 SEL_REPOS=("$REPO")
 sync_repo "$REPO" "$FOLDER"
 for _c in telemetcolector telemetcollector; do
-  if [ -d "$SOURCE/$REPO/$FOLDER/$_c" ]; then log "Collector available: $FOLDER/$_c"; else log "WARNING: $FOLDER/$_c not found in the cloned repo"; fi
+  if [ -d "$SOURCE/$REPO/$FOLDER/meteo/$_c" ]; then log "Collector available: $FOLDER/meteo/$_c"; else log "WARNING: $FOLDER/meteo/$_c not found in the cloned repo"; fi
 done
 log "Repos -> new: $created | updated: $updated (with changes: $((updated-unchanged)), unchanged: $unchanged) | errors: $errors"
 log "Git summary -> commits: $g_commits | files: +$g_add ~$g_mod -$g_del | lines: +$g_ins/-$g_rem | download ≈ $(human_size $g_bytes)"
@@ -523,7 +523,7 @@ ini_set() {   # ini_set key value file  (the value travels in the environment, n
 
 install_collector() {
   local src_dir app json_dir tmp station key pending=0
-  src_dir="$SOURCE/$REPO/$FOLDER/telemetcollector"
+  src_dir="$SOURCE/$REPO/$FOLDER/meteo/telemetcollector"
   if [ ! -f "$src_dir/telemet_collector.py" ]; then
     log "WARNING: $src_dir/telemet_collector.py not found (was apps/$FOLDER cloned correctly?)"
     return 0

@@ -31,6 +31,7 @@ ALL=0
 REPOS_CLI=""
 EXCLUDE_CLI=""
 COLLECTOR=0
+TELEHOME=auto   # auto: installed if code/telemetria/home is among the cloned repos
 
 usage() {
 cat <<'EOF'
@@ -66,6 +67,12 @@ Telemetry
                       or asked on the terminal. Without them the service is left
                       ready but not started.
 
+  --telehome          Installs TeleHome Enchufes (from code/telemetria/home) as a systemd
+                      service and publishes it in Apache at <entry>telehome/
+                      (reverse proxy to 127.0.0.1:8765). Adds the «Home» category to the
+                      portal. This is the default when code/telemetria/home is among the
+                      cloned repos; --no-telehome skips it.
+  --no-telehome       Does not install TeleHome Enchufes even if it is available.
 Other
   --cron "EXPR"       Schedule the task in cron, e.g. --cron "0 3 * * *"
   -h, --help          This help
@@ -89,6 +96,8 @@ while [ $# -gt 0 ]; do
     --all) ALL=1; shift ;;
     --list) LIST=1; shift ;;
     --collector) COLLECTOR=1; shift ;;
+    --telehome) TELEHOME=1; shift ;;
+    --no-telehome) TELEHOME=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1  (use -h for help)" >&2; exit 1 ;;
   esac
@@ -295,7 +304,7 @@ step() { echo | tee -a "$LOG"; log "=== $* ==="; }
 # -----------------------------------------------------------------------------
 step "1/6 Dependencies"
 MISSING=()
-for p in apache2 git curl jq rsync python3; do
+for p in apache2 git curl jq rsync python3 python3-venv; do
   dpkg -s "$p" >/dev/null 2>&1 || MISSING+=("$p")
 done
 if [ "${#MISSING[@]}" -gt 0 ]; then
@@ -454,9 +463,10 @@ copied=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$SOURCE/$r/.git" ] || [ -f "$SOURCE/$r/.git" ] || continue
   extra=()
+  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-enchufes/') # TeleHome from code is not copied (it is a service; published through a proxy)
   [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r")
   rsync_out="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${pre[@]}" "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
     copied=$((copied+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$rsync_out")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$rsync_out" | tr -d ',.')"; bytes="${bytes:-0}"
@@ -490,7 +500,10 @@ done
 # For each HTML file it collects title, description, size, last commit date and the
 # nearest README (project and summary).
 tmp_json="$(mktemp)"
-python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" >/dev/null <<'PYEOF'
+TELEHOME_URL=""
+telehome_disponible() { find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/"; fi
+python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
 src_root, dest_root, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -570,6 +583,7 @@ def git_date(repo_dir, rel):
 # (e.g. ~/RafaUMH2110 if the full install-all is also used). This way the entry page
 # lists ALL the cloned and deployed apps, not only those of this run.
 home, user = sys.argv[4], sys.argv[5]
+telehome = sys.argv[6] if len(sys.argv) > 6 else ''
 origins = [src_root]
 for base in (os.path.dirname(os.path.abspath(src_root)), home):
     try:
@@ -595,6 +609,8 @@ for repo in sorted(os.listdir(dest_root)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
+            if repo == 'code' and 'telehome-enchufes/' in rel:
+                continue  # its interface is published through a proxy (see below)
             # clone that contains this file (this run's one may be partial)
             clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
             title, desc = html_meta(read_text(full))
@@ -605,6 +621,20 @@ for repo in sorted(os.listdir(dest_root)):
             apps.append({'repo': repo, 'path': rel, 'title': title, 'description': desc,
                          'project': project_name, 'summary': summary_text,
                          'size': os.path.getsize(full), 'updated': date_str})
+
+# TeleHome category: the TeleHome Enchufes interface is served by a service behind an Apache
+# reverse proxy, so it is added as an entry of its own (with its URL), not as a static file.
+if telehome:
+    tdate = ''
+    for o in origins:
+        c = os.path.join(o, 'code')
+        if os.path.exists(os.path.join(c, '.git')) and os.path.isdir(os.path.join(c, 'telemetria', 'home', 'telehome-enchufes')):
+            tdate = git_date(c, 'telemetria/home/telehome-enchufes')
+            break
+    apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-enchufes/', 'title': 'TeleHome Enchufes',
+                 'description': 'Telemetry and control of Energeeks Wi-Fi plugs (Tuya): power, voltage, current, history and charts.', 'project': '', 'summary': '',
+                 'size': 0, 'updated': tdate or datetime.date.today().isoformat(),
+                 'category': 'home', 'url': telehome})
 
 with open(out_path, 'w', encoding='utf-8') as fh:
     json.dump({'generated': datetime.datetime.now().strftime('%d/%m/%Y %H:%M'), 'apps': apps},
@@ -617,6 +647,8 @@ log "Catalog generated: $DEST/apps.json ($(jq '.apps|length' "$DEST/apps.json") 
 
 # Entry page: index.html template next to this script (visual portal)
 TEMPLATE="$(dirname "$SCRIPT_ABS")/index.html"
+# If it is not next to the script, the one from the cloned code repo is used
+if [ ! -f "$TEMPLATE" ] && [ -f "$SOURCE/code/scripts/en/install-all/index.html" ]; then TEMPLATE="$SOURCE/code/scripts/en/install-all/index.html"; fi
 if [ "$INDEX" -eq 1 ] && [ -f "$TEMPLATE" ]; then
   $SUDO install -m 644 "$TEMPLATE" "$DEST/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do
@@ -815,10 +847,60 @@ EOF
   fi
 }
 
+TELEHOME_CONF=0
+TELEHOME_PUERTO=8765
+instalar_telehome() {
+  local inst ruta puerto="$TELEHOME_PUERTO" h
+  local hosts=() args=()
+  inst="$(find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | head -1)"
+  if [ -z "$inst" ]; then
+    [ "$TELEHOME" = 1 ] && log "WARNING: telehome-enchufes was not found in the cloned repos (is code/telemetria selected?)"
+    return 0
+  fi
+  ruta="${ENTRY}telehome/"
+  # Host names allowed for the interface (the service rejects any other Host)
+  for h in "${HOST_WEB:-}" "$(hostname -f 2>/dev/null || true)" "$(hostname 2>/dev/null || true)" $(hostname -I 2>/dev/null || true); do
+    if [ -n "$h" ] && [[ " ${hosts[*]:-} " != *" $h "* ]]; then hosts+=("$h"); fi
+  done
+  args=(--puerto "$puerto")
+  for h in "${hosts[@]:-}"; do if [ -n "$h" ]; then args+=(--allow-host "$h"); fi; done
+  if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
+    log "Service telehome installed (listening on 127.0.0.1:$puerto)"
+  else
+    log "ERROR installing telehome (see $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errors=$((errors+1)); return 0
+  fi
+
+  # Apache: reverse proxy of the service under $ruta (the interface uses relative paths)
+  $SUDO a2enmod proxy proxy_http >/dev/null 2>&1 || true
+  # nombre anterior de la conf (el servicio se llamaba telehome-enchufes): se sustituye por «telehome»
+  if [ -e /etc/apache2/conf-available/telehome-enchufes.conf ]; then
+    $SUDO a2disconf telehome-enchufes >/dev/null 2>&1 || true
+    $SUDO rm -f /etc/apache2/conf-available/telehome-enchufes.conf
+  fi
+  $SUDO tee /etc/apache2/conf-available/telehome.conf >/dev/null <<EOF
+# TeleHome Enchufes: the service listens on 127.0.0.1:$puerto and is published at $ruta
+RedirectMatch "^${ruta%/}\$" "$ruta"
+<Location "$ruta">
+    ProxyPreserveHost On
+    ProxyPass "http://127.0.0.1:$puerto/"
+    ProxyPassReverse "http://127.0.0.1:$puerto/"
+</Location>
+EOF
+  $SUDO a2enconf telehome >/dev/null
+  TELEHOME_CONF=1
+  log "Apache: TeleHome Enchufes published at $ruta (conf telehome)"
+}
+
 if [ "$COLLECTOR" -eq 1 ]; then
   install_collector
 else
   log "Not requested (use --collector to install it)"
+fi
+
+if [ "$TELEHOME" != 0 ]; then
+  instalar_telehome
+else
+  log "Not requested (use --telehome to install it)"
 fi
 
 # -----------------------------------------------------------------------------
@@ -874,6 +956,7 @@ else
   log "ERROR in the Apache configuration: restoring backup"
   $SUDO a2disconf rafa-entry >/dev/null 2>&1 || true
   [ "$HEADERS_CONF" -eq 1 ] && $SUDO a2disconf telemet-history >/dev/null 2>&1 || true
+  [ "$TELEHOME_CONF" -eq 1 ] && $SUDO a2disconf telehome >/dev/null 2>&1 || true
   for f in "${changes[@]}"; do $SUDO cp -a "$ENTRY_BACKUP$f" "$f"; done
   log "Restored from $ENTRY_BACKUP. Check: sudo apache2ctl configtest"
   exit 1
@@ -897,11 +980,21 @@ if [ "$COLLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/s
   log "telemet-collector         : $(systemctl is-active telemet-collector 2>/dev/null || true)"
 fi
 
+if [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
+  tele_srv=telehome; systemctl cat telehome >/dev/null 2>&1 || tele_srv=telehome-enchufes  # nombre anterior, si aún no se ha migrado
+  tele_estado="$(systemctl is-active "$tele_srv" 2>/dev/null || true)"
+  TELEHOME_RUTA="${ENTRY}telehome/"
+  tele_http="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$TELEHOME_RUTA" || echo "sin respuesta")"
+  log "telehome                : $tele_estado (service)  ·  $tele_http (HTTP at $TELEHOME_RUTA)"
+fi
+
 if [ -n "$CRON_EXPR" ]; then
   cron_line="$CRON_EXPR $SCRIPT_ABS -u $GH_USER -o $SOURCE -d $DEST"
   [ "$MODE" != "web" ] && cron_line="$cron_line --mode $MODE"
   [ "$INDEX" -eq 0 ]  && cron_line="$cron_line --no-index"
   [ "$COLLECTOR" -eq 1 ] && cron_line="$cron_line --collector"
+  [ "$TELEHOME" = 1 ] && cron_line="$cron_line --telehome"
+  [ "$TELEHOME" = 0 ] && cron_line="$cron_line --no-telehome"
   cron_line="$cron_line >/dev/null 2>&1"
   ( crontab -l 2>/dev/null | grep -vF "$SCRIPT_ABS" ; echo "$cron_line" ) | crontab -
   log "Cron scheduled: $CRON_EXPR (uses the selection saved in $SEL_FILE)"

@@ -29,7 +29,8 @@ Diferencia de fondo: el servidor ya tiene configuración propia (`<Directory /va
 
 - Debian 13 con Apache ya funcionando para isa.umh.es.
 - Usuario con `sudo`.
-- En la misma carpeta que el script: `index.html` (el portal) y su favicon (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
+- `index.html` (el portal) y su favicon: se toman del repo `code` ya actualizado (`scripts/instalar-todo/`); la copia que haya junto al script solo se usa si el repo no está disponible (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
+  El portal tiene el mismo diseño que la página de entrada de GitHub Pages (https://rafaumh2110.github.io/apps/): cabecera *Herramientas de IA para la Docencia*, una tarjeta por área (Moda y textil, Telemetría —estación meteorológica y hogar—, Análisis de PDF, Consulta con IA, Código y utilidades) con cada app y sus versiones (Pro, ProMax, Lite…) como etiquetas, buscador y el mismo pie. Las apps salen de `apps.json`; si el repo `apps` está desplegado, añade los botones *Catálogo completo* y *Agrupado por tema* (que abren `apps/appindex/`).
 - Acceso a `api.github.com` y `github.com` (repos públicos de `RafaUMH2110`).
 
 El script instala por sí mismo `git`, `curl`, `jq`, `rsync` y `python3` si faltan.
@@ -60,6 +61,8 @@ chmod +x instalar-todo-isa.sh
 | `--docroot DIR` | DocumentRoot (def.: `/var/www/htdocs`) |
 | `--entrada-raiz` | Además, `/` redirige a `/rafa/` (cambia la portada) |
 | `--json-dir DIR` | Carpeta donde el colector publica `historial.json` |
+
+También admite `--telehome`/`--sin-telehome` (por defecto se instala si `code/telemetria/home` está entre los repos clonados): instala TeleHome Enchufes como servicio y lo publica en `<entrada>telehome/` mediante un `conf-available/telehome.conf` (proxy inverso; se activa con `a2enconf` y, si `configtest` falla, se desactiva junto con el resto de confs nuevas). El portal la muestra en la tarjeta **Telemetría**, apartado *Hogar*.
 
 El resto de opciones (`-u`, `-o`, `-d`, `--modo`, `--repos`, `--excluir`, `--todos`, `--listar`, `--sin-indice`, `--colector`, `--cron`, `--forzar`) funcionan igual que en la versión local; ver `instrucciones-instalar-todo.md`.
 

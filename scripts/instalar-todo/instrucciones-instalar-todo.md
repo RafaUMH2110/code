@@ -117,6 +117,8 @@ Combinaciones habituales:
 | Opción | Descripción |
 |---|---|
 | `--colector` | Instala el colector de telemetría como servicio. Ver [sección 8](#8-colector-de-telemetría). |
+| `--sin-telehome` | No instala TeleHome Enchufes. Por defecto se instala cuando `code/telemetria/home` está entre los repos clonados. |
+| `--telehome` | Instala **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) como servicio systemd en `127.0.0.1:8765`, lo publica en Apache en `<entrada>telehome/` (proxy inverso, conf `telehome-enchufes`) y añade al portal la categoría **Home** (y las apps de `telemetria` del repo `apps` se agrupan en **Meteo**). Es el comportamiento por defecto cuando `code/telemetria/home` está entre los repos clonados (la opción sirve para forzarlo y avisar si falta). Una vez instalado, el portal lo sigue listando. El servicio solo acepta los nombres del servidor (`hostname`, FQDN e IPs), que se pasan como `--allow-host`. |
 | `--cron "EXPR"` | Programa la ejecución periódica, p. ej. `--cron "0 3 * * *"`. |
 | `-h`, `--help` | Muestra la ayuda. |
 
@@ -251,7 +253,7 @@ Las descripciones de las apps conocidas (GenImOd, GenOutFit, GenPatMod…) está
 
 ## 8. Colector de telemetría
 
-El repo `apps` contiene en `telemetria/telemetcolector/` un programa en Python que lee tu estación meteorológica (Weather Underground) cada 5 minutos, guarda las últimas 12 horas en SQLite y exporta un `historial.json` que usa la app **TeleMet Historial**. **No es una página web**: es un servicio que debe estar en marcha en el servidor. Solo usa la biblioteca estándar de Python.
+El repo `apps` contiene en `telemetria/meteo/telemetcolector/` un programa en Python que lee tu estación meteorológica (Weather Underground) cada 5 minutos, guarda las últimas 12 horas en SQLite y exporta un `historial.json` que usa la app **TeleMet Historial**. **No es una página web**: es un servicio que debe estar en marcha en el servidor. Solo usa la biblioteca estándar de Python.
 
 ### 8.1 Instalación
 
@@ -278,14 +280,14 @@ Requisito: el repo `apps` con la carpeta `telemetria` debe estar en la selecció
 | Programa y configuración | `/opt/telemet-colector/` (`telemet_colector.py`, `config.ini`, `config.example.ini`) |
 | Base de datos | `/opt/telemet-colector/datos/telemet.sqlite` |
 | Servicio systemd | `/etc/systemd/system/telemet-colector.service` |
-| JSON publicado | junto a la app Historial: `/var/www/html/rafa/apps/telemetria/telemet/historial/datos/historial.json` |
+| JSON publicado | junto a la app Historial: `/var/www/html/rafa/apps/telemetria/meteo/telemet/historial/datos/historial.json` |
 | Cabecera anti-caché del JSON | `/etc/apache2/conf-available/telemet-historial.conf` |
 
 - El servicio se genera a partir del `.service` del repo, con la carpeta del JSON adaptada a este servidor.
 - `config.ini` se crea desde la plantilla **solo si no existe**: al volver a ejecutar el script no se pisan tus credenciales. Siempre se actualiza el programa `telemet_colector.py`.
 - `config.ini` queda con permisos `600` y propiedad de `telemet`.
 - La carpeta `datos/` donde se escribe el JSON conserva el propietario `telemet`, aunque se vuelva a desplegar.
-- El JSON se puede ver en `http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json`.
+- El JSON se puede ver en `http://192.168.0.129/rafa/apps/telemetria/meteo/telemet/historial/datos/historial.json`.
 
 ### 8.3 Con y sin credenciales
 
@@ -361,7 +363,7 @@ Si cambias el destino (`-d /var/www/html/apps`), la entrada pasa a ser `/apps/`.
     ├── index.html                    ← portal
     ├── apps.json                     ← catálogo que lee el portal
     ├── apps/moda/…  apps/telemetria/…  ← una carpeta por repo, estructura original
-    └── apps/telemetria/telemet/historial/datos/historial.json   ← lo escribe el colector
+    └── apps/telemetria/meteo/telemet/historial/datos/historial.json   ← lo escribe el colector
 
 /opt/telemet-colector/                ← colector (si se usó --colector)
 /etc/systemd/system/telemet-colector.service
@@ -399,7 +401,7 @@ systemctl status apache2
 
 # Colector
 systemctl status telemet-colector
-curl -s http://192.168.0.129/rafa/apps/telemetria/telemet/historial/datos/historial.json | head -c 300
+curl -s http://192.168.0.129/rafa/apps/telemetria/meteo/telemet/historial/datos/historial.json | head -c 300
 ```
 
 ### Información de cada actualización
@@ -408,7 +410,7 @@ En cada ejecución el log (pantalla y `instalar-todo.log`) detalla qué ha cambi
 
 ```
 Actualizado: apps  [carpetas: telemetria]  ·  +4 commits  ·  ficheros: 1 (0 nuevos, 1 modificados, 0 borrados)  ·  líneas +33/-12  ·  descarga ≈ 4.0 KB
-      ~ telemetria/telemet/multi/index.html
+      ~ telemetria/meteo/telemet/multi/index.html
 Sin cambios: code  [carpetas: linux]
 Resumen git -> commits: 4 | ficheros: +0 ~1 -0 | líneas: +33/-12 | descarga ≈ 4.0 KB
 Desplegado: apps  ·  0 nuevos  ·  1 modificados  ·  0 borrados  ·  transferido 191.4 KB
