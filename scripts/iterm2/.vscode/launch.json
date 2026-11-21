@@ -1,0 +1,103 @@
+// =====================================================================
+//  launch.json · Depurar los scripts paso a paso (F5)
+// ---------------------------------------------------------------------
+//  Las TAREAS (tasks.json) son para usar el kit. Esto es para ENTENDERLO
+//  o arreglarlo: pon un punto de parada (clic a la izquierda del número
+//  de línea) y pulsa F5 con la configuración que toque.
+//
+//  Todas las configuraciones son de solo lectura: generan en carpetas
+//  temporales, usan --dry-run o enseñan un plan. Para cambiar algo de
+//  verdad, usa las tareas (⌘⇧P -> Tasks: Run Task).
+//
+//  Necesita la extensión «Python Debugger» (ms-python.debugpy); VS Code la
+//  propone al abrir la carpeta (ver extensions.json).
+// =====================================================================
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    // -----------------------------------------------------------------
+    //  El archivo que tengas abierto, sin argumentos. Lo más rápido para
+    //  inventario.py o para un script nuevo.
+    // -----------------------------------------------------------------
+    {
+      "name": "Depurar · archivo abierto",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+    // -----------------------------------------------------------------
+    //  generar_perfiles.py con TU hoja, escribiendo en /tmp: se ve el
+    //  resultado sin tocar perfiles/ ni ssh/ del kit.
+    // -----------------------------------------------------------------
+    {
+      "name": "Depurar · generar_perfiles (tu hoja, salida en /tmp)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generar_perfiles.py",
+      "args": ["--salida", "/tmp/iterm2-depurar"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+    // -----------------------------------------------------------------
+    //  Lo mismo con el CSV de ejemplo: no depende de que exista tu hoja.
+    // -----------------------------------------------------------------
+    {
+      "name": "Depurar · generar_perfiles (CSV de ejemplo)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generar_perfiles.py",
+      "args": [
+        "--csv", "datos/servidores-ejemplo.csv",
+        "--salida", "/tmp/iterm2-depurar-ejemplo"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+    // -----------------------------------------------------------------
+    //  generar_claves.py en modo ensayo. Cambia --dry-run por
+    //  --regenerar --dry-run para seguir el camino de la regeneración.
+    // -----------------------------------------------------------------
+    {
+      "name": "Depurar · generar_claves (dry-run)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generar_claves.py",
+      "args": ["--dry-run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Depurar · generar_claves --regenerar (dry-run)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generar_claves.py",
+      "args": ["--regenerar", "--dry-run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+
+    // -----------------------------------------------------------------
+    //  limpiar_ssh.py sin --aplicar: solo calcula y enseña el plan.
+    // -----------------------------------------------------------------
+    {
+      "name": "Depurar · limpiar_ssh (solo el plan)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/limpiar_ssh.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

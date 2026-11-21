@@ -1,0 +1,340 @@
+#!/usr/bin/env bash
+# =====================================================================
+#  instalar-iterm2.sh · Instala tema y perfiles de iTerm2 (macOS)
+#
+#  Uso:  bash instalar-iterm2.sh [-m NOMBRE] [-f FUENTE] [--colores]
+#
+#    -m, --maquina NOMBRE   nombre de ESTA máquina («iMac despacho»,
+#                           «MacBook»). Se guarda en datos/maquina.txt y lo
+#                           usan los generadores: aparece como distintivo en
+#                           las sesiones locales y como comentario de las
+#                           claves SSH que se creen aquí, para distinguirlas
+#                           en el authorized_keys de los servidores.
+#                           Si no se indica, se pregunta, proponiendo el
+#                           nombre que macOS tiene configurado.
+#    -f, --fuente CLAVE     tipografía de «Base» (los demás perfiles la
+#                           heredan), de las que hay en datos/fuentes.csv:
+#                           menlo (la de siempre), jetbrains o monaco. Se guarda
+#                           en datos/fuente.txt. Si no se indica, se muestra el
+#                           menú y se pregunta; sin terminal se mantiene la
+#                           última elegida (o menlo).
+#    --colores              importa además los presets de color
+#                           (colores/*.itermcolors) en Ajustes > Colores.
+#                           NO hace falta: los perfiles ya llevan sus colores.
+#                           iTerm2 pregunta «¿Añadir preset duplicado?» si ya
+#                           los tenías, por eso solo se hace cuando se pide.
+#    -h, --ayuda            esta ayuda
+#
+#  El shebang hace que se ejecute con bash aunque tu shell sea zsh (el de
+#  Darwin). Está escrito para funcionar igual si lo lanzas con «zsh
+#  instalar-iterm2.sh»: nada de «read -p» ni de globs sin resultado, que
+#  zsh trata de otra manera.
+# =====================================================================
+set -euo pipefail
+
+ESTE="${BASH_SOURCE[0]:-$0}"      # bash da BASH_SOURCE; zsh, $0
+
+uso() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$ESTE"; }
+
+# read -p no es portable: zsh lo usa para leer del coproceso
+pregunta() {                      # pregunta "texto" NOMBRE_DE_VARIABLE
+  printf '%s' "$1" >&2
+  IFS= read -r "$2" || true
+}
+
+MAQUINA=""
+FUENTE=""
+COLORES=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -m|--maquina)
+      [[ -n "${2:-}" ]] || { echo "Falta el nombre después de $1"; exit 1; }
+      MAQUINA="$2"; shift 2 ;;
+    -f|--fuente)
+      [[ -n "${2:-}" ]] || { echo "Falta la clave de la fuente después de $1"; exit 1; }
+      FUENTE="$2"; shift 2 ;;
+    --colores) COLORES=1; shift ;;
+    -h|--ayuda|--help) uso; exit 0 ;;
+    *) echo "Opción desconocida: $1"; echo; uso; exit 1 ;;
+  esac
+done
+
+AQUI="$(cd "$(dirname "$ESTE")" && pwd)"
+if [[ -d "$AQUI/colores" ]]; then BASE="$AQUI"; else BASE="$(cd "$AQUI/.." && pwd)"; fi
+DYN="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+# Las copias de seguridad NUNCA van dentro de DynamicProfiles: iTerm2 carga
+# todos los archivos de esa carpeta, así que una copia del mismo archivo son
+# perfiles repetidos y avisos al abrir cada ventana.
+COPIAS="$HOME/.iterm2-copias"
+# Nombres de versiones anteriores del kit (se migran más abajo)
+V_JSON="UMH-Perfiles.json"
+V_COPIAS="$HOME/.iterm2-umh-copias"
+V_LS="$HOME/.umh_colores_ls.sh"
+if [[ -d "$V_COPIAS" && ! -e "$COPIAS" ]]; then mv "$V_COPIAS" "$COPIAS"; fi
+STAMP="$(date +%Y%m%d-%H%M%S)"
+
+[[ "$(uname)" == "Darwin" ]] || { echo "Este script es para macOS."; exit 1; }
+
+echo "==> 1/9 Nombre de esta máquina"
+POR_DEFECTO="$(scutil --get ComputerName 2>/dev/null || hostname -s)"
+if [[ -z "$MAQUINA" ]]; then
+  if [[ -t 0 ]]; then
+    R=""
+    pregunta "    ¿Cómo llamas a este equipo? [$POR_DEFECTO] " R
+    MAQUINA="${R:-$POR_DEFECTO}"
+  else
+    MAQUINA="$POR_DEFECTO"       # sin terminal interactiva: el de macOS
+  fi
+fi
+# Se guarda sin espacios al principio ni al final y en una sola línea
+MAQUINA="$(printf '%s' "${MAQUINA}" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+[[ -n "${MAQUINA}" ]] || { echo "    El nombre no puede quedar vacío."; exit 1; }
+mkdir -p "$BASE/datos"
+printf '%s\n' "${MAQUINA}" > "$BASE/datos/maquina.txt"
+echo "    -> '${MAQUINA}' guardado en datos/maquina.txt"
+echo "       (distintivo de las sesiones locales y comentario de las claves)"
+
+echo "==> 2/9 Tipografía de «Base»"
+FUENTES_CSV="$BASE/datos/fuentes.csv"
+FUENTE_TXT="$BASE/datos/fuente.txt"
+if [[ ! -f "$FUENTES_CSV" ]] || ! command -v python3 >/dev/null 2>&1; then
+  echo "    No encuentro datos/fuentes.csv o python3: se queda la tipografía por defecto."
+else
+  LISTA="$(python3 "$BASE/generar_perfiles.py" --lista-fuentes)" \
+    || { echo "    datos/fuentes.csv tiene errores: corrígelos y repite."; exit 1; }
+  ACTUAL_F=""
+  [[ -f "$FUENTE_TXT" ]] && ACTUAL_F="$(tr -d '\r\n ' < "$FUENTE_TXT")"
+  PRIMERA="$(printf '%s\n' "$LISTA" | head -1 | cut -d'|' -f1)"
+  SUGERIDA="${ACTUAL_F:-$PRIMERA}"
+  if [[ -z "$FUENTE" ]]; then
+    if [[ -t 0 ]]; then
+      N=0
+      printf '%s\n' "$LISTA" | while IFS='|' read -r K NOM TAM ARCH INST PS; do
+        N=$((N+1)); MARCA=" "; [[ "$K" == "$SUGERIDA" ]] && MARCA="*"
+        printf '    %s %d) %-10s %s, %s pt\n' "$MARCA" "$N" "$K" "$NOM" "$TAM"
+      done
+      R=""
+      pregunta "    ¿Cuál? Número o clave [$SUGERIDA] " R
+      FUENTE="${R:-$SUGERIDA}"
+    else
+      FUENTE="$SUGERIDA"             # sin terminal interactiva: la de siempre
+    fi
+  fi
+  # número -> clave
+  if [[ "$FUENTE" =~ ^[0-9]+$ ]]; then
+    FUENTE="$(printf '%s\n' "$LISTA" | sed -n "${FUENTE}p" | cut -d'|' -f1)"
+  fi
+  FILA="$(printf '%s\n' "$LISTA" | awk -F'|' -v k="$FUENTE" 'k != "" && tolower($1) == tolower(k) {print; exit}')"
+  if [[ -z "$FILA" ]]; then
+    echo "    «$FUENTE» no es una opción. Claves: $(printf '%s\n' "$LISTA" | cut -d'|' -f1 | tr '\n' ' ')"
+    exit 1
+  fi
+  F_CLAVE="$(printf '%s' "$FILA" | cut -d'|' -f1)"
+  F_NOMBRE="$(printf '%s' "$FILA" | cut -d'|' -f2)"
+  F_TAM="$(printf '%s' "$FILA" | cut -d'|' -f3)"
+  F_ARCH="$(printf '%s' "$FILA" | cut -d'|' -f4)"
+  F_INST="$(printf '%s' "$FILA" | cut -d'|' -f5)"
+  F_PS="$(printf '%s' "$FILA" | cut -d'|' -f6)"
+  printf '%s\n' "$F_CLAVE" > "$FUENTE_TXT"
+  echo "    -> $F_NOMBRE, $F_TAM pt ('$F_CLAVE') guardada en datos/fuente.txt"
+  if [[ -n "$F_ARCH" && ! -e "$F_ARCH" ]]; then
+    echo "    La fuente no parece estar instalada (no existe $F_ARCH)."
+    if [[ -n "$F_INST" ]]; then
+      echo "    Para instalarla:  $F_INST"
+      if [[ -t 0 ]]; then
+        Q=""
+        pregunta "    ¿Ejecutarlo ahora? [s/N] " Q
+        if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+          bash -c "$F_INST" || echo "    No se pudo instalar: hazlo a mano y repite este paso."
+        fi
+      fi
+    else
+      echo "    Comprueba que la ruta de datos/fuentes.csv es la de tu macOS."
+    fi
+    echo "    Si no existe en el sistema, iTerm2 cae en silencio a Monaco 12."
+  fi
+fi
+
+echo "==> 3/9 Perfiles dinámicos de iTerm2"
+mkdir -p "$DYN" "$COPIAS"
+
+# Copias de seguridad antiguas que quedaron dentro de la carpeta: iTerm2 las
+# carga como perfiles más, con los mismos GUID, y de ahí los avisos repetidos.
+SOBRAN="$(find "$DYN" -maxdepth 1 -type f \( -name 'Perfiles-Servidores.json.bak-*' -o -name "$V_JSON.bak-*" \) 2>/dev/null)"
+if [[ -n "$SOBRAN" ]]; then
+  printf '%s\n' "$SOBRAN" | while IFS= read -r f; do
+    [[ -n "$f" ]] && mv "$f" "$COPIAS/" && echo "    Aparto $(basename "$f") (iTerm2 lo cargaba como perfiles duplicados)"
+  done
+fi
+AJENOS="$(find "$DYN" -maxdepth 1 -type f ! -name 'Perfiles-Servidores.json' ! -name "$V_JSON" 2>/dev/null | sort)"
+if [[ -n "$AJENOS" ]]; then
+  echo "    AVISO: hay más archivos en DynamicProfiles, y iTerm2 también los carga."
+  echo "    Si ves perfiles repetidos, míralos; no los toco porque pueden no ser míos:"
+  printf '%s\n' "$AJENOS" | while IFS= read -r f; do [[ -n "$f" ]] && echo "      $(basename "$f")"; done
+fi
+
+PERFILES_HECHOS=0
+if [[ -f "$BASE/datos/servidores.csv" ]] && command -v python3 >/dev/null 2>&1; then
+  echo "    Hay inventario: regenero los perfiles para que lleven el nombre nuevo"
+  [[ -f "$DYN/Perfiles-Servidores.json" ]] && cp "$DYN/Perfiles-Servidores.json" "$COPIAS/Perfiles-Servidores.json.bak-$STAMP"
+  if python3 "$BASE/generar_perfiles.py" --instalar; then
+    PERFILES_HECHOS=1
+  else
+    echo "    El inventario tiene errores: corrígelos y repite generar_perfiles.py"
+  fi
+elif [[ -f "$BASE/perfiles/Perfiles-Servidores.json" ]]; then
+  [[ -f "$DYN/Perfiles-Servidores.json" ]] && cp "$DYN/Perfiles-Servidores.json" "$COPIAS/Perfiles-Servidores.json.bak-$STAMP"
+  cp "$BASE/perfiles/Perfiles-Servidores.json" "$DYN/Perfiles-Servidores.json"
+  echo "    -> $DYN/Perfiles-Servidores.json  (iTerm2 lo recarga al instante)"
+  if [[ -f "$DYN/$V_JSON" ]]; then
+    mv "$DYN/$V_JSON" "$COPIAS/$V_JSON.retirado-$STAMP"
+    echo "    Retirado $V_JSON (nombre antiguo; copia en $COPIAS)"
+  fi
+  echo "    OJO: el distintivo con el nombre de la máquina sale al regenerar:"
+  echo "      python3 generar_perfiles.py --instalar"
+else
+  echo "    Todavía no hay perfiles generados. Cuando tengas tu inventario:"
+  echo "      python3 generar_perfiles.py --instalar"
+fi
+
+echo "==> 4/9 Comprobar la fuente de los perfiles instalados"
+if [[ -f "$DYN/Perfiles-Servidores.json" ]]; then
+  grep -m1 '"Normal Font"' "$DYN/Perfiles-Servidores.json" | sed 's/^[[:space:]]*/    /'
+  if grep -q '"Normal Font": "null' "$DYN/Perfiles-Servidores.json"; then
+    echo "    AVISO: la fuente quedó en «null». Repite: python3 generar_perfiles.py --instalar"
+  elif [[ -n "${F_PS:-}" ]] && ! grep -q "\"Normal Font\": \"$F_PS $F_TAM\"" "$DYN/Perfiles-Servidores.json"; then
+    echo "    AVISO: el JSON instalado no lleva la fuente elegida ($F_PS $F_TAM)."
+    echo "    Regenéralo con: python3 generar_perfiles.py --instalar"
+  fi
+else
+  echo "    (aún no hay perfiles instalados)"
+fi
+
+echo "==> 5/9 Presets de color"
+if [[ "$COLORES" == "1" ]]; then
+  echo "    Se abren para que iTerm2 los importe (si ya estaban, te preguntará)."
+  open "$BASE/colores/Elegante-Oscuro.itermcolors" || true
+  open "$BASE/colores/Elegante-Claro.itermcolors"  || true
+else
+  echo "    No se importan: los perfiles ya llevan sus colores."
+  echo "    (Si los quieres en Ajustes > Colores: bash instalar-iterm2.sh --colores)"
+fi
+
+echo "==> 6/9 Carpetas y permisos de SSH"
+mkdir -p "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
+chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm" "$HOME/.ssh/config.d"
+[[ -f "$HOME/.ssh/config" ]] && chmod 600 "$HOME/.ssh/config"
+echo "    Carpetas listas. La configuración SSH de cada servidor la escribe"
+echo "    el generador, que respeta tu ~/.ssh/config y solo le añade un Include:"
+echo "      python3 generar_perfiles.py --instalar"
+
+echo "==> 7/9 Shell integration de iTerm2 (opcional)"
+# Marcas de prompt (⌘↑/⌘↓ salta entre comandos), historial y descargas con clic
+# derecho. Es un archivo que se descarga y se carga desde ~/.zshrc.
+SI_ARCHIVO="$HOME/.iterm2_shell_integration.zsh"
+SI_LINEA='test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"'
+if [[ -f "$SI_ARCHIVO" ]] && grep -qs 'iterm2_shell_integration' "$HOME/.zshrc" 2>/dev/null; then
+  echo "    Ya está instalada: no toco nada."
+elif [[ ! -t 0 ]]; then
+  echo "    Omitido (sin terminal interactiva). Se puede repetir este script."
+else
+  Q=""
+  pregunta "    ¿Instalarla? Descarga un archivo de iterm2.com y añade una línea a ~/.zshrc [s/N] " Q
+  if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+    if ! command -v curl >/dev/null 2>&1; then
+      echo "    No hay curl: omitido."
+    elif curl -fsSL --max-time 30 https://iterm2.com/shell_integration/zsh -o "$SI_ARCHIVO.tmp" \
+         && [[ -s "$SI_ARCHIVO.tmp" ]] && grep -q 'iTerm2' "$SI_ARCHIVO.tmp"; then
+      mv "$SI_ARCHIVO.tmp" "$SI_ARCHIVO"
+      if ! grep -qs 'iterm2_shell_integration' "$HOME/.zshrc" 2>/dev/null; then
+        [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+        printf '\n# iTerm2 shell integration (añadido por instalar-iterm2.sh)\n%s\n' "$SI_LINEA" >> "$HOME/.zshrc"
+        echo "    Línea añadida a ~/.zshrc (copia previa en $COPIAS)."
+      fi
+      echo "    Instalada. Abre una pestaña nueva para activarla."
+    else
+      rm -f "$SI_ARCHIVO.tmp"
+      echo "    No se pudo descargar (¿sin conexión?). No he cambiado nada."
+      echo "    Puedes hacerlo a mano: está en MANUAL.md, apartado 4."
+    fi
+  else
+    echo "    Omitida."
+  fi
+fi
+
+echo "==> 8/9 Ejecutables en rojo en «ls» (opcional)"
+# colores-ls.sh se copia a ~/.colores_ls.sh y se carga desde ~/.zshrc.
+LS_ARCHIVO="$HOME/.colores_ls.sh"
+LS_LINEA='test -e "${HOME}/.colores_ls.sh" && source "${HOME}/.colores_ls.sh"'
+# Versión anterior: ~/.umh_colores_ls.sh. Se sustituye por el nombre nuevo.
+if [[ -f "$V_LS" ]]; then
+  if grep -qs 'umh_colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+    cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+    sed 's/umh_colores_ls/colores_ls/g' "$HOME/.zshrc" > "$HOME/.zshrc.nuevo" \
+      && mv "$HOME/.zshrc.nuevo" "$HOME/.zshrc"
+  fi
+  rm -f "$V_LS"
+  [[ -f "$AQUI/colores-ls.sh" ]] && cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+  echo "    Migrado el nombre antiguo (~/.umh_colores_ls.sh -> ~/.colores_ls.sh)."
+fi
+if [[ ! -f "$AQUI/colores-ls.sh" ]]; then
+  echo "    No encuentro colores-ls.sh junto al instalador: omitido."
+elif [[ -f "$LS_ARCHIVO" ]] && grep -qs 'colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+  cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+  echo "    Ya estaba activado: archivo actualizado."
+elif [[ ! -t 0 ]]; then
+  echo "    Omitido (sin terminal interactiva). Se puede repetir este script."
+else
+  Q=""
+  pregunta "    ¿Activarlo? Copia colores-ls.sh a ~ y añade una línea a ~/.zshrc [s/N] " Q
+  if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+    cp "$AQUI/colores-ls.sh" "$LS_ARCHIVO"
+    if ! grep -qs 'colores_ls' "$HOME/.zshrc" 2>/dev/null; then
+      [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$COPIAS/.zshrc.bak-$STAMP"
+      printf '\n# Ejecutables en rojo en ls (añadido por instalar-iterm2.sh)\n%s\n' "$LS_LINEA" >> "$HOME/.zshrc"
+      echo "    Línea añadida a ~/.zshrc (copia previa en $COPIAS)."
+    fi
+    echo "    Hecho. Abre una pestaña nueva para verlo."
+  else
+    echo "    Omitido."
+  fi
+fi
+
+echo "==> 9/9 Fijar Base como perfil predeterminado"
+GUID_BASE="b3b5bdea-5dee-5710-91d0-aed1796442e6"   # uuid5 de "iterm2:Base"
+ACTUAL="$(defaults read com.googlecode.iterm2 "Default Bookmark Guid" 2>/dev/null || true)"
+if [[ "$ACTUAL" == "$GUID_BASE" ]]; then
+  echo "    Ya era el predeterminado."
+else
+  echo "    Esto REQUIERE cerrar iTerm2 (perderás las sesiones abiertas)."
+  Q=""
+  pregunta "    ¿Cerrar iTerm2 y fijarlo ahora? [s/N] " Q
+  if [[ "${Q:-N}" =~ ^[sSyY]$ ]]; then
+    osascript -e 'quit app "iTerm"' 2>/dev/null || true
+    sleep 3
+    defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "$GUID_BASE"
+    echo "    Hecho. Vuelve a abrir iTerm2."
+  else
+    echo "    Omitido. Hazlo en Ajustes > Perfiles > Base"
+    echo "    > Other Actions... > Set as Default."
+  fi
+fi
+
+echo
+echo
+echo "Listo."
+if [[ "$PERFILES_HECHOS" == "1" ]]; then
+  echo "  Perfiles y ~/.ssh/config.d/servidores.conf: ya instalados (no hace falta generar_perfiles.py)."
+  echo "  Solo si cambias el inventario: exporta el CSV a datos/servidores.csv y ejecuta"
+  echo "    python3 generar_perfiles.py --instalar"
+else
+  echo "  Falta generar los perfiles. Copia tu inventario a datos/servidores.csv y ejecuta:"
+  echo "    python3 generar_perfiles.py --instalar     # perfiles + ~/.ssh/config.d/servidores.conf"
+fi
+echo "  Claves SSH (aparte, este script no las crea):"
+echo "    python3 generar_claves.py --dry-run        # ver qué claves se crearían"
+echo "    python3 generar_claves.py                  # crearlas y copiarlas a los servidores"
+echo "En iTerm2: Ajustes > Perfiles  ->  verás los perfiles (el predeterminado es «Base»)."
+echo "«Base» es el predeterminado: ⌘N abre una ventana del tamaño de la hoja."
+echo "Si ya tenías ventanas abiertas, ciérralas y abre una nueva con ⌘N: el tamaño"
+echo "solo se aplica a ventanas nuevas."

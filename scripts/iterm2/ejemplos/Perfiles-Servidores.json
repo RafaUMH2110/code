@@ -1,0 +1,369 @@
+{
+  "Profiles": [
+    {
+      "Name": "Base",
+      "Guid": "b3b5bdea-5dee-5710-91d0-aed1796442e6",
+      "Normal Font": "Menlo-Regular 12",
+      "Non Ascii Font": "Menlo-Regular 12",
+      "Use Non-ASCII Font": false,
+      "Horizontal Spacing": 1.0,
+      "Vertical Spacing": 1.0,
+      "Use Bold Font": true,
+      "Use Italic Font": true,
+      "ASCII Anti Aliased": true,
+      "Non-ASCII Anti Aliased": true,
+      "ASCII Ligatures": false,
+      "Blinking Cursor": true,
+      "Cursor Type": 1,
+      "Draw Powerline Glyphs": true,
+      "Unicode Version": 9,
+      "Ambiguous Double Width": false,
+      "Columns": 120,
+      "Rows": 59,
+      "Transparency": 0.0,
+      "Blur": false,
+      "Scrollback Lines": 50000,
+      "Unlimited Scrollback": false,
+      "Minimum Contrast": 0.0,
+      "Cursor Boost": 0.0,
+      "Terminal Type": "xterm-256color",
+      "Mouse Reporting": true,
+      "Mouse Reporting allow mouse wheel": true,
+      "Silence Bell": true,
+      "Visual Bell": true,
+      "Flashing Bell": false,
+      "Set Local Environment Vars": true,
+      "Character Encoding": 4,
+      "Place Prompt at First Column": true,
+      "Show Mark Indicators": true,
+      "Option Key Sends": 2,
+      "Right Option Key Sends": 2,
+      "Close Sessions On End": true,
+      "Custom Directory": "Recycle",
+      "Custom Command": "No",
+      "Badge Text": "iMac despacho",
+      "Badge Max Width": 0.25,
+      "Badge Max Height": 0.08,
+      "Ansi 0 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.168627,
+        "Green Component": 0.168627,
+        "Blue Component": 0.168627,
+        "Alpha Component": 1.0
+      },
+      "Ansi 1 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.898039,
+        "Green Component": 0.411765,
+        "Blue Component": 0.419608,
+        "Alpha Component": 1.0
+      },
+      "Ansi 2 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.372549,
+        "Green Component": 0.815686,
+        "Blue Component": 0.407843,
+        "Alpha Component": 1.0
+      },
+      "Ansi 3 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.909804,
+        "Green Component": 0.752941,
+        "Blue Component": 0.352941,
+        "Alpha Component": 1.0
+      },
+      "Ansi 4 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.435294,
+        "Green Component": 0.639216,
+        "Blue Component": 0.941176,
+        "Alpha Component": 1.0
+      },
+      "Ansi 5 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.772549,
+        "Green Component": 0.541176,
+        "Blue Component": 0.878431,
+        "Alpha Component": 1.0
+      },
+      "Ansi 6 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.360784,
+        "Green Component": 0.784314,
+        "Blue Component": 0.8,
+        "Alpha Component": 1.0
+      },
+      "Ansi 7 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.847059,
+        "Green Component": 0.847059,
+        "Blue Component": 0.847059,
+        "Alpha Component": 1.0
+      },
+      "Ansi 8 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.431373,
+        "Green Component": 0.431373,
+        "Blue Component": 0.431373,
+        "Alpha Component": 1.0
+      },
+      "Ansi 9 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 1.0,
+        "Green Component": 0.541176,
+        "Blue Component": 0.54902,
+        "Alpha Component": 1.0
+      },
+      "Ansi 10 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.52549,
+        "Green Component": 0.909804,
+        "Blue Component": 0.556863,
+        "Alpha Component": 1.0
+      },
+      "Ansi 11 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.960784,
+        "Green Component": 0.85098,
+        "Blue Component": 0.541176,
+        "Alpha Component": 1.0
+      },
+      "Ansi 12 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.611765,
+        "Green Component": 0.760784,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0
+      },
+      "Ansi 13 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.866667,
+        "Green Component": 0.666667,
+        "Blue Component": 0.94902,
+        "Alpha Component": 1.0
+      },
+      "Ansi 14 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.556863,
+        "Green Component": 0.890196,
+        "Blue Component": 0.901961,
+        "Alpha Component": 1.0
+      },
+      "Ansi 15 Color": {
+        "Color Space": "sRGB",
+        "Red Component": 1.0,
+        "Green Component": 1.0,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0
+      },
+      "Background Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.0,
+        "Green Component": 0.0,
+        "Blue Component": 0.0,
+        "Alpha Component": 1.0
+      },
+      "Foreground Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.94902,
+        "Green Component": 0.94902,
+        "Blue Component": 0.94902,
+        "Alpha Component": 1.0
+      },
+      "Bold Color": {
+        "Color Space": "sRGB",
+        "Red Component": 1.0,
+        "Green Component": 1.0,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0
+      },
+      "Link Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.498039,
+        "Green Component": 0.721569,
+        "Blue Component": 0.941176,
+        "Alpha Component": 1.0
+      },
+      "Selection Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.168627,
+        "Green Component": 0.227451,
+        "Blue Component": 0.333333,
+        "Alpha Component": 1.0
+      },
+      "Selected Text Color": {
+        "Color Space": "sRGB",
+        "Red Component": 1.0,
+        "Green Component": 1.0,
+        "Blue Component": 1.0,
+        "Alpha Component": 1.0
+      },
+      "Cursor Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.901961,
+        "Green Component": 0.901961,
+        "Blue Component": 0.901961,
+        "Alpha Component": 1.0
+      },
+      "Cursor Text Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.0,
+        "Green Component": 0.0,
+        "Blue Component": 0.0,
+        "Alpha Component": 1.0
+      },
+      "Cursor Guide Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.109804,
+        "Green Component": 0.109804,
+        "Blue Component": 0.109804,
+        "Alpha Component": 0.25
+      },
+      "Badge Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.898039,
+        "Green Component": 0.411765,
+        "Blue Component": 0.419608,
+        "Alpha Component": 0.5
+      }
+    },
+    {
+      "Name": "SERVIDORES · servidor",
+      "Guid": "7b98ea0f-c0d4-5004-ab25-c4b325aa33de",
+      "Dynamic Profile Parent Name": "Base",
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.172549,
+        "Green Component": 0.352941,
+        "Blue Component": 0.627451,
+        "Alpha Component": 1.0
+      },
+      "Badge Text": "servidor",
+      "Badge Max Width": 0.3,
+      "Badge Max Height": 0.12,
+      "Shortcut": "1",
+      "Custom Command": "Yes",
+      "Command": "ssh servidor"
+    },
+    {
+      "Name": "SERVIDORES · servidor-web",
+      "Guid": "fa5224a4-0678-5779-ad90-c54d461793e6",
+      "Dynamic Profile Parent Name": "Base",
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.117647,
+        "Green Component": 0.431373,
+        "Blue Component": 0.454902,
+        "Alpha Component": 1.0
+      },
+      "Badge Text": "servidor · web",
+      "Badge Max Width": 0.45,
+      "Badge Max Height": 0.12,
+      "Shortcut": "2",
+      "Custom Command": "Yes",
+      "Command": "ssh servidor-web"
+    },
+    {
+      "Name": "LAB · equipo-lan",
+      "Guid": "c4a69cbe-cf10-5bbf-96cb-0384059e9ca8",
+      "Dynamic Profile Parent Name": "Base",
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.247059,
+        "Green Component": 0.478431,
+        "Blue Component": 0.270588,
+        "Alpha Component": 1.0
+      },
+      "Badge Text": "equipo · LAN",
+      "Badge Max Width": 0.3,
+      "Badge Max Height": 0.12,
+      "Shortcut": "3",
+      "Custom Command": "Yes",
+      "Command": "ssh equipo-lan"
+    },
+    {
+      "Name": "LAB · equipo-wifi",
+      "Guid": "67dc8fbb-ab4e-5cb6-92c1-8427391d9fab",
+      "Dynamic Profile Parent Name": "Base",
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.247059,
+        "Green Component": 0.478431,
+        "Blue Component": 0.270588,
+        "Alpha Component": 1.0
+      },
+      "Badge Text": "equipo · wifi",
+      "Badge Max Width": 0.45,
+      "Badge Max Height": 0.12,
+      "Shortcut": "4",
+      "Custom Command": "Yes",
+      "Command": "ssh equipo-wifi"
+    },
+    {
+      "Name": "LAB · equipo-otro-sistema",
+      "Guid": "db7e80be-805c-56e8-9eb5-c2d1565da6b4",
+      "Dynamic Profile Parent Name": "Base",
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.478431,
+        "Green Component": 0.235294,
+        "Blue Component": 0.54902,
+        "Alpha Component": 1.0
+      },
+      "Badge Text": "otro sistema",
+      "Badge Max Width": 0.3,
+      "Badge Max Height": 0.12,
+      "Shortcut": "5",
+      "Custom Command": "Yes",
+      "Command": "ssh equipo-otro-sistema"
+    }
+  ],
+  "_PLANTILLA": {
+    "_leeme": [
+      "JSON no admite comentarios, así que esta plantilla va aquí, fuera de",
+      "«Profiles»: iTerm2 ignora las claves que no conoce, de modo que no",
+      "aparece como un perfil fantasma en la lista.",
+      "Lo normal es añadir el servidor a la hoja de cálculo y volver a",
+      "ejecutar generar_perfiles.py. Esto es para un añadido a mano:",
+      "copia el bloque «perfil», pégalo como último elemento de «Profiles»",
+      "(con una coma delante), cambia Name, Guid, Command y Badge Text, y",
+      "guarda: iTerm2 lo recoge al instante.",
+      "El Guid puede ser cualquier texto único que no uses en otro perfil."
+    ],
+    "perfil": {
+      "Name": "GRUPO · nombre-del-servidor",
+      "Guid": "pon-aqui-un-identificador-unico",
+      "Dynamic Profile Parent Name": "Base",
+      "Custom Command": "Yes",
+      "Command": "ssh nombre-del-servidor",
+      "Badge Text": "etiqueta",
+      "Badge Max Width": 0.3,
+      "Badge Max Height": 0.12,
+      "Columns": 120,
+      "Rows": 59,
+      "Use Tab Color": true,
+      "Tab Color": {
+        "Color Space": "sRGB",
+        "Red Component": 0.290196,
+        "Green Component": 0.321569,
+        "Blue Component": 0.376471,
+        "Alpha Component": 1.0
+      }
+    }
+  }
+}

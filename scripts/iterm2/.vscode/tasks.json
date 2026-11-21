@@ -1,0 +1,252 @@
+// =====================================================================
+//  tasks.json · El kit iterm2 lanzado desde VS Code
+// ---------------------------------------------------------------------
+//  Cómo se usa:  ⌘⇧P  ->  «Tasks: Run Task»  ->  elige una tarea.
+//                (o ⌘⇧B para la tarea por defecto: «0. Comprobar todo»)
+//
+//  Las etiquetas van numeradas en el ORDEN DE TRABAJO, así el menú ya es
+//  la receta y no hace falta recordar qué va antes:
+//
+//    0. Comprobar todo ........ ensayo general: no toca NADA
+//    1. Instalar .............. la primera vez en cada Mac
+//    2. Perfiles .............. después de cada cambio en la hoja
+//    3. ~/.ssh ................ limpiar (con copia previa)
+//    4. Claves ................ crear, repartir o regenerar
+//    5. Diagnóstico ........... cuando iTerm2 no aplica algo
+//
+//  Convenciones de este archivo:
+//    · Cada acción que CAMBIA algo tiene su pareja «ver / dry-run» justo
+//      antes y lleva «⚠» en la etiqueta. Primero se mira, luego se hace.
+//    · Los scripts de Python se lanzan como «process» (sin shell): los
+//      argumentos van tal cual, sin problemas de comillas ni espacios.
+//    · Las tareas que preguntan (passphrase, «¿instalar? [s/N]») dan el
+//      foco al terminal para que puedas contestar sin hacer clic.
+//    · problemMatcher vacío: son scripts de sistema, no compiladores; así
+//      VS Code no pregunta «¿qué problemas buscar?» cada vez.
+//
+//  Todo se ejecuta en la carpeta del kit (${workspaceFolder}). Abre esta
+//  carpeta en VS Code, o haz doble clic en iterm2.code-workspace.
+// =====================================================================
+{
+  "version": "2.0.0",
+
+  // -------------------------------------------------------------------
+  //  Valores comunes a TODAS las tareas (cada una puede sobrescribirlos)
+  // -------------------------------------------------------------------
+  "options": {
+    "cwd": "${workspaceFolder}"
+  },
+  "presentation": {
+    "reveal": "always",
+    "panel": "shared",
+    "clear": true,
+    "showReuseMessage": false
+  },
+  "problemMatcher": [],
+
+  "tasks": [
+
+    // =================================================================
+    //  0 · ENSAYO GENERAL — lee la hoja y enseña qué haría cada paso.
+    //      No escribe nada: se puede lanzar tantas veces como quieras.
+    // =================================================================
+    {
+      "label": "0. Comprobar todo (no toca nada)",
+      "detail": "Valida la hoja, enseña los perfiles, el plan de limpieza y las claves. Sin cambios.",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "2. Perfiles · generar y validar (sin instalar)",
+        "3. ~/.ssh · ver el plan de limpieza",
+        "4. Claves · ver qué haría (dry-run)"
+      ],
+      // ⌘⇧B lanza esta: la más útil y la más segura
+      "group": { "kind": "build", "isDefault": true }
+    },
+
+    // =================================================================
+    //  1 · INSTALAR — la primera vez en cada ordenador.
+    //      El instalador pregunta (nombre del Mac, tipografía, shell
+    //      integration, colores de ls…): por eso necesita el foco.
+    // =================================================================
+    {
+      "label": "1. Instalar en este Mac (primera vez)",
+      "detail": "instalar-iterm2.sh: nombre, tipografía, perfiles, extras y perfil predeterminado. Pregunta antes de cada cambio.",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/instalar-iterm2.sh"],
+      "presentation": { "focus": true, "panel": "dedicated" }
+    },
+    {
+      "label": "1. Instalar · eligiendo la tipografía aquí",
+      "detail": "Igual que la anterior, pero la tipografía se elige en un menú de VS Code.",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/instalar-iterm2.sh", "-f", "${input:fuente}"],
+      "presentation": { "focus": true, "panel": "dedicated" }
+    },
+    {
+      "label": "1. Instalar · importando también los temas de color",
+      "detail": "Añade --colores. Solo hace falta si quieres los temas en Ajustes > Colores (iTerm2 pregunta si ya existen).",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/instalar-iterm2.sh", "--colores"],
+      "presentation": { "focus": true, "panel": "dedicated" }
+    },
+
+    // =================================================================
+    //  2 · PERFILES — de la hoja (datos/servidores.csv) a iTerm2 y SSH.
+    //      Ciclo normal: exportar la hoja a CSV -> «generar y validar»
+    //      -> si todo está bien, «instalar».
+    // =================================================================
+    {
+      "label": "2. Perfiles · generar y validar (sin instalar)",
+      "detail": "Lee datos/servidores.csv, avisa de errores y deja el resultado en perfiles/ y ssh/. No instala.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_perfiles.py"]
+    },
+    {
+      "label": "2. Perfiles · ⚠ instalar",
+      "detail": "Copia los perfiles a iTerm2 y servidores.conf a ~/.ssh/config.d (con copia de seguridad de lo anterior).",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_perfiles.py", "--instalar"]
+    },
+    {
+      "label": "2. Perfiles · probar con el CSV de ejemplo",
+      "detail": "Genera a partir de datos/servidores-ejemplo.csv en /tmp. Útil para ver el formato sin tu hoja.",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "generar_perfiles.py",
+        "--csv", "datos/servidores-ejemplo.csv",
+        "--salida", "/tmp/iterm2-ejemplo"
+      ]
+    },
+    {
+      "label": "2. Perfiles · ver las tipografías disponibles",
+      "detail": "Lista datos/fuentes.csv: clave, nombre, tamaño y si está instalada.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_perfiles.py", "--lista-fuentes"]
+    },
+
+    // =================================================================
+    //  3 · ~/.ssh — limpieza con copia completa previa.
+    //      Las claves del inventario NO se tocan aquí (eso es el paso 4).
+    // =================================================================
+    {
+      "label": "3. ~/.ssh · ver el plan de limpieza",
+      "detail": "Enseña qué se quitaría de known_hosts, restos y claves sobrantes. No toca nada.",
+      "type": "process",
+      "command": "python3",
+      "args": ["limpiar_ssh.py"]
+    },
+    {
+      "label": "3. ~/.ssh · ⚠ limpiar (known_hosts del inventario y restos)",
+      "detail": "Copia ~/.ssh a ~/.iterm2-copias y quita entradas de known_hosts de tus servidores, .bak, .old y sockets.",
+      "type": "process",
+      "command": "python3",
+      "args": ["limpiar_ssh.py", "--aplicar", "--known-hosts", "${input:knownHosts}"]
+    },
+    {
+      "label": "3. ~/.ssh · ⚠ limpiar también las claves que no están en la hoja",
+      "detail": "Como la anterior + borra las claves ajenas al inventario. ¡Mira antes el plan: puede estar la de GitHub!",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "limpiar_ssh.py", "--aplicar", "--claves-sobrantes",
+        "--known-hosts", "${input:knownHosts}"
+      ]
+    },
+
+    // =================================================================
+    //  4 · CLAVES — piden passphrase y, a veces, la contraseña del
+    //      servidor: todas dan el foco al terminal.
+    // =================================================================
+    {
+      "label": "4. Claves · ver qué haría (dry-run)",
+      "detail": "Enseña los comandos de crear, guardar en el Llavero y copiar a cada servidor. No ejecuta nada.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_claves.py", "--dry-run"]
+    },
+    {
+      "label": "4. Claves · ⚠ crear y repartir las que falten",
+      "detail": "Crea las claves que no existan, las guarda en el Llavero y las copia a cada servidor.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_claves.py"],
+      "presentation": { "focus": true }
+    },
+    {
+      "label": "4. Claves · ⚠ solo un servidor",
+      "detail": "Para máquinas de arranque dual o una fila nueva: --solo <nombre>.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_claves.py", "--solo", "${input:servidor}"],
+      "presentation": { "focus": true }
+    },
+    {
+      "label": "4. Claves · regenerar todas (dry-run)",
+      "detail": "Enseña cómo se cambiaría cada clave por una nueva sin perder el acceso.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_claves.py", "--regenerar", "--dry-run"]
+    },
+    {
+      "label": "4. Claves · ⚠ regenerar todas",
+      "detail": "Clave nueva por clave antigua: instala, comprueba y retira la antigua de cada servidor. Retomable.",
+      "type": "process",
+      "command": "python3",
+      "args": ["generar_claves.py", "--regenerar"],
+      "presentation": { "focus": true, "panel": "dedicated" }
+    },
+
+    // =================================================================
+    //  5 · DIAGNÓSTICO — solo lee: perfil predeterminado, fuente, tamaño.
+    // =================================================================
+    {
+      "label": "5. Diagnóstico de iTerm2",
+      "detail": "Por qué iTerm2 no aplica la fuente o el tamaño de ventana.",
+      "type": "process",
+      "command": "bash",
+      "args": ["${workspaceFolder}/diagnostico.sh"]
+    }
+  ],
+
+  // ===================================================================
+  //  Preguntas que VS Code hace ANTES de lanzar la tarea.
+  //  Se elige en un menú en vez de escribir opciones de memoria.
+  // ===================================================================
+  "inputs": [
+    {
+      "id": "fuente",
+      "type": "pickString",
+      "description": "Tipografía del perfil «Base» (la heredan todos los perfiles)",
+      // Deben coincidir con la columna «clave» de datos/fuentes.csv
+      "options": [
+        { "label": "Menlo 12 (la de siempre)", "value": "menlo" },
+        { "label": "JetBrains Mono Nerd Font 14", "value": "jetbrains" },
+        { "label": "Monaco 12", "value": "monaco" }
+      ],
+      "default": "menlo"
+    },
+    {
+      "id": "knownHosts",
+      "type": "pickString",
+      "description": "¿Qué quitar de ~/.ssh/known_hosts?",
+      "options": [
+        { "label": "Solo los servidores de la hoja (recomendado)", "value": "inventario" },
+        { "label": "Todo: vaciarlo entero", "value": "todo" },
+        { "label": "Nada: no tocarlo", "value": "no" }
+      ],
+      "default": "inventario"
+    },
+    {
+      "id": "servidor",
+      "type": "promptString",
+      "description": "Nombre del servidor tal como está en la columna «nombre» de la hoja (varios, separados por comas)"
+    }
+  ]
+}
