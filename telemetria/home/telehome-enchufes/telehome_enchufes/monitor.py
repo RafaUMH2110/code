@@ -11,7 +11,7 @@ from .config import MIN_CLOUD_POLL, MIN_POLL, Config
 from .devices import PlugError, Reading, make_plug
 from .store import Store
 
-log = logging.getLogger("telehome-enchufes")
+log = logging.getLogger("telehome")
 
 
 def local_midnight(now: Optional[float] = None) -> float:
