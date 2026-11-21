@@ -20,7 +20,7 @@ from .devices import PlugError, scan_network
 from .monitor import Monitor
 from .store import Store
 
-log = logging.getLogger("telehome-enchufes")
+log = logging.getLogger("telehome")
 
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000

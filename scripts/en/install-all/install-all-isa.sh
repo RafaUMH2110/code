@@ -514,7 +514,7 @@ done
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
 telehome_disponible() { find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
-if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/enchufes/"; fi
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/enchufes/"; fi
 python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -892,14 +892,19 @@ instalar_telehome() {
   args=(--puerto "$puerto")
   for h in "${hosts[@]:-}"; do if [ -n "$h" ]; then args+=(--allow-host "$h"); fi; done
   if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
-    log "Service telehome-enchufes installed (listening on 127.0.0.1:$puerto)"
+    log "Service telehome installed (listening on 127.0.0.1:$puerto)"
   else
-    log "ERROR installing telehome-enchufes (see $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errors=$((errors+1)); return 0
+    log "ERROR installing telehome (see $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errors=$((errors+1)); return 0
   fi
 
   # Apache: reverse proxy of the service under $ruta (the interface uses relative paths)
   $SUDO a2enmod proxy proxy_http >/dev/null 2>&1 || true
-  $SUDO tee /etc/apache2/conf-available/telehome-enchufes.conf >/dev/null <<EOF
+  # nombre anterior de la conf (el servicio se llamaba telehome-enchufes): se sustituye por «telehome»
+  if [ -e /etc/apache2/conf-available/telehome-enchufes.conf ]; then
+    $SUDO a2disconf telehome-enchufes >/dev/null 2>&1 || true
+    $SUDO rm -f /etc/apache2/conf-available/telehome-enchufes.conf
+  fi
+  $SUDO tee /etc/apache2/conf-available/telehome.conf >/dev/null <<EOF
 # TeleHome Enchufes: the service listens on 127.0.0.1:$puerto and is published at $ruta
 RedirectMatch "^${ruta%/}\$" "$ruta"
 <Location "$ruta">
@@ -908,9 +913,9 @@ RedirectMatch "^${ruta%/}\$" "$ruta"
     ProxyPassReverse "http://127.0.0.1:$puerto/"
 </Location>
 EOF
-  $SUDO a2enconf telehome-enchufes >/dev/null
+  $SUDO a2enconf telehome >/dev/null
   TELEHOME_CONF=1
-  log "Apache: TeleHome Enchufes published at $ruta (conf telehome-enchufes)"
+  log "Apache: TeleHome Enchufes published at $ruta (conf telehome)"
 }
 
 if [ "$COLLECTOR" -eq 1 ]; then
@@ -934,7 +939,7 @@ else
   log "WARNING: no <Directory $DEST> block in /etc/apache2; if you get a 403, add 'Require all granted' for that folder"
 fi
 [ "$HEADERS_CONF" -eq 1 ] && NEW_CONFS+=(telemet-history)
-[ "$TELEHOME_CONF" -eq 1 ] && NEW_CONFS+=(telehome-enchufes)
+[ "$TELEHOME_CONF" -eq 1 ] && NEW_CONFS+=(telehome)
 
 if [ "$ROOT_ENTRY" -eq 1 ]; then
   $SUDO a2enmod alias >/dev/null 2>&1 || true
@@ -988,11 +993,12 @@ if [ "$COLLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/s
   log "telemet-collector : $(systemctl is-active telemet-collector 2>/dev/null || true)"
 fi
 
-if [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
-  tele_estado="$(systemctl is-active telehome-enchufes 2>/dev/null || true)"
+if [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
+  tele_srv=telehome; systemctl cat telehome >/dev/null 2>&1 || tele_srv=telehome-enchufes  # nombre anterior, si aún no se ha migrado
+  tele_estado="$(systemctl is-active "$tele_srv" 2>/dev/null || true)"
   TELEHOME_RUTA="${ENTRY}telehome/enchufes/"
   tele_http="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$TELEHOME_RUTA" || echo "sin respuesta")"
-  log "telehome-enchufes       : $tele_estado (service)  ·  $tele_http (HTTP at $TELEHOME_RUTA)"
+  log "telehome                : $tele_estado (service)  ·  $tele_http (HTTP at $TELEHOME_RUTA)"
 fi
 
 if [ -n "$CRON_EXPR" ]; then

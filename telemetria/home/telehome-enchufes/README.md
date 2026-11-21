@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.5.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.5.2): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -54,12 +54,17 @@ Prueba sin hardware: `.venv/bin/python -m telehome_enchufes serve --simulate 4` 
 git clone --depth 1 --filter=blob:none --sparse https://github.com/RafaUMH2110/code.git
 cd code && git sparse-checkout set telemetria/home/telehome-enchufes
 cd telemetria/home/telehome-enchufes
-sudo ./linux/instalar-linux.sh          # servicio systemd «telehome-enchufes», código en /opt, datos en /var/lib
+sudo ./linux/instalar-linux.sh          # servicio systemd «telehome», código en /opt/telehome, datos en /var/lib/telehome
 ```
 
 El instalador crea un usuario de servicio, el entorno virtual, la unidad systemd (con `ProtectSystem=strict`) y la
-orden `telehome-enchufes`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
+orden `telehome`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
 momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--allow-origin ORIGEN` (web externa), `--quitar`.
+
+Desde la 0.5.2 el servicio se llama **`telehome`** (antes `telehome-enchufes`). Si ya lo tenías instalado, vuelve a ejecutar
+el instalador: retira la unidad y la orden antiguas, mueve `/var/lib/telehome-enchufes` a `/var/lib/telehome`, renombra el
+usuario de servicio y recrea el entorno virtual, sin perder configuración, credenciales ni histórico. En macOS el
+LaunchAgent pasa a `es.umh.telehome` (registro `~/Library/Logs/telehome.log`).
 
 Acceso desde tu ordenador sin abrir puertos en Azure: `ssh -L 8765:127.0.0.1:8765 usuario@tu-vm` y abre
 <http://127.0.0.1:8765/>. Si prefieres publicarla con Apache (HTTPS), la interfaz funciona en una subruta:
@@ -69,7 +74,7 @@ ProxyPass        /enchufes/ http://127.0.0.1:8765/
 ProxyPassReverse /enchufes/ http://127.0.0.1:8765/
 ```
 
-En ese caso instala con `--allow-host tu-dominio` y pon contraseña (`sudo telehome-enchufes password`).
+En ese caso instala con `--allow-host tu-dominio` y pon contraseña (`sudo telehome password`).
 
 ## Modo nube (API de Tuya)
 
@@ -90,7 +95,7 @@ Sirve cuando el programa no está en la misma red que los enchufes. Requisitos:
    «No permissions. This project is not authorized to call this API» al conmutar.
 4. Copia el **Access ID** y el **Access Secret** (pestaña *Overview*) en *Ajustes → Nube de Tuya*, pulsa
    *Ver dispositivos de la nube* y añádelos; o por línea de órdenes:
-   `telehome-enchufes cloud-setup --region eu --access-id …` y `telehome-enchufes cloud-import`.
+   `telehome cloud-setup --region eu --access-id …` y `telehome cloud-import`.
 
 Notas:
 
@@ -102,7 +107,7 @@ Notas:
   (`telemetria.sqlite3`, tabla `api_calls`) y salen en `api/state` → `cloud` (`today`, `yesterday`, `month`, `last30`, `by_day`).
   Tuya no indica cuántos créditos cuesta cada llamada: compara el recuento con los créditos restantes de iot.tuya.com.
 - Códigos de datos por defecto: `switch_1`, `cur_power` (÷10 → W), `cur_voltage` (÷10 → V), `cur_current` (mA).
-  Se ajustan por enchufe en *Avanzado*; `telehome-enchufes probe <enchufe>` muestra lo que devuelve la nube.
+  Se ajustan por enchufe en *Avanzado*; `telehome probe <enchufe>` muestra lo que devuelve la nube.
 - Los **dispositivos virtuales** de la consola de Tuya (Device ID que empieza por `vdevo`) sirven solo para pruebas: se
   leen, pero no dan potencia, tensión ni corriente y la nube rechaza las órdenes (error 28841105). La app lo indica
   en el aviso; lo normal es no añadirlos o quitarlos.
@@ -143,13 +148,13 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 
 ## Datos y seguridad
 
-- Datos en `~/Library/Application Support/telehome-enchufes/` (macOS), `~/.telehome-enchufes/` (Linux) o
-  `/var/lib/telehome-enchufes/` (servicio Linux): `config.json` con permisos 600 y `telemetria.sqlite3`.
+- Datos en `~/Library/Application Support/telehome/` (macOS), `~/.telehome/` (Linux) o
+  `/var/lib/telehome/` (servicio Linux; si solo existe la carpeta con el nombre antiguo `telehome-enchufes`, se sigue usando): `config.json` con permisos 600 y `telemetria.sqlite3`.
   Las *Local Keys*, el *Access Secret* de Tuya y la contraseña (PBKDF2) **nunca** salen por la API ni se suben al
   repositorio (`.gitignore`).
 - La interfaz escucha en `127.0.0.1`, rechaza `Host` ajenos (DNS rebinding) y exige la cabecera `X-TeleHome` y un
   `Origin` propio en las operaciones de escritura (CSRF).
-- Contraseña opcional (HTTP Basic, cualquier usuario): `telehome-enchufes password`. Por HTTP sin cifrar solo tiene
+- Contraseña opcional (HTTP Basic, cualquier usuario): `telehome password`. Por HTTP sin cifrar solo tiene
   sentido tras un túnel SSH o un proxy con HTTPS. No uses `--host 0.0.0.0` sin contraseña.
 
 ## API (JSON)

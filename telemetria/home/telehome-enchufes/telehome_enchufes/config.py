@@ -75,8 +75,13 @@ def data_dir(override: Optional[str] = None) -> Path:
     if env:
         return Path(env).expanduser()
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "telehome-enchufes"
-    return Path.home() / ".telehome-enchufes"
+        nuevo = Path.home() / "Library" / "Application Support" / "telehome"
+        viejo = Path.home() / "Library" / "Application Support" / "telehome-enchufes"
+    else:
+        nuevo = Path.home() / ".telehome"
+        viejo = Path.home() / ".telehome-enchufes"
+    # instalaciones anteriores: si solo existe la carpeta con el nombre antiguo, se sigue usando (no se pierden datos)
+    return viejo if viejo.exists() and not nuevo.exists() else nuevo
 
 
 def _slug(text: str) -> str:

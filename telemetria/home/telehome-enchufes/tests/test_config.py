@@ -74,3 +74,16 @@ def test_options_validation(tmp_path):
     for bad in ({"poll_interval": 4}, {"poll_interval": "x"}, {"retention_days": 0}):
         with pytest.raises(ConfigError):
             cfg.set_options(bad)
+
+
+def test_data_dir_por_defecto_conserva_carpeta_antigua(tmp_path, monkeypatch):
+    from telehome_enchufes import config
+    monkeypatch.delenv("TELEHOME_ENCHUFES_DIR", raising=False)
+    monkeypatch.setattr(config.Path, "home", classmethod(lambda cls: tmp_path))
+    nuevo = config.data_dir()
+    assert nuevo.name in ("telehome", ".telehome")
+    viejo = nuevo.parent / nuevo.name.replace("telehome", "telehome-enchufes")
+    viejo.mkdir(parents=True)
+    assert config.data_dir() == viejo      # solo existe la antigua: se sigue usando
+    nuevo.mkdir()
+    assert config.data_dir() == nuevo      # si ya existe la nueva, gana
