@@ -105,7 +105,9 @@ Notas:
   ciclo (caché compartida) y por defecto cada **300 s** (mínimo 60). *Ajustes → Opciones* muestra la estimación mensual y, desde la 0.5.1, las llamadas reales
   que ha hecho el servicio cada día (hoy, ayer, mes, últimos 30 días y gráfico). Se guardan en la base de datos
   (`telemetria.sqlite3`, tabla `api_calls`) y salen en `api/state` → `cloud` (`today`, `yesterday`, `month`, `last30`, `by_day`).
-  Tuya no indica cuántos créditos cuesta cada llamada: compara el recuento con los créditos restantes de iot.tuya.com.
+  El uso oficial de la cuenta está en iot.tuya.com → *Cloud → Usage* (*API Statistics*): compara ambos recuentos. Los
+  créditos que se ven en la portada de la consola son de **Cobuilder** (IA para paneles, manuales, etc.) y no se gastan
+  con estas llamadas. Según la ficha de Tuya, el plan de prueba de IoT Core permite unas 26 000 llamadas al mes (sin acumular).
 - Códigos de datos por defecto: `switch_1`, `cur_power` (÷10 → W), `cur_voltage` (÷10 → V), `cur_current` (mA).
   Se ajustan por enchufe en *Avanzado*; `telehome probe <enchufe>` muestra lo que devuelve la nube.
 - Los **dispositivos virtuales** de la consola de Tuya (Device ID que empieza por `vdevo`) sirven solo para pruebas: se
