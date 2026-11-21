@@ -118,7 +118,7 @@ Common combinations:
 |---|---|
 | `--collector` | Installs the telemetry collector as a service. See [section 8](#8-telemetry-collector). |
 | `--no-telehome` | Does not install TeleHome Enchufes. By default it is installed when `code/telemetria/home` is among the cloned repos. |
-| `--telehome` | Installs **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) as a systemd service on `127.0.0.1:8765`, publishes it in Apache at `<entry>telehome/enchufes/` (reverse proxy, conf `telehome-enchufes`) and adds the **Home** category (the `telemetria` apps of the `apps` repo are grouped under **Weather**) to the portal. This is the default when `code/telemetria/home` is among the cloned repos (the option forces it and warns if it is missing). Once installed, the portal keeps listing it. The service only accepts the server's names (`hostname`, FQDN and IPs), passed as `--allow-host`. |
+| `--telehome` | Installs **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) as a systemd service on `127.0.0.1:8765`, publishes it in Apache at `<entry>telehome/` (reverse proxy, conf `telehome-enchufes`) and adds the **Home** category (the `telemetria` apps of the `apps` repo are grouped under **Weather**) to the portal. This is the default when `code/telemetria/home` is among the cloned repos (the option forces it and warns if it is missing). Once installed, the portal keeps listing it. The service only accepts the server's names (`hostname`, FQDN and IPs), passed as `--allow-host`. |
 | `--cron "EXPR"` | Schedules periodic execution, e.g. `--cron "0 3 * * *"`. |
 | `-h`, `--help` | Shows the help. |
 

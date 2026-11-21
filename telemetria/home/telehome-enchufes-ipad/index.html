@@ -252,9 +252,9 @@ const METRICS = {
   i: { label: "Corriente", unit: "A", dec: 3, zero: true },
 };
 // Dónde buscar la API: 1) la URL puesta a mano en Ajustes; 2) el servicio publicado por instalar-todo
-// en Apache (/rafa/telehome/enchufes/); 3) relativa (si esta página la sirve el propio servicio).
-const API_CANDIDATAS = ["/rafa/telehome/enchufes/api/", "api/"];
-const INTERFAZ_COMPLETA = "/rafa/telehome/enchufes/";
+// en Apache (/rafa/telehome/); 3) relativa (si esta página la sirve el propio servicio).
+const API_CANDIDATAS = ["/rafa/telehome/api/", "/rafa/telehome/enchufes/api/", "api/"];   // la 2.ª es la ruta antigua
+const INTERFAZ_COMPLETA = "/rafa/telehome/";
 
 /* ---------- estado ---------- */
 const APP = {

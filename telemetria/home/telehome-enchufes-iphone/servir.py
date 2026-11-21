@@ -2,7 +2,7 @@
 """Servidor de pruebas para esta app (solo biblioteca estándar).
 
 Sirve los ficheros de esta carpeta y reenvía la API de TeleHome Enchufes a un servicio en marcha,
-imitando lo que hace Apache en el servidor (la app busca la API en /rafa/telehome/enchufes/api/).
+imitando lo que hace Apache en el servidor (la app busca la API en /rafa/telehome/api/).
 
     python3 servir.py                          # app en http://127.0.0.1:8080/, servicio en 127.0.0.1:8765
     python3 servir.py --api http://127.0.0.1:8765 --port 8080
@@ -23,7 +23,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 AQUI = Path(__file__).resolve().parent
-PREFIJO = "/rafa/telehome/enchufes/"          # ruta bajo la que Apache publica el servicio
+PREFIJO = "/rafa/telehome/"          # ruta bajo la que Apache publica el servicio
 SALTAR = {"host", "origin", "referer", "connection", "content-length", "accept-encoding"}
 
 

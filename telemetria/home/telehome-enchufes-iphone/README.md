@@ -12,7 +12,7 @@ resumen y CSV). **Añadir o editar enchufes, el modo nube y la contraseña se si
 
 ## Despliegue en Apache (como el resto de apps)
 
-1. El servicio `telehome-enchufes` debe estar instalado y publicado en Apache en `/rafa/telehome/enchufes/`
+1. El servicio `telehome-enchufes` debe estar instalado y publicado en Apache en `/rafa/telehome/`
    (lo hace `instalar-todo-isa.sh`; ver el [README del servicio](../telehome-enchufes/README.md)).
 2. `instalar-todo` copia esta carpeta junto con el resto del repo `code` a `/var/www/htdocs/rafa/code/telemetria/home/telehome-enchufes-iphone/`
    (selecciona `code/telemetria/home` en el portal). No hay nada más que configurar.
@@ -24,7 +24,7 @@ el navegador la pide al conectar; si no puede, la app muestra un aviso con un bo
 ## Cómo encuentra la API
 
 1. La URL guardada en *Ajustes → URL de la API* (opcional; debe ser del mismo servidor).
-2. `/rafa/telehome/enchufes/api/` (la ruta del Apache de isa.umh.es).
+2. `/rafa/telehome/api/` (la ruta del Apache de isa.umh.es).
 3. `api/` relativa a la página (por si el servicio sirve esta carpeta directamente).
 
 ## Probar en local
@@ -35,7 +35,7 @@ cd ../telehome-enchufes-iphone && python3 servir.py                             
 python3 servir.py --host 0.0.0.0                                                                     # visible desde el iphone de tu Wi-Fi (solo para probar)
 ```
 
-[`servir.py`](servir.py) solo usa la biblioteca estándar: sirve esta carpeta y reenvía `/rafa/telehome/enchufes/*` al servicio
+[`servir.py`](servir.py) solo usa la biblioteca estándar: sirve esta carpeta y reenvía `/rafa/telehome/*` al servicio
 (`--api`), igual que hace Apache. En VS Code, F5 lo arranca y abre Chrome (`.vscode/`).
 
 ## Contenido

@@ -32,7 +32,7 @@ chmod +x instalar-todo-lorca.sh
 ```
 
 - El resto de opciones (`-u`, `-o`, `-d`, `--docroot`, `--repos`, `--excluir`, `--listar`, `--sin-indice`, `--colector`, `--cron`, `--forzar`) funcionan como en la variante isa.
-- **TeleHome Enchufes** se instala por defecto si `code/telemetria/home` está entre los repos clonados (`--sin-telehome` para omitirlo) y queda en `http://lorca.umh.es/rafa/telehome/enchufes/`.
+- **TeleHome Enchufes** se instala por defecto si `code/telemetria/home` está entre los repos clonados (`--sin-telehome` para omitirlo) y queda en `http://lorca.umh.es/rafa/telehome/`.
 - La plantilla `index.html` (y los iconos) deben estar junto al script; si no, se usa la del repo `code` ya clonado y, en último caso, se genera un índice simple.
 - Las apps meteorológicas de `apps` están en `telemetria/meteo/` y aparecen en la categoría **Meteo** del portal.
 

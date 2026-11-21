@@ -68,7 +68,7 @@ Telemetría
                       pero sin arrancar.
 
   --telehome          Instala TeleHome Enchufes (de code/telemetria/home) como servicio
-                      systemd y lo publica en Apache en <entrada>telehome/enchufes/
+                      systemd y lo publica en Apache en <entrada>telehome/
                       (proxy inverso a 127.0.0.1:8765). Añade al portal la categoría
                       «Home». Es lo que se hace por defecto si code/telemetria/home está
                       entre los repos clonados; con --sin-telehome se omite.
@@ -502,7 +502,7 @@ done
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
 telehome_disponible() { find "$ORIGEN" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
-if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/"; fi
 python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -859,7 +859,7 @@ instalar_telehome() {
     [ "$TELEHOME" = 1 ] && log "AVISO: no se encontró telehome-enchufes en los repos clonados (¿está seleccionado code/telemetria?)"
     return 0
   fi
-  ruta="${ENTRADA}telehome/enchufes/"
+  ruta="${ENTRADA}telehome/"
   # Nombres permitidos para la interfaz (el servicio rechaza cualquier otro Host)
   for h in "${HOST_WEB:-}" "$(hostname -f 2>/dev/null || true)" "$(hostname 2>/dev/null || true)" $(hostname -I 2>/dev/null || true); do
     if [ -n "$h" ] && [[ " ${hosts[*]:-} " != *" $h "* ]]; then hosts+=("$h"); fi
@@ -985,7 +985,7 @@ fi
 if [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
   tele_srv=telehome; systemctl cat telehome >/dev/null 2>&1 || tele_srv=telehome-enchufes  # nombre anterior, si aún no se ha migrado
   tele_estado="$(systemctl is-active "$tele_srv" 2>/dev/null || true)"
-  TELEHOME_RUTA="${ENTRADA}telehome/enchufes/"
+  TELEHOME_RUTA="${ENTRADA}telehome/"
   tele_http="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$TELEHOME_RUTA" || echo "sin respuesta")"
   log "telehome                : $tele_estado (servicio)  ·  $tele_http (HTTP en $TELEHOME_RUTA)"
 fi
