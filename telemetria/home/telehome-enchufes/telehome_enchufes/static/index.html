@@ -327,7 +327,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 15:24</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 20:21</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -471,7 +471,12 @@ const METRICS = {
   v: { label: "Tensión", unit: "V", dec: 1, zero: false },
   i: { label: "Corriente", unit: "A", dec: 3, zero: true },
 };
-const S = { state: null, range: 86400, metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
+const RANGE_KEY = "telehome_enchufes_range";
+function savedRange() {
+  try { const v = parseInt(localStorage.getItem(RANGE_KEY), 10); if (RANGES.some(r => r[1] === v)) return v; } catch (e) { /* sin almacenamiento: se usa el valor por defecto */ }
+  return 86400;
+}
+const S = { state: null, range: savedRange(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
 
 async function api(path, opt = {}) {
   if (BACKEND) return BACKEND.api(path, opt);
@@ -620,6 +625,13 @@ function tlabel(t, withDate) {
 
 function visibleDevs() { return S.state.devices.filter(d => (S.sel === "all" || S.sel === d.id) && !S.hidden.has(d.id)); }
 
+function stepOf(pts, bucket) {
+  const dts = [];
+  for (let i = 1; i < pts.length; i++) { const dt = pts[i].t - pts[i - 1].t; if (dt > 0) dts.push(dt); }
+  if (!dts.length) return bucket;
+  dts.sort((a, b) => a - b);
+  return Math.max(bucket, dts[dts.length >> 1]);
+}
 function drawChart() {
   const svg = $("#chart"), H = svg.clientHeight || 330, W = Math.max(svg.clientWidth, 320);
   svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + H); $("#chartNote").textContent = "";
@@ -628,6 +640,8 @@ function drawChart() {
   const M = { l: 54, r: 16, t: 26, b: 28 }, iw = W - M.l - M.r, ih = H - M.t - M.b;
   const m = METRICS[S.metric], devs = visibleDevs();
   const bucket = Math.max(1, Math.ceil((hist.to - hist.from) / 400));
+  const steps = {};  // separación típica entre lecturas de cada enchufe (la nube lee cada 60-300 s)
+  for (const d of devs) steps[d.id] = stepOf(hist.series[d.id] || [], bucket);
   let lo = Infinity, hi = -Infinity, any = false, minT = Infinity;
   for (const d of devs) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { any = true; lo = Math.min(lo, v); hi = Math.max(hi, v); minT = Math.min(minT, p.t); } }
   $("#chartEmpty").hidden = any; svg.style.display = any ? "block" : "none";
@@ -663,7 +677,7 @@ function drawChart() {
     for (const p of pts) {
       const v = p[S.metric];
       if (v == null) { prev = null; if (seg.length) { segs.push(seg); seg = []; } continue; }
-      const gap = prev == null || p.t - prev > bucket * 3;
+      const gap = prev == null || p.t - prev > steps[d.id] * 3;
       if (gap && seg.length) { segs.push(seg); seg = []; }
       path += (gap ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(v).toFixed(1);
       seg.push([X(p.t), Y(v)]); prev = p.t; last = p;
@@ -682,7 +696,7 @@ function drawChart() {
     if (path) svg.append(sv("path", { d: path, fill: "none", stroke: color(d), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
     if (last) svg.append(sv("circle", { cx: X(last.t), cy: Y(last[S.metric]), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
   }
-  S.geo = { M, iw, ih, W, H, X, Y, bucket, t0 };
+  S.geo = { M, iw, ih, W, H, X, Y, bucket, t0, steps };
   svg.append(sv("line", { class: "cross", y1: M.t, y2: M.t + ih, stroke: "var(--ink2)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }));
   svg.append(sv("rect", { class: "hit", x: M.l, y: M.t, width: iw, height: ih, fill: "transparent" }));
   if (S.hover != null) showHover(S.hover);
@@ -696,7 +710,7 @@ function showHover(t) {
   for (const d of devs) {
     const pts = hist.series[d.id] || []; let near = null, nd = Infinity;
     for (const p of pts) { const dd = Math.abs(p.t - t); if (dd < nd) { nd = dd; near = p; } }
-    if (near && nd <= g.bucket * 2) { rows.push([d, near]); if (nd < best) { best = nd; snap = near.t; } }
+    if (near && nd <= (g.steps[d.id] || g.bucket) * 2) { rows.push([d, near]); if (nd < best) { best = nd; snap = near.t; } }
   }
   svg.querySelectorAll(".mk").forEach(n => n.remove());
   const cross = svg.querySelector(".cross");
@@ -745,7 +759,7 @@ function renderLegend() {
   const lg = $("#legend"); lg.replaceChildren();
   const devs = S.state.devices.filter(d => S.sel === "all" || S.sel === d.id);
   const m = METRICS[S.metric];
-  $("#chartTitle").replaceChildren(m.label + " ", el("small", { text: "(" + m.unit + ")" + (S.sel === "all" ? " · todos los enchufes" : " · " + (devs[0] ? devs[0].name : "")) }));
+  $("#chartTitle").replaceChildren(m.label + " ", el("small", { text: "(" + m.unit + ")" + (S.sel === "all" ? " · Todos los enchufes" : " · " + (devs[0] ? devs[0].name : "")) }));
   lg.hidden = devs.length < 2;
   if (devs.length < 2) return;
   for (const d of devs) {
@@ -759,7 +773,7 @@ function renderFilters() {
   const rg = $("#rangeGrp"); rg.replaceChildren();
   for (const [lab, secs] of RANGES) {
     const b = el("button", { type: "button", text: lab, "aria-pressed": String(S.range === secs) });
-    b.addEventListener("click", () => { S.range = secs; renderFilters(); loadChart(); }); rg.append(b);
+    b.addEventListener("click", () => { S.range = secs; try { localStorage.setItem(RANGE_KEY, String(secs)); } catch (e) { /* ignorar */ } renderFilters(); loadChart(); }); rg.append(b);
   }
   const mg = $("#metricGrp"); mg.replaceChildren();
   for (const k of Object.keys(METRICS)) {

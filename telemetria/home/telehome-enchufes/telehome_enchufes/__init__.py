@@ -1,4 +1,4 @@
 """TeleHome Enchufes: monitor y control local de enchufes Tuya (Energeeks EG-EW008MC)."""
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 APP_NAME = "TeleHome Enchufes"
