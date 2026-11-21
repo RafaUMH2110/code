@@ -76,7 +76,7 @@ Telemetría
                       la de su config.ini actual o <destino>/telemethistorial/datos)
 
   --telehome          Instala TeleHome Enchufes (de code/telemetria/home) como servicio
-                      systemd y lo publica en Apache en <entrada>telehome/enchufes/
+                      systemd y lo publica en Apache en <entrada>telehome/
                       (proxy inverso a 127.0.0.1:8765). Añade al portal la categoría
                       «Home». Es lo que se hace por defecto si code/telemetria/home está
                       entre los repos clonados; con --sin-telehome se omite.
@@ -316,7 +316,7 @@ paso() { echo | tee -a "$LOG"; log "=== $* ==="; }
 # -----------------------------------------------------------------------------
 paso "1/6 Dependencias"
 FALTAN=()
-for p in apache2 git curl jq rsync python3; do
+for p in apache2 git curl jq rsync python3 python3-venv; do
   dpkg -s "$p" >/dev/null 2>&1 || FALTAN+=("$p")
 done
 if [ "${#FALTAN[@]}" -gt 0 ]; then
@@ -462,11 +462,11 @@ SECRETOS=(--exclude='.env*' --exclude='*.key' --exclude='*.pem' --exclude='*secr
 RSYNC_OPTS=(-a --delete --delete-excluded --filter='P datos/' --exclude='.git/' --exclude='.github/' "${SECRETOS[@]}")
 case "$MODO" in
   web)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --exclude='node_modules/' --exclude='package*.json' --exclude='tsconfig*.json' --exclude='*config*.json' --include='*/')
     for e in "${EXT_WEB[@]}"; do RSYNC_OPTS+=(--include="*.$e"); done
     RSYNC_OPTS+=(--exclude='*') ;;
   html)
-    RSYNC_OPTS+=(--prune-empty-dirs --exclude='telehome-enchufes/' --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
+    RSYNC_OPTS+=(--prune-empty-dirs --exclude='.*' --include='*/' --include='*.html' --include='*.htm' --exclude='*') ;;
   todo)
     RSYNC_OPTS+=(--exclude='.gitignore') ;;
 esac
@@ -475,9 +475,10 @@ copiados=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$ORIGEN/$r/.git" ] || [ -f "$ORIGEN/$r/.git" ] || continue
   extra=()
+  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-enchufes/') # de code no se copia TeleHome (es un servicio; se publica por proxy)
   [ -n "$BKP" ] && extra=(--backup --backup-dir="$BKP/$r")
   salida_rs="$(mktemp)"
-  if $SUDO env LC_ALL=C rsync "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
+  if $SUDO env LC_ALL=C rsync "${pre[@]}" "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$ORIGEN/$r/" "$DESTINO/$r/" >"$salida_rs" 2>&1; then
     copiados=$((copiados+1))
     read -r n m d < <(awk '/^>f\+\+\+\+\+\+\+\+\+/{n++} /^>f/ && !/^>f\+\+\+\+\+\+\+\+\+/{m++} /^\*deleting/ && !/\/$/{d++} END{print n+0,m+0,d+0}' "$salida_rs")
     bytes="$(sed -nE 's/^Total transferred file size: ([0-9,.]+) bytes.*/\1/p' "$salida_rs" | tr -d ',.')"; bytes="${bytes:-0}"
@@ -513,7 +514,7 @@ done
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
 telehome_disponible() { find "$ORIGEN" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
-if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/enchufes/"; fi
+if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRADA}telehome/"; fi
 python3 -I - "$ORIGEN" "$DESTINO" "$tmp_json" "$HOME" "$USUARIO_GH" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
 
@@ -620,7 +621,7 @@ for repo in sorted(os.listdir(destino)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            if 'telehome-enchufes/' in rel:
+            if repo == 'code' and 'telehome-enchufes/' in rel:
                 continue  # su interfaz se publica por proxy (ver más abajo)
             # clon que contiene este fichero (el de esta ejecución puede ser parcial)
             clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
@@ -656,14 +657,21 @@ $SUDO install -m 644 "$tmp_json" "$DESTINO/apps.json"
 rm -f "$tmp_json"
 log "Catálogo generado: $DESTINO/apps.json ($(jq '.apps|length' "$DESTINO/apps.json") apps)"
 
-# Página de entrada: plantilla index.html junto a este script (portal visual)
-PLANTILLA="$(dirname "$SCRIPT_ABS")/index.html"
+# Página de entrada (portal visual). Se prefiere la plantilla del repo code recién
+# clonado/actualizado; la que haya junto al script (p. ej. una copia antigua en
+# ~/linux/github) solo se usa si el repo no está disponible.
+PLANTILLA_REPO="$ORIGEN/code/scripts/instalar-todo/index.html"
+PLANTILLA_LOCAL="$(dirname "$SCRIPT_ABS")/index.html"
+if [ -f "$PLANTILLA_REPO" ]; then PLANTILLA="$PLANTILLA_REPO"; else PLANTILLA="$PLANTILLA_LOCAL"; fi
+if [ -f "$PLANTILLA_REPO" ] && [ -f "$PLANTILLA_LOCAL" ] && ! cmp -s "$PLANTILLA_REPO" "$PLANTILLA_LOCAL"; then
+  log "AVISO: el index.html junto al script ($PLANTILLA_LOCAL) es distinto del del repo; se usa el del repo"
+fi
 if [ "$INDICE" -eq 1 ] && [ -f "$PLANTILLA" ]; then
   $SUDO install -m 644 "$PLANTILLA" "$DESTINO/index.html"
   for _f in favicon.svg favicon.ico apple-touch-icon.png; do
     if [ -f "$(dirname "$PLANTILLA")/$_f" ]; then $SUDO install -m 644 "$(dirname "$PLANTILLA")/$_f" "$DESTINO/$_f"; fi
   done
-  log "Portal instalado: $DESTINO/index.html"
+  log "Portal instalado: $DESTINO/index.html (plantilla: $PLANTILLA)"
 elif [ "$INDICE" -eq 1 ]; then
   log "AVISO: no se encontró la plantilla $PLANTILLA; se genera un índice simple"
   tmp="$(mktemp)"
@@ -878,7 +886,7 @@ instalar_telehome() {
     [ "$TELEHOME" = 1 ] && log "AVISO: no se encontró telehome-enchufes en los repos clonados (¿está seleccionado code/telemetria?)"
     return 0
   fi
-  ruta="${ENTRADA}telehome/enchufes/"
+  ruta="${ENTRADA}telehome/"
   # Nombres permitidos para la interfaz (el servicio rechaza cualquier otro Host)
   for h in "${HOST_WEB:-}" "$(hostname -f 2>/dev/null || true)" "$(hostname 2>/dev/null || true)" $(hostname -I 2>/dev/null || true); do
     if [ -n "$h" ] && [[ " ${hosts[*]:-} " != *" $h "* ]]; then hosts+=("$h"); fi
@@ -886,14 +894,19 @@ instalar_telehome() {
   args=(--puerto "$puerto")
   for h in "${hosts[@]:-}"; do if [ -n "$h" ]; then args+=(--allow-host "$h"); fi; done
   if $SUDO bash "$inst" "${args[@]}" >>"$LOG" 2>&1; then
-    log "Servicio telehome-enchufes instalado (escucha en 127.0.0.1:$puerto)"
+    log "Servicio telehome instalado (escucha en 127.0.0.1:$puerto)"
   else
-    log "ERROR instalando telehome-enchufes (revisa $LOG)"; errores=$((errores+1)); return 0
+    log "ERROR instalando telehome (revisa $LOG)"; tail -n 8 "$LOG" | sed "s/^/    /" >&2; errores=$((errores+1)); return 0
   fi
 
   # Apache: proxy inverso del servicio bajo $ruta (la interfaz usa rutas relativas)
   $SUDO a2enmod proxy proxy_http >/dev/null 2>&1 || true
-  $SUDO tee /etc/apache2/conf-available/telehome-enchufes.conf >/dev/null <<EOF
+  # nombre anterior de la conf (el servicio se llamaba telehome-enchufes): se sustituye por «telehome»
+  if [ -e /etc/apache2/conf-available/telehome-enchufes.conf ]; then
+    $SUDO a2disconf telehome-enchufes >/dev/null 2>&1 || true
+    $SUDO rm -f /etc/apache2/conf-available/telehome-enchufes.conf
+  fi
+  $SUDO tee /etc/apache2/conf-available/telehome.conf >/dev/null <<EOF
 # TeleHome Enchufes: el servicio escucha en 127.0.0.1:$puerto y se publica en $ruta
 RedirectMatch "^${ruta%/}\$" "$ruta"
 <Location "$ruta">
@@ -902,9 +915,9 @@ RedirectMatch "^${ruta%/}\$" "$ruta"
     ProxyPassReverse "http://127.0.0.1:$puerto/"
 </Location>
 EOF
-  $SUDO a2enconf telehome-enchufes >/dev/null
+  $SUDO a2enconf telehome >/dev/null
   TELEHOME_CONF=1
-  log "Apache: TeleHome Enchufes publicado en $ruta (conf telehome-enchufes)"
+  log "Apache: TeleHome Enchufes publicado en $ruta (conf telehome)"
 }
 
 if [ "$COLECTOR" -eq 1 ]; then
@@ -928,7 +941,7 @@ else
   log "AVISO: no hay un bloque <Directory $DESTINO> en /etc/apache2; si hay 403, añade 'Require all granted' para esa carpeta"
 fi
 [ "$HEADERS_CONF" -eq 1 ] && CONF_NUEVAS+=(telemet-historial)
-[ "$TELEHOME_CONF" -eq 1 ] && CONF_NUEVAS+=(telehome-enchufes)
+[ "$TELEHOME_CONF" -eq 1 ] && CONF_NUEVAS+=(telehome)
 
 if [ "$ENTRADA_RAIZ" -eq 1 ]; then
   $SUDO a2enmod alias >/dev/null 2>&1 || true
@@ -982,11 +995,12 @@ if [ "$COLECTOR" -eq 1 ] && command -v systemctl >/dev/null 2>&1 && [ -d /run/sy
   log "telemet-colector : $(systemctl is-active telemet-colector 2>/dev/null || true)"
 fi
 
-if [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
-  tele_estado="$(systemctl is-active telehome-enchufes 2>/dev/null || true)"
-  TELEHOME_RUTA="${ENTRADA}telehome/enchufes/"
+if [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then
+  tele_srv=telehome; systemctl cat telehome >/dev/null 2>&1 || tele_srv=telehome-enchufes  # nombre anterior, si aún no se ha migrado
+  tele_estado="$(systemctl is-active "$tele_srv" 2>/dev/null || true)"
+  TELEHOME_RUTA="${ENTRADA}telehome/"
   tele_http="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost$TELEHOME_RUTA" || echo "sin respuesta")"
-  log "telehome-enchufes       : $tele_estado (servicio)  ·  $tele_http (HTTP en $TELEHOME_RUTA)"
+  log "telehome                : $tele_estado (servicio)  ·  $tele_http (HTTP en $TELEHOME_RUTA)"
 fi
 
 if [ -n "$CRON_EXPR" ]; then

@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS readings (
     current REAL
 );
 CREATE INDEX IF NOT EXISTS idx_readings_plug_ts ON readings (plug, ts);
+CREATE TABLE IF NOT EXISTS api_calls (
+    day TEXT PRIMARY KEY,   -- fecha local AAAA-MM-DD
+    n   INTEGER NOT NULL
+);
 """
 
 
@@ -49,7 +53,32 @@ class Store:
     def prune(self, retention_days: int) -> int:
         cutoff = int(time.time()) - retention_days * 86400
         with self._lock, self._conn() as c:
+            # las llamadas a la API pesan casi nada: se conservan al menos 400 días
+            keep = time.strftime("%Y-%m-%d", time.localtime(time.time() - max(retention_days, 400) * 86400))
+            c.execute("DELETE FROM api_calls WHERE day < ?", (keep,))
             return c.execute("DELETE FROM readings WHERE ts < ?", (cutoff,)).rowcount
+
+    def add_api_calls(self, n: int, ts: Optional[float] = None) -> None:
+        """Suma `n` llamadas a la API de la nube al contador del día (hora local)."""
+        if n <= 0:
+            return
+        day = time.strftime("%Y-%m-%d", time.localtime(time.time() if ts is None else ts))
+        with self._lock, self._conn() as c:
+            c.execute("INSERT INTO api_calls (day, n) VALUES (?, ?) "
+                      "ON CONFLICT(day) DO UPDATE SET n = n + excluded.n", (day, int(n)))
+
+    def api_calls_by_day(self, days: int = 31, now: Optional[float] = None) -> List[Dict]:
+        """Llamadas por día de los últimos `days` días (incluido hoy), con ceros en los días sin datos."""
+        now = time.time() if now is None else now
+        first = time.localtime(now - (days - 1) * 86400)
+        with self._lock, self._conn() as c:
+            rows = dict(c.execute("SELECT day, n FROM api_calls WHERE day >= ?",
+                                  (time.strftime("%Y-%m-%d", first),)).fetchall())
+        out = []
+        for i in range(days - 1, -1, -1):
+            d = time.strftime("%Y-%m-%d", time.localtime(now - i * 86400))
+            out.append({"day": d, "n": int(rows.get(d, 0))})
+        return out
 
     def delete_plug(self, plug: str) -> None:
         with self._lock, self._conn() as c:
@@ -83,16 +112,25 @@ class Store:
     def summary(self, plug: str, t0: float, t1: float, max_gap: float = 120.0) -> Dict:
         with self._conn() as c:
             row = c.execute(
-                "SELECT AVG(power), MAX(power), COUNT(*), SUM(online), MAX(voltage), MIN(voltage) "
+                "SELECT AVG(power), MAX(power), COUNT(*), SUM(online), MAX(voltage), MIN(voltage), "
+                "MIN(power), AVG(voltage), AVG(current), MIN(current), MAX(current), AVG(on_) "
                 "FROM readings WHERE plug = ? AND ts BETWEEN ? AND ?", (plug, int(t0), int(t1))).fetchone()
         n = row[2] or 0
+        rnd = lambda v, d: None if v is None else round(v, d)
         return {
             "energy_kwh": round(self.energy_kwh(plug, t0, t1, max_gap), 4),
-            "avg_w": None if row[0] is None else round(row[0], 1),
+            "avg_w": rnd(row[0], 1),
             "max_w": row[1],
             "samples": n,
             "availability": None if not n else round((row[3] or 0) / n, 4),
             "v_max": row[4], "v_min": row[5],
+            # Bloque genérico de TeleHome: una entrada por magnitud medida.
+            "m": {
+                "p": {"avg": rnd(row[0], 1), "min": row[6], "max": row[1]},
+                "v": {"avg": rnd(row[7], 1), "min": row[5], "max": row[4]},
+                "i": {"avg": rnd(row[8], 3), "min": row[9], "max": row[10]},
+            },
+            "on_ratio": rnd(row[11], 4),
         }
 
     def export_csv(self, plug: str, t0: float, t1: float) -> Iterator[str]:

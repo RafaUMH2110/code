@@ -5,7 +5,7 @@ Ejemplos de código y apps de escritorio en Python (macOS, Windows, Linux), más
 ## Antes de tocar nada
 - Trabaja en una rama (`feat/…`, `fix/…`, `docs/…`) y abre un PR; no hagas force-push a `main`.
 - **No renombres ni muevas** `macos/`, `windows/`, `linux/` ni las carpetas de `scripts/`: los instaladores (`scripts/instalar-todo*`), los manuales y los repos de `RafaUMH2110` enlazan a esas rutas.
-- **El colector TeleMet no está aquí.** Su única fuente es el repo `apps` (`telemetria/telemetcolector` y `telemetcollector`). No lo copies a este repo.
+- **El colector TeleMet no está aquí.** Su única fuente es el repo `apps` (`telemetria/meteo/telemetcolector` y `telemetcollector`). No lo copies a este repo.
 - Nombres de directorio en minúsculas y con guiones; los módulos Python conservan `_`.
 - Una app que cambia según el sistema va en `macos/`, `windows/` y `linux/`; si es idéntica en los tres, una sola vez en la raíz (`generador-apps/`). Cada app es autocontenida: no se comparten ficheros entre apps.
 

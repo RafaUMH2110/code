@@ -7,12 +7,13 @@ crece con el número de enchufes.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-log = logging.getLogger("telehome-enchufes")
+log = logging.getLogger("telehome")
 
 REGIONS = {
     "eu": "Europa central",
@@ -37,6 +38,51 @@ def _msg(resp: Any) -> str:
         if resp.get("code"):
             return "código %s" % resp["code"]
     return "respuesta no válida"
+
+
+# Ayuda para los errores de permisos más frecuentes de Tuya (lo que hay que
+# cambiar en iot.tuya.com). Se busca por código y por texto del mensaje.
+_AYUDA_PERMISOS = (
+    (("28841105", "not authorized to call this api"),
+     "El proyecto de Tuya no tiene permiso para esta llamada. En iot.tuya.com → Cloud → Cloud Services, si en la "
+     "fila de «IoT Core» la columna «Authorized Projects» está vacía, pulsa «View Details» → «Authorized Projects» → "
+     "«Add Authorization», marca tu proyecto y pulsa «Confirm Authorization» (o, dentro del proyecto: «Service API» → "
+     "«Go to Authorize» → «IoT Core»). Comprueba también que no ha caducado («Extend Trial Period») y que en "
+     "«Devices» cada enchufe tiene «Device Permission» = «Controllable»."),
+    (("28841106", "api is not subscribed"),
+     "La API no está suscrita: en iot.tuya.com → tu proyecto → «Service API» → «Go to Authorize» suscribe "
+     "«IoT Core» y «Authorization»."),
+    (("1106", "permission deny"),
+     "Sin permiso sobre el dispositivo: en iot.tuya.com → tu proyecto → «Devices», pulsa «Change» en la columna "
+     "«Device Permission» del enchufe y elige «Controllable» (con «Read» solo se puede leer)."),
+)
+
+
+def _ayuda(texto: str) -> str:
+    t = texto.lower()
+    for claves, ayuda in _AYUDA_PERMISOS:
+        if any(k in t for k in claves):
+            return ayuda
+    return ""
+
+
+def _msg_codigo(resp: Any) -> str:
+    """Mensaje de Tuya con su código, p. ej. «No permissions… (código 28841105)»."""
+    m = _msg(resp)
+    if isinstance(resp, dict) and resp.get("code") and str(resp["code"]) not in m:
+        m += " (código %s)" % resp["code"]
+    return m
+
+
+# Los dispositivos virtuales que crea la consola de Tuya para pruebas tienen un
+# Device ID que empieza por «vdevo». Se leen, pero la nube no siempre acepta
+# órdenes para ellos (y no dan potencia, tensión ni corriente reales).
+AVISO_VIRTUAL = ("Es un dispositivo virtual de pruebas de la consola de Tuya (su Device ID empieza por «vdevo»): "
+                 "no es un enchufe real y la nube puede no aceptar órdenes para él. Puedes quitarlo de la app.")
+
+
+def es_virtual(dev_id: str) -> bool:
+    return str(dev_id).lower().startswith("vdevo")
 
 
 def _ok(resp: Any) -> bool:
@@ -97,7 +143,18 @@ class CloudHub:
         self._err: Optional[str] = None
         self._err_ts = 0.0
         self._strategy: Optional[str] = None
+        self._cmd_strategy: Optional[str] = None
         self.calls = 0  # llamadas a la API desde el arranque (orientativo)
+        self.on_calls: Optional[Callable[[int], None]] = None  # se avisa de cada lote de llamadas (para guardarlas por día)
+
+    def _count(self, n: int) -> None:
+        self.calls += n
+        cb = self.on_calls
+        if cb is not None:
+            try:
+                cb(n)
+            except Exception:  # contar nunca debe romper una lectura
+                log.exception("No se pudieron guardar las llamadas a la API")
 
     # ---- sesión ---------------------------------------------------------
     def configured(self) -> bool:
@@ -110,24 +167,25 @@ class CloudHub:
             self._cache, self._cache_ts = {}, 0.0
             self._err, self._err_ts = None, 0.0
             self._strategy = None
+            self._cmd_strategy = None
 
     def _get_client(self):
         if self._client is None:
             if not self.configured():
                 raise CloudError("Configura primero las credenciales de la nube de Tuya (Ajustes → Nube)")
             o = self._opts()
-            self.calls += 1  # obtención del token
+            self._count(1)  # obtención del token
             self._client = self._factory(o.get("cloud_region", "eu"), o["cloud_api_key"], o["cloud_api_secret"])
         return self._client
 
     def _req(self, url: str, query: Optional[Dict[str, Any]] = None, post: Any = None, action: Optional[str] = None):
         c = self._get_client()
-        self.calls += 1
+        self._count(1)
         resp = c.cloudrequest(url, action=action, post=post, query=query)
         if isinstance(resp, dict) and str(resp.get("code")) in ("1010", "1011"):  # token caducado/no válido
             self._client = None
             c = self._get_client()
-            self.calls += 1
+            self._count(1)
             resp = c.cloudrequest(url, action=action, post=post, query=query)
         return resp
 
@@ -135,7 +193,7 @@ class CloudHub:
     def _fetch_devices_v1(self, ids: List[str]):
         r = self._req("/v1.0/devices", query={"device_ids": ",".join(ids)})
         if not _ok(r):
-            raise CloudError(_msg(r))
+            raise CloudError(_msg_codigo(r))
         out = {}
         for it in _items(r.get("result")):
             did = it.get("id") or it.get("device_id")
@@ -149,7 +207,7 @@ class CloudHub:
         q = {"device_ids": ",".join(ids)}
         r = self._req("/v1.0/iot-03/devices/status", query=q)
         if not _ok(r):
-            raise CloudError(_msg(r))
+            raise CloudError(_msg_codigo(r))
         out = {}
         for it in _items(r.get("result")):
             did = it.get("id") or it.get("device_id")
@@ -169,7 +227,7 @@ class CloudHub:
         c = self._get_client()
         out = {}
         for did in ids:
-            self.calls += 2
+            self._count(2)
             st = c.getstatus(did)
             if not _ok(st):
                 raise CloudError(_msg(st))
@@ -193,7 +251,8 @@ class CloudHub:
             except CloudError as exc:
                 last = exc
                 log.debug("Método de nube %s falló: %s", name, exc)
-        raise CloudError("Error de la nube de Tuya: %s" % last)
+        ayuda = _ayuda(str(last))
+        raise CloudError("Error de la nube de Tuya: %s" % last + (". " + ayuda if ayuda else ""))
 
     def status(self, dev_id: str, max_age: float) -> Tuple[Optional[bool], Dict[str, Any]]:
         with self._lock:
@@ -218,17 +277,44 @@ class CloudHub:
             return self._cache[dev_id]
 
     # ---- órdenes y utilidades -------------------------------------------
+    # Formas de enviar una orden, de la más habitual a la menos: cada proyecto de
+    # Tuya tiene autorizadas unas u otras según cuándo se creó y qué servicios
+    # tiene suscritos. Se recuerda la que funciona.
+    _CMD_STRATEGIES = (
+        ("iot03", "/v1.0/iot-03/devices/%s/commands", lambda code, value: {"commands": [{"code": code, "value": value}]}),
+        ("v1", "/v1.0/devices/%s/commands", lambda code, value: {"commands": [{"code": code, "value": value}]}),
+        ("shadow", "/v2.0/cloud/thing/%s/shadow/properties/issue", lambda code, value: {"properties": json.dumps({code: value})}),
+    )
+
     def command(self, dev_id: str, code: str, value: Any) -> None:
         with self._lock:
-            c = self._get_client()
-            self.calls += 1
-            try:
-                r = c.sendcommand(dev_id, {"commands": [{"code": code, "value": value}]})
-            except Exception as exc:
-                self._client = None
-                raise CloudError("Error de comunicación con la nube: %s" % exc)
-            if not _ok(r):
-                raise CloudError("La nube rechazó la orden: %s" % _msg(r))
+            estrategias = list(self._CMD_STRATEGIES)
+            if self._cmd_strategy:
+                estrategias.sort(key=lambda e: e[0] != self._cmd_strategy)
+            fallos = []
+            for nombre, url, cuerpo in estrategias:
+                try:
+                    r = self._req(url % dev_id, post=cuerpo(code, value), action="POST")
+                except CloudError:
+                    raise
+                except Exception as exc:
+                    self._client = None
+                    raise CloudError("Error de comunicación con la nube: %s" % exc)
+                if _ok(r):
+                    if self._cmd_strategy != nombre:
+                        log.info("Nube de Tuya: órdenes por el método «%s»", nombre)
+                    self._cmd_strategy = nombre
+                    break
+                fallos.append(_msg_codigo(r))
+                log.debug("Orden por el método %s rechazada: %s", nombre, fallos[-1])
+            else:
+                # Se muestra el primer error (el del método principal) y, si es
+                # de permisos, qué cambiar en la consola de Tuya.
+                texto = "La nube rechazó la orden: %s" % fallos[0]
+                if es_virtual(dev_id):
+                    raise CloudError(texto + ". " + AVISO_VIRTUAL)
+                ayuda = _ayuda(" ".join(fallos))
+                raise CloudError(texto + (". " + ayuda if ayuda else ""))
             if dev_id in self._cache:  # actualización optimista: evita otra llamada
                 online, st = self._cache[dev_id]
                 st = dict(st)
@@ -238,7 +324,7 @@ class CloudHub:
     def list_devices(self) -> List[Dict[str, Any]]:
         with self._lock:
             c = self._get_client()
-            self.calls += 2
+            self._count(2)
             try:
                 devs = c.getdevices()
             except Exception as exc:
