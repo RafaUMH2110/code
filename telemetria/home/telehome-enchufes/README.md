@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.5.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.5.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -97,7 +97,10 @@ Notas:
 - El plan gratuito de IoT Core **caduca al mes**: se renueva en la consola de Tuya (*Extend trial period*). Si
   caduca, los enchufes en modo nube aparecen «sin conexión» con el error de la API hasta renovarlo.
 - El cupo de llamadas del plan gratuito es limitado. La app lee **todos** los enchufes de la nube con 1-2 llamadas por
-  ciclo (caché compartida) y por defecto cada **300 s** (mínimo 60). *Ajustes → Opciones* muestra la estimación mensual.
+  ciclo (caché compartida) y por defecto cada **300 s** (mínimo 60). *Ajustes → Opciones* muestra la estimación mensual y, desde la 0.5.1, las llamadas reales
+  que ha hecho el servicio cada día (hoy, ayer, mes, últimos 30 días y gráfico). Se guardan en la base de datos
+  (`telemetria.sqlite3`, tabla `api_calls`) y salen en `api/state` → `cloud` (`today`, `yesterday`, `month`, `last30`, `by_day`).
+  Tuya no indica cuántos créditos cuesta cada llamada: compara el recuento con los créditos restantes de iot.tuya.com.
 - Códigos de datos por defecto: `switch_1`, `cur_power` (÷10 → W), `cur_voltage` (÷10 → V), `cur_current` (mA).
   Se ajustan por enchufe en *Avanzado*; `telehome-enchufes probe <enchufe>` muestra lo que devuelve la nube.
 - Los **dispositivos virtuales** de la consola de Tuya (Device ID que empieza por `vdevo`) sirven solo para pruebas: se

@@ -163,6 +163,14 @@ main.wrap { padding-top:22px; padding-bottom:12px; }
 .note { font-size:13px; color:var(--ink2); margin:0 0 6px; padding:7px 12px; background:var(--sunk); border-radius:9px; }
 .note:empty { display:none; }
 .hint { color:var(--ink2); font-size:13px; margin:6px 0 0; }
+.calls { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; margin:0 0 12px; }
+.calls div { background:var(--sunk); border-radius:10px; padding:8px 12px; }
+.calls b { display:block; font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; color:var(--ink); }
+.calls span { font-size:12.5px; color:var(--ink2); }
+.cbars { display:flex; align-items:flex-end; gap:3px; height:64px; margin:0 0 4px; }
+.cbars i { flex:1; min-height:2px; background:var(--accent); border-radius:3px 3px 0 0; opacity:.85; }
+.cbars i.hoy { opacity:1; }
+.caxis { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
 .tbl { overflow-x:auto; }
 table { border-collapse:collapse; width:100%; font-size:14px; }
 th, td { text-align:right; padding:11px 10px; border-bottom:1px solid var(--grid); white-space:nowrap; }
@@ -319,7 +327,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-20 13:41</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 14:54</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -428,6 +436,11 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
           <div class="full"><button class="btn primary" type="submit">Guardar opciones</button></div>
         </form>
         <div class="msg" id="optMsg" role="alert"></div>
+      </section>
+      <section>
+        <h3>Llamadas a la API de Tuya</h3>
+        <p class="desc">Cuántas llamadas ha hecho el servicio a la nube de Tuya (lectura de estado, órdenes y renovación del token). Tuya no informa del coste por llamada: compara estas cifras con los créditos que muestra iot.tuya.com para saber cuántos créditos gasta cada llamada.</p>
+        <div id="callsBox"></div>
       </section>
     </div>
   </div>
@@ -799,11 +812,24 @@ function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? ta
 function fillOptions() {
   const o = S.state.options, f = $("#optForm");
   f.poll_interval.value = o.poll_interval; f.cloud_poll_interval.value = o.cloud_poll_interval; f.retention_days.value = o.retention_days;
-  updateEstimate();
+  updateEstimate(); renderCalls();
   const cf = $("#cloudForm"), sel = $("#regionSel");
   if (!sel.options.length) for (const [k, v] of Object.entries(S.state.regions || {})) sel.append(el("option", { value: k, text: v + " (" + k + ")" }));
   sel.value = o.cloud_region; cf.api_key.value = o.cloud_api_key || ""; cf.api_secret.value = "";
   cf.api_secret.placeholder = o.cloud_secret_set ? "(guardado; déjalo vacío para conservarlo)" : "";
+}
+function renderCalls() {
+  const box = $("#callsBox"); if (!box) return;
+  const c = (S.state && S.state.cloud) || {};
+  if (!Array.isArray(c.by_day)) { box.replaceChildren(el("p", { class: "hint", text: "Este servicio no guarda el recuento de llamadas." })); return; }
+  const stat = (v, t) => el("div", {}, el("b", { text: nf(0).format(v || 0) }), el("span", { text: t }));
+  const days = c.by_day.slice(-30), max = Math.max(1, ...days.map(d => d.n));
+  const bars = el("div", { class: "cbars", role: "img", "aria-label": "Llamadas por día, últimos 30 días" },
+    ...days.map((d, i) => el("i", { class: i === days.length - 1 ? "hoy" : "", style: "height:" + Math.max(3, Math.round(d.n / max * 100)) + "%", title: d.day.split("-").reverse().join("/") + ": " + nf(0).format(d.n) + " llamadas" })));
+  box.replaceChildren(
+    el("div", { class: "calls" }, stat(c.today, "hoy"), stat(c.yesterday, "ayer"), stat(c.month, "este mes"), stat(c.last30, "últimos 30 días"), stat(c.calls, "desde el arranque")),
+    bars,
+    el("div", { class: "caxis" }, el("span", { text: days[0].day.split("-").reverse().join("/") }), el("span", { text: "hoy" })));
 }
 function updateEstimate() {
   const iv = Math.max(60, +$("#optForm").cloud_poll_interval.value || 300);
@@ -957,7 +983,7 @@ async function refresh() {
     "Actualizado a las " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
   renderMeter(); renderCards(); renderFilters();
-  if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); }
+  if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); renderCalls(); }
 }
 async function init() {
   bindChart(); bindDialog();

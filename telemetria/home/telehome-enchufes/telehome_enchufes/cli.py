@@ -89,6 +89,8 @@ def cmd_serve(args) -> int:
 
     store = Store(base / "telemetria.sqlite3")
     hub = _hub(cfg, bool(args.simulate))
+    if hasattr(hub, "on_calls"):
+        hub.on_calls = store.add_api_calls  # llamadas a la nube guardadas por día
     monitor = Monitor(cfg, store, simulate=bool(args.simulate), hub=hub)
     loopback = args.host in ("127.0.0.1", "localhost", "::1")
     ctx = AppContext(cfg, store, monitor, bool(args.simulate), loopback_only=loopback,
