@@ -221,3 +221,22 @@ def test_state_incluye_llamadas_por_dia(app):
     c = state["cloud"]
     assert c["today"] == 4 and c["yesterday"] == 0 and c["month"] >= 4 and c["last30"] == 4
     assert len(c["by_day"]) == 31 and c["by_day"][-1]["n"] == 4
+
+
+def test_energia_de_hoy_sobrevive_al_reinicio_con_lecturas_de_nube(tmp_path):
+    """Con lecturas cada 300 s (nube) la energía de hoy no debe quedar a cero al arrancar."""
+    from telehome_enchufes.monitor import local_midnight
+    cfg = Config(tmp_path / "config.json")
+    cfg.add_device({"name": "Nube", "dev_id": "vdev0000000000000001", "mode": "nube"})
+    dev = cfg.devices[0]
+    store = Store(tmp_path / "t.db")
+    now = time.time()
+    t0 = max(local_midnight(now), now - 3 * 3600)
+    for k in range(int((now - t0) // 300)):
+        store.add(dev["id"], t0 + k * 300, True, True, 1000.0, 230.0, 4.3)
+    mon = Monitor(cfg, store, simulate=True)
+    mon._spawn(dev)
+    mon._stops[dev["id"]].set()
+    kwh = mon._energy[dev["id"]]["kwh"]
+    esperado = 1000.0 * (int((now - t0) // 300) - 1) * 300 / 3_600_000.0
+    assert kwh > 0 and abs(kwh - esperado) < 0.01

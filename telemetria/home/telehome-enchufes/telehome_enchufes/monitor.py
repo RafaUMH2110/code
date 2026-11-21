@@ -70,7 +70,9 @@ class Monitor:
         now = time.time()
         self._energy[dev["id"]] = {
             "day": time.strftime("%Y-%m-%d", time.localtime(now)),
-            "kwh": self.store.energy_kwh(dev["id"], local_midnight(now), now),
+            # mismo hueco máximo que en _account: con lecturas por nube (cada 60-300 s) un máximo fijo de
+            # 120 s dejaba la energía de hoy casi a cero tras cada reinicio
+            "kwh": self.store.energy_kwh(dev["id"], local_midnight(now), now, max(120.0, 6.0 * self._interval(mode))),
             "last": None,
         }
         threading.Thread(target=self._loop, args=(dev["id"], plug, stop, mode),
