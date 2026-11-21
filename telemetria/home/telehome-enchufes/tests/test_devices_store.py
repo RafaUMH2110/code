@@ -54,3 +54,19 @@ def test_store_history_summary_csv_prune(tmp_path):
     assert s.prune(30) == 1
     s.delete_plug("a")
     assert s.summary("a", 0, now + 1)["samples"] == 0
+
+
+def test_store_api_calls_por_dia(tmp_path):
+    st = Store(tmp_path / "c.db")
+    now = time.time()
+    st.add_api_calls(3, now)
+    st.add_api_calls(2, now)
+    st.add_api_calls(7, now - 86400)
+    st.add_api_calls(0, now)  # no cuenta
+    dias = st.api_calls_by_day(5, now)
+    assert len(dias) == 5
+    assert [d["n"] for d in dias] == [0, 0, 0, 7, 5]
+    assert dias[-1]["day"] == time.strftime("%Y-%m-%d", time.localtime(now))
+    # una poda normal no borra el recuento reciente
+    st.prune(1)
+    assert st.api_calls_by_day(2, now)[-1]["n"] == 5

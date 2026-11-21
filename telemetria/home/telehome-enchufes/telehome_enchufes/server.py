@@ -238,11 +238,17 @@ def r_state(h: Handler, q):
         item.update({k: v for k, v in by_id.get(dev["id"], {}).items() if k != "id"})
         devices.append(item)
     hub = c.hub
+    por_dia = c.store.api_calls_by_day(31)
+    mes = time.strftime("%Y-%m")
+    llamadas = {"configured": bool(hub and hub.configured()), "calls": getattr(hub, "calls", 0),
+                "today": por_dia[-1]["n"], "yesterday": por_dia[-2]["n"],
+                "month": sum(d["n"] for d in por_dia if d["day"].startswith(mes)),
+                "last30": sum(d["n"] for d in por_dia[-30:]), "by_day": por_dia}
     h._json(200, {"app": APP_NAME, "version": __version__, "simulate": c.simulate,
                   "max_devices": MAX_DEVICES, "server_time": time.time(),
                   "api": "telehome", "types": list(DEVICE_TYPES),
                   "options": c.config.public_options(), "regions": REGIONS,
-                  "cloud": {"configured": bool(hub and hub.configured()), "calls": getattr(hub, "calls", 0)},
+                  "cloud": llamadas,
                   "devices": devices})
 
 

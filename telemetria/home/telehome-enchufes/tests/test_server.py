@@ -212,3 +212,12 @@ def test_cors_allow_origin(tmp_path):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_state_incluye_llamadas_por_dia(app):
+    base, cfg, mon = app
+    mon.store.add_api_calls(4)
+    st, state = call(base, "/api/state")
+    c = state["cloud"]
+    assert c["today"] == 4 and c["yesterday"] == 0 and c["month"] >= 4 and c["last30"] == 4
+    assert len(c["by_day"]) == 31 and c["by_day"][-1]["n"] == 4

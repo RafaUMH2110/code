@@ -145,6 +145,16 @@ class CloudHub:
         self._strategy: Optional[str] = None
         self._cmd_strategy: Optional[str] = None
         self.calls = 0  # llamadas a la API desde el arranque (orientativo)
+        self.on_calls: Optional[Callable[[int], None]] = None  # se avisa de cada lote de llamadas (para guardarlas por día)
+
+    def _count(self, n: int) -> None:
+        self.calls += n
+        cb = self.on_calls
+        if cb is not None:
+            try:
+                cb(n)
+            except Exception:  # contar nunca debe romper una lectura
+                log.exception("No se pudieron guardar las llamadas a la API")
 
     # ---- sesión ---------------------------------------------------------
     def configured(self) -> bool:
@@ -164,18 +174,18 @@ class CloudHub:
             if not self.configured():
                 raise CloudError("Configura primero las credenciales de la nube de Tuya (Ajustes → Nube)")
             o = self._opts()
-            self.calls += 1  # obtención del token
+            self._count(1)  # obtención del token
             self._client = self._factory(o.get("cloud_region", "eu"), o["cloud_api_key"], o["cloud_api_secret"])
         return self._client
 
     def _req(self, url: str, query: Optional[Dict[str, Any]] = None, post: Any = None, action: Optional[str] = None):
         c = self._get_client()
-        self.calls += 1
+        self._count(1)
         resp = c.cloudrequest(url, action=action, post=post, query=query)
         if isinstance(resp, dict) and str(resp.get("code")) in ("1010", "1011"):  # token caducado/no válido
             self._client = None
             c = self._get_client()
-            self.calls += 1
+            self._count(1)
             resp = c.cloudrequest(url, action=action, post=post, query=query)
         return resp
 
@@ -217,7 +227,7 @@ class CloudHub:
         c = self._get_client()
         out = {}
         for did in ids:
-            self.calls += 2
+            self._count(2)
             st = c.getstatus(did)
             if not _ok(st):
                 raise CloudError(_msg(st))
@@ -314,7 +324,7 @@ class CloudHub:
     def list_devices(self) -> List[Dict[str, Any]]:
         with self._lock:
             c = self._get_client()
-            self.calls += 2
+            self._count(2)
             try:
                 devs = c.getdevices()
             except Exception as exc:

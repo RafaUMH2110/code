@@ -221,3 +221,16 @@ def test_virtual_device_error_says_so():
     with pytest.raises(CloudError) as e:
         hub.command("vdevo123", "switch_1", True)
     assert "virtual" in str(e.value) and "Controllable" not in str(e.value)
+
+
+def test_hub_avisa_de_cada_llamada(tmp_path):
+    fake = FakeCloud()
+    hub = CloudHub(lambda: {"cloud_api_key": "k", "cloud_api_secret": "s", "cloud_region": "eu"},
+                   lambda: list(IDS), client_factory=lambda r, k, s: fake)
+    store = Store(tmp_path / "c.db")
+    hub.on_calls = store.add_api_calls
+    hub.status(IDS[0], 0)
+    hoy = store.api_calls_by_day(1)[-1]["n"]
+    assert hoy == hub.calls and hoy >= 2  # token + lectura por lotes
+    hub.on_calls = lambda n: 1 / 0  # un fallo al guardar no rompe la lectura
+    hub.status(IDS[0], 0)

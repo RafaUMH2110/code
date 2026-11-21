@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS readings (
     current REAL
 );
 CREATE INDEX IF NOT EXISTS idx_readings_plug_ts ON readings (plug, ts);
+CREATE TABLE IF NOT EXISTS api_calls (
+    day TEXT PRIMARY KEY,   -- fecha local AAAA-MM-DD
+    n   INTEGER NOT NULL
+);
 """
 
 
@@ -49,7 +53,32 @@ class Store:
     def prune(self, retention_days: int) -> int:
         cutoff = int(time.time()) - retention_days * 86400
         with self._lock, self._conn() as c:
+            # las llamadas a la API pesan casi nada: se conservan al menos 400 días
+            keep = time.strftime("%Y-%m-%d", time.localtime(time.time() - max(retention_days, 400) * 86400))
+            c.execute("DELETE FROM api_calls WHERE day < ?", (keep,))
             return c.execute("DELETE FROM readings WHERE ts < ?", (cutoff,)).rowcount
+
+    def add_api_calls(self, n: int, ts: Optional[float] = None) -> None:
+        """Suma `n` llamadas a la API de la nube al contador del día (hora local)."""
+        if n <= 0:
+            return
+        day = time.strftime("%Y-%m-%d", time.localtime(time.time() if ts is None else ts))
+        with self._lock, self._conn() as c:
+            c.execute("INSERT INTO api_calls (day, n) VALUES (?, ?) "
+                      "ON CONFLICT(day) DO UPDATE SET n = n + excluded.n", (day, int(n)))
+
+    def api_calls_by_day(self, days: int = 31, now: Optional[float] = None) -> List[Dict]:
+        """Llamadas por día de los últimos `days` días (incluido hoy), con ceros en los días sin datos."""
+        now = time.time() if now is None else now
+        first = time.localtime(now - (days - 1) * 86400)
+        with self._lock, self._conn() as c:
+            rows = dict(c.execute("SELECT day, n FROM api_calls WHERE day >= ?",
+                                  (time.strftime("%Y-%m-%d", first),)).fetchall())
+        out = []
+        for i in range(days - 1, -1, -1):
+            d = time.strftime("%Y-%m-%d", time.localtime(now - i * 86400))
+            out.append({"day": d, "n": int(rows.get(d, 0))})
+        return out
 
     def delete_plug(self, plug: str) -> None:
         with self._lock, self._conn() as c:
