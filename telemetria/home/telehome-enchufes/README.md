@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.5.3): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.5.4): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -60,6 +60,11 @@ sudo ./linux/instalar-linux.sh          # servicio systemd «telehome», código
 El instalador crea un usuario de servicio, el entorno virtual, la unidad systemd (con `ProtectSystem=strict`) y la
 orden `telehome`, que actúa sobre los datos del servicio. Los cambios hechos con esa orden se aplican al
 momento, sin reiniciar. Opciones: `--puerto N`, `--host DIR`, `--allow-host NOMBRE` (proxy inverso), `--allow-origin ORIGEN` (web externa), `--quitar`.
+
+Desde la 0.5.4, cuando hay varios enchufes, la gráfica dibuja una mini-gráfica por enchufe, cada una con su propia escala vertical y
+todas con el mismo eje de tiempo, de modo que un enchufe de 1.800 W ya no aplasta a los de 4 W. El selector «Escala» (Por enchufe / Común)
+permite volver a una sola gráfica con una escala compartida; la elección se guarda en el navegador y el cursor y el cuadro de valores
+siguen mostrando todos los enchufes a la vez.
 
 Desde la 0.5.3 la gráfica recuerda el intervalo elegido (1 h … 30 días; se guarda en el navegador), dibuja las líneas aunque las
 lecturas por nube estén separadas 1-5 min (antes solo se veía el último punto en 1 h y 6 h) y la «Energía hoy» ya no se pone casi a

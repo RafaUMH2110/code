@@ -299,6 +299,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
     <div class="toolbar">
       <div class="seg" id="rangeGrp" role="group" aria-label="Intervalo de tiempo"></div>
       <div class="seg" id="metricGrp" role="group" aria-label="Magnitud"></div>
+      <div class="seg" id="scaleGrp" role="group" aria-label="Escala vertical"></div>
     </div>
     <div class="legend" id="legend" role="group" aria-label="Series visibles"></div>
     <p class="note" id="chartNote"></p>
@@ -307,7 +308,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
       <div class="tip" id="tip" hidden></div>
     </div>
     <div class="chart-empty" id="chartEmpty" hidden>Aún no hay datos en este intervalo. Las lecturas aparecerán aquí en cuanto lleguen.</div>
-    <p class="hint">Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa un enchufe de la lista para ver solo ese.</p>
+    <p class="hint">Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa un enchufe de la lista para ver solo ese.<span id="scaleHint"></span></p>
   </section>
 
   <section class="panel">
@@ -327,7 +328,7 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 20:21</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-21 20:35</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -476,7 +477,13 @@ function savedRange() {
   try { const v = parseInt(localStorage.getItem(RANGE_KEY), 10); if (RANGES.some(r => r[1] === v)) return v; } catch (e) { /* sin almacenamiento: se usa el valor por defecto */ }
   return 86400;
 }
-const S = { state: null, range: savedRange(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
+const SCALE_KEY = "telehome_enchufes_scale";
+const SCALES = [["plug", "Por enchufe", "Cada enchufe con su propia escala vertical"], ["common", "Común", "Todos los enchufes con la misma escala vertical"]];
+function savedScale() {
+  try { const v = localStorage.getItem(SCALE_KEY); if (SCALES.some(r => r[0] === v)) return v; } catch (e) { /* sin almacenamiento: se usa el valor por defecto */ }
+  return "plug";
+}
+const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
 
 async function api(path, opt = {}) {
   if (BACKEND) return BACKEND.api(path, opt);
@@ -633,21 +640,27 @@ function stepOf(pts, bucket) {
   return Math.max(bucket, dts[dts.length >> 1]);
 }
 function drawChart() {
-  const svg = $("#chart"), H = svg.clientHeight || 330, W = Math.max(svg.clientWidth, 320);
-  svg.replaceChildren(); svg.setAttribute("viewBox", "0 0 " + W + " " + H); $("#chartNote").textContent = "";
+  const svg = $("#chart"), W = Math.max(svg.clientWidth, 320);
+  svg.style.height = "";
+  const baseH = svg.clientHeight || 330;
+  svg.replaceChildren(); $("#chartNote").textContent = ""; $("#scaleHint").textContent = "";
   const hist = S.hist;
   if (!hist) { $("#chartEmpty").hidden = !(S.state && S.state.devices.length); svg.style.display = "none"; return; }
-  const M = { l: 54, r: 16, t: 26, b: 28 }, iw = W - M.l - M.r, ih = H - M.t - M.b;
   const m = METRICS[S.metric], devs = visibleDevs();
+  // Con la escala «por enchufe» cada enchufe tiene su mini-gráfica; con la «común», una sola para todos
+  const groups = (S.scale === "plug" && devs.length > 1) ? devs.map(d => [d]) : [devs], multi = groups.length > 1;
+  const HEAD = 20, GAP = 14, M = { l: 54, r: 16, t: multi ? 4 : 26, b: 28 };
+  const ih = multi ? (groups.length <= 3 ? 92 : groups.length <= 5 ? 72 : 58) : baseH - M.t - M.b;
+  const H = multi ? M.t + groups.length * (HEAD + ih + GAP) - GAP + M.b : baseH, iw = W - M.l - M.r;
+  if (multi) svg.style.height = H + "px";
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H);
   const bucket = Math.max(1, Math.ceil((hist.to - hist.from) / 400));
   const steps = {};  // separación típica entre lecturas de cada enchufe (la nube lee cada 60-300 s)
   for (const d of devs) steps[d.id] = stepOf(hist.series[d.id] || [], bucket);
-  let lo = Infinity, hi = -Infinity, any = false, minT = Infinity;
-  for (const d of devs) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { any = true; lo = Math.min(lo, v); hi = Math.max(hi, v); minT = Math.min(minT, p.t); } }
+  let any = false, minT = Infinity;
+  for (const d of devs) for (const p of (hist.series[d.id] || [])) { if (p[S.metric] != null) { any = true; minT = Math.min(minT, p.t); } }
   $("#chartEmpty").hidden = any; svg.style.display = any ? "block" : "none";
   if (!any) return;
-  if (m.zero) lo = 0; else { const padv = Math.max((hi - lo) * 0.15, 1); lo -= padv; hi += padv; }
-  const ticks = niceTicks(lo, hi), y0 = ticks[0], y1 = ticks[ticks.length - 1];
   // Si las lecturas empiezan bastante después del inicio del intervalo, el eje empieza en la primera lectura
   const span0 = hist.to - hist.from;
   const t0 = (minT - hist.from) > span0 * 0.06 ? Math.max(hist.from, minT - span0 * 0.01) : hist.from, span = hist.to - t0;
@@ -656,49 +669,70 @@ function drawChart() {
     $("#chartNote").textContent = "Hay lecturas desde " + (hoy ? "las " + tlabel(minT, false) : "el " + d0.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) +
       "; el intervalo elegido es más largo que el histórico disponible, así que la gráfica empieza ahí.";
   }
+  if (multi) $("#scaleHint").textContent = " Cada enchufe tiene su propia escala vertical: compara la forma de las curvas, no su altura.";
   const X = (t) => M.l + (t - t0) / span * iw;
-  const Y = (v) => M.t + ih - (v - y0) / (y1 - y0 || 1) * ih;
-  const decT = m.dec > 1 && (y1 - y0) < 5 ? 2 : (y1 - y0) < 5 ? 1 : 0;
-  for (const tv of ticks) {
-    svg.append(sv("line", { x1: M.l, x2: W - M.r, y1: Y(tv), y2: Y(tv), stroke: tv === y0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
-    svg.append(sv("text", { x: M.l - 10, y: Y(tv) + 4, "text-anchor": "end" }, fmt(tv, decT)));
-  }
+  const defs = sv("defs"); svg.append(defs);
+  const panels = [];
+  groups.forEach((gd, i) => {
+    const top = M.t + i * (HEAD + ih + GAP) + (multi ? HEAD : 0);
+    let lo = Infinity, hi = -Infinity;
+    for (const d of gd) for (const p of (hist.series[d.id] || [])) { const v = p[S.metric]; if (v != null) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }
+    const has = lo <= hi, dataHi = hi;
+    if (!has) { lo = 0; hi = 1; }
+    if (m.zero) lo = 0; else if (has) { const padv = Math.max((hi - lo) * 0.15, 1); lo -= padv; hi += padv; }
+    const ticks = niceTicks(lo, hi, ih < 120 ? 3 : 5), y0 = ticks[0], y1 = ticks[ticks.length - 1];
+    const Y = (v) => top + ih - (v - y0) / (y1 - y0 || 1) * ih;
+    panels.push({ ids: gd.map(d => d.id), top, ih, Y });
+    const decT = m.dec > 1 && (y1 - y0) < 5 ? 2 : (y1 - y0) < 5 ? 1 : 0;
+    for (const tv of ticks) {
+      svg.append(sv("line", { x1: M.l, x2: W - M.r, y1: Y(tv), y2: Y(tv), stroke: tv === y0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+      svg.append(sv("text", { x: M.l - 10, y: Y(tv) + 4, "text-anchor": "end" }, fmt(tv, decT)));
+    }
+    if (multi) {
+      const d = gd[0], ty = top - HEAD, nm = d.name.length > (W < 520 ? 20 : 34) ? d.name.slice(0, W < 520 ? 19 : 33) + "…" : d.name;
+      svg.append(sv("line", { x1: M.l, x2: M.l + 16, y1: ty + 9, y2: ty + 9, stroke: color(d), "stroke-width": 3, "stroke-linecap": "round" }));
+      svg.append(sv("text", { x: M.l + 22, y: ty + 13, style: "fill:var(--ink);font-weight:600" }, nm));
+      svg.append(sv("text", { x: W - M.r, y: ty + 13, "text-anchor": "end" }, has ? "máx. " + fmt(dataHi, m.dec) + " " + m.unit : "sin lecturas"));
+      if (!has) svg.append(sv("text", { x: M.l + iw / 2, y: top + ih / 2 + 4, "text-anchor": "middle" }, "Sin lecturas en este intervalo"));
+    } else {
+      svg.append(sv("text", { x: M.l - 10, y: 12, "text-anchor": "end", "font-weight": "600" }, m.unit));
+    }
+    // Con una sola serie en la mini-gráfica se rellena el área bajo la línea
+    const single = gd.length === 1;
+    for (const d of gd) {
+      const pts = hist.series[d.id] || []; let path = "", prev = null, last = null, segs = [], seg = [];
+      for (const p of pts) {
+        const v = p[S.metric];
+        if (v == null) { prev = null; if (seg.length) { segs.push(seg); seg = []; } continue; }
+        const gap = prev == null || p.t - prev > steps[d.id] * 3;
+        if (gap && seg.length) { segs.push(seg); seg = []; }
+        path += (gap ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(v).toFixed(1);
+        seg.push([X(p.t), Y(v)]); prev = p.t; last = p;
+      }
+      if (seg.length) segs.push(seg);
+      if (single && m.zero) {
+        const gid = "g-" + d.id.replace(/[^a-z0-9]/gi, "");
+        const g = sv("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
+        g.append(sv("stop", { offset: "0", "stop-color": color(d), "stop-opacity": ".22" }), sv("stop", { offset: "1", "stop-color": color(d), "stop-opacity": "0" }));
+        defs.append(g);
+        for (const sg of segs) if (sg.length > 1) {
+          const dA = "M" + sg.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "L" + sg[sg.length - 1][0].toFixed(1) + " " + Y(y0) + "L" + sg[0][0].toFixed(1) + " " + Y(y0) + "Z";
+          svg.append(sv("path", { d: dA, fill: "url(#" + gid + ")" }));
+        }
+      }
+      if (path) svg.append(sv("path", { d: path, fill: "none", stroke: color(d), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      if (last) svg.append(sv("circle", { cx: X(last.t), cy: Y(last[S.metric]), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
+    }
+  });
   const withDate = span > 86400 * 1.2, nx = W < 520 ? 3 : 5;
   for (let k = 0; k <= nx; k++) {
     const t = t0 + span * k / nx;
     svg.append(sv("text", { x: M.l + iw * k / nx, y: H - 8, "text-anchor": k === 0 ? "start" : k === nx ? "end" : "middle" }, tlabel(t, withDate)));
   }
-  svg.append(sv("text", { x: M.l - 10, y: 12, "text-anchor": "end", "font-weight": "600" }, m.unit));
-  // Con una sola serie visible se rellena el área bajo la línea
-  const defs = sv("defs"); svg.append(defs);
-  const single = devs.length === 1;
-  for (const d of devs) {
-    const pts = hist.series[d.id] || []; let path = "", prev = null, last = null, segs = [], seg = [];
-    for (const p of pts) {
-      const v = p[S.metric];
-      if (v == null) { prev = null; if (seg.length) { segs.push(seg); seg = []; } continue; }
-      const gap = prev == null || p.t - prev > steps[d.id] * 3;
-      if (gap && seg.length) { segs.push(seg); seg = []; }
-      path += (gap ? "M" : "L") + X(p.t).toFixed(1) + " " + Y(v).toFixed(1);
-      seg.push([X(p.t), Y(v)]); prev = p.t; last = p;
-    }
-    if (seg.length) segs.push(seg);
-    if (single && m.zero) {
-      const gid = "g-" + d.id.replace(/[^a-z0-9]/gi, "");
-      const g = sv("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
-      g.append(sv("stop", { offset: "0", "stop-color": color(d), "stop-opacity": ".22" }), sv("stop", { offset: "1", "stop-color": color(d), "stop-opacity": "0" }));
-      defs.append(g);
-      for (const sg of segs) if (sg.length > 1) {
-        const dA = "M" + sg.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "L" + sg[sg.length - 1][0].toFixed(1) + " " + Y(y0) + "L" + sg[0][0].toFixed(1) + " " + Y(y0) + "Z";
-        svg.append(sv("path", { d: dA, fill: "url(#" + gid + ")" }));
-      }
-    }
-    if (path) svg.append(sv("path", { d: path, fill: "none", stroke: color(d), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
-    if (last) svg.append(sv("circle", { cx: X(last.t), cy: Y(last[S.metric]), r: 4, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
-  }
-  S.geo = { M, iw, ih, W, H, X, Y, bucket, t0, steps };
-  svg.append(sv("line", { class: "cross", y1: M.t, y2: M.t + ih, stroke: "var(--ink2)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }));
-  svg.append(sv("rect", { class: "hit", x: M.l, y: M.t, width: iw, height: ih, fill: "transparent" }));
+  const first = panels[0], lastP = panels[panels.length - 1];
+  S.geo = { M, iw, W, H, X, bucket, t0, steps, panels };
+  for (const pn of panels) svg.append(sv("line", { class: "cross", y1: pn.top, y2: pn.top + pn.ih, stroke: "var(--ink2)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }));
+  svg.append(sv("rect", { class: "hit", x: M.l, y: first.top, width: iw, height: lastP.top + lastP.ih - first.top, fill: "transparent" }));
   if (S.hover != null) showHover(S.hover);
 }
 
@@ -713,15 +747,15 @@ function showHover(t) {
     if (near && nd <= (g.steps[d.id] || g.bucket) * 2) { rows.push([d, near]); if (nd < best) { best = nd; snap = near.t; } }
   }
   svg.querySelectorAll(".mk").forEach(n => n.remove());
-  const cross = svg.querySelector(".cross");
-  if (snap == null) { cross.setAttribute("visibility", "hidden"); tip.hidden = true; return; }
+  const cross = svg.querySelectorAll(".cross");
+  if (snap == null) { cross.forEach(c => c.setAttribute("visibility", "hidden")); tip.hidden = true; return; }
   S.hover = snap;
-  const x = g.X(snap); cross.setAttribute("x1", x); cross.setAttribute("x2", x); cross.setAttribute("visibility", "visible");
+  const x = g.X(snap); cross.forEach(c => { c.setAttribute("x1", x); c.setAttribute("x2", x); c.setAttribute("visibility", "visible"); });
   tip.replaceChildren(el("div", { class: "t", text: new Date(snap * 1000).toLocaleString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) }));
   rows.sort((a, b) => (b[1][S.metric] ?? -1) - (a[1][S.metric] ?? -1));
   for (const [d, p] of rows) {
-    const v = p[S.metric];
-    if (v != null) svg.append(sv("circle", { class: "mk", cx: x, cy: g.Y(v), r: 4.5, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
+    const v = p[S.metric], pn = g.panels.find(q => q.ids.includes(d.id));
+    if (v != null && pn) svg.append(sv("circle", { class: "mk", cx: x, cy: pn.Y(v), r: 4.5, fill: color(d), stroke: "var(--surface)", "stroke-width": 2 }));
     tip.append(el("div", { class: "r" }, el("span", { class: "key", style: "border-color:" + color(d) }),
       el("b", { text: v == null ? "sin datos" : fmt(v, METRICS[S.metric].dec) + " " + METRICS[S.metric].unit }), el("span", { class: "n", text: d.name })));
   }
@@ -732,7 +766,7 @@ function showHover(t) {
 }
 function clearHover() {
   const svg = $("#chart"); S.hover = null; $("#tip").hidden = true;
-  const c = svg.querySelector(".cross"); if (c) c.setAttribute("visibility", "hidden"); svg.querySelectorAll(".mk").forEach(n => n.remove());
+  svg.querySelectorAll(".cross").forEach(c => c.setAttribute("visibility", "hidden")); svg.querySelectorAll(".mk").forEach(n => n.remove());
 }
 
 function bindChart() {
@@ -781,6 +815,11 @@ function renderFilters() {
     b.addEventListener("click", () => { S.metric = k; renderFilters(); renderLegend(); drawChart(); }); mg.append(b);
   }
   const unico = S.sel !== "all" || S.state.devices.length === 1;
+  const sg = $("#scaleGrp"); sg.replaceChildren(); sg.hidden = unico;
+  for (const [k, lab, tit] of SCALES) {
+    const b = el("button", { type: "button", text: lab, title: tit, "aria-pressed": String(S.scale === k) });
+    b.addEventListener("click", () => { S.scale = k; try { localStorage.setItem(SCALE_KEY, k); } catch (e) { /* ignorar */ } renderFilters(); drawChart(); }); sg.append(b);
+  }
   $("#btnCsv").disabled = !unico;
   $("#btnCsv").title = unico ? "Descargar las lecturas del enchufe seleccionado" : "Pulsa un enchufe de la lista para elegir el que quieres exportar";
 }
