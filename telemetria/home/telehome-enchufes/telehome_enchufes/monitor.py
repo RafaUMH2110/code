@@ -26,6 +26,9 @@ class Monitor:
         self.simulate = simulate
         self.hub = hub
         self.latest: Dict[str, Reading] = {}
+        # Última orden dada a mano por una persona, por dispositivo: las programaciones
+        # con «skip_if_manual» la consultan para no pisar lo que acabas de hacer.
+        self.last_manual: Dict[str, float] = {}
         self.plugs: Dict[str, Any] = {}
         self._snap: Dict[str, Dict[str, Any]] = {}
         self._stops: Dict[str, threading.Event] = {}
@@ -142,11 +145,13 @@ class Monitor:
                 log.exception("Error podando la base de datos")
 
     # ---- Órdenes -----------------------------------------------------------
-    def set_power(self, dev_id: str, on: bool) -> Reading:
+    def set_power(self, dev_id: str, on: bool, manual: bool = True) -> Reading:
         plug = self.plugs.get(dev_id)
         if plug is None:
             raise KeyError(dev_id)
         plug.set_power(on)
+        if manual:
+            self.last_manual[dev_id] = time.time()
         r = self._read(dev_id, plug)
         self._record(dev_id, r, self._stops.get(dev_id))
         return r
@@ -160,13 +165,13 @@ class Monitor:
             raise KeyError(dev_id)
         return self.ACTIONS.get(dev.get("type", "enchufe"), ())
 
-    def command(self, dev_id: str, action: str, value: Any) -> Reading:
+    def command(self, dev_id: str, action: str, value: Any, manual: bool = True) -> Reading:
         """Orden genérica: de momento solo «switch», el único que admite un enchufe."""
         if action not in self.actions_for(dev_id):
             raise ValueError("Orden «%s» no admitida por este dispositivo" % action)
         if not isinstance(value, bool):
             raise ValueError("«value» debe ser true o false")
-        return self.set_power(dev_id, value)
+        return self.set_power(dev_id, value, manual=manual)
 
     # ---- Estado --------------------------------------------------------------
     def state(self) -> List[Dict[str, Any]]:

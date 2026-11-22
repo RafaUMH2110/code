@@ -13,6 +13,7 @@ import secrets
 import sys
 import tempfile
 import threading
+import unicodedata
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -28,6 +29,15 @@ MODES = ("local", "nube")
 DEVICE_TYPES = ("enchufe",)
 CLOUD_REGIONS = ("eu", "eu-w", "us", "us-e", "in", "sg", "cn")
 
+# ---- Programaciones -------------------------------------------------------
+MAX_SCHEDULES = 32
+SCHEDULE_ACTIONS = ("switch", "level", "position", "stop")
+WHEN_KINDS = ("clock", "sunrise", "sunset")      # hora fija, amanecer o anochecer
+CONDITION_OPS = ("<", "<=", ">", ">=")
+MAX_OFFSET = 720                                  # min; desplazamiento sobre el amanecer o el anochecer
+MAX_CONDITION_FOR = 86400                         # s; cuánto puede exigirse que la condición se mantenga
+_HORA_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
 OPTION_DEFAULTS: Dict[str, Any] = {
     "poll_interval": 10,
     "cloud_poll_interval": 300,
@@ -38,6 +48,9 @@ OPTION_DEFAULTS: Dict[str, Any] = {
     "password_hash": "",
     "admin_password_hash": "",   # modo Administrador: sin él, cualquiera que llegue al servicio puede cambiarlo todo
     "user_password_hash": "",    # usuario de confianza: puede mandar órdenes, pero no cambiar nada
+    # Lugar, para calcular el amanecer y el anochecer de las programaciones
+    "lat": 38.2699,
+    "lon": -0.7126,
 }
 SECRET_OPTIONS = ("cloud_api_secret", "password_hash", "admin_password_hash", "user_password_hash")
 
@@ -45,7 +58,8 @@ SECRET_OPTIONS = ("cloud_api_secret", "password_hash", "admin_password_hash", "u
 # de la nube de Tuya y la Local Key de cada enchufe; NUNCA la contraseña del servicio.
 EXPORT_FORMAT = "telehome-config"
 EXPORT_VERSION = 1
-EXPORT_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days", "cloud_region", "cloud_api_key", "cloud_api_secret")
+EXPORT_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days", "cloud_region",
+                  "cloud_api_key", "cloud_api_secret", "lat", "lon")
 _ID_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 _RUTA_RE = re.compile(r"^(/[^\s\"<>]{0,200}|https?://[^\s\"<>]{1,200})$")
 
@@ -102,7 +116,11 @@ def data_dir(override: Optional[str] = None) -> Path:
 
 
 def _slug(text: str) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    """Identificador a partir del nombre. Las tildes y la eñe se reducen a su letra base,
+    para que «Habitación» dé «habitacion» y no «habitaci-n»."""
+    base = unicodedata.normalize("NFKD", text.lower())
+    base = "".join(c for c in base if not unicodedata.combining(c))
+    s = re.sub(r"[^a-z0-9]+", "-", base).strip("-")
     return s[:24] or "enchufe"
 
 
@@ -195,6 +213,109 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
     }
 
 
+def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Valida una programación. Si `existing` se indica, los campos ausentes se heredan."""
+    base = dict(existing) if existing else {}
+    m = {**base, **{k: v for k, v in raw.items() if v is not None}}
+
+    nombre = str(m.get("name", "")).strip()
+    if not nombre:
+        raise ConfigError("El nombre de la programación es obligatorio")
+    if len(nombre) > 40:
+        raise ConfigError("El nombre no puede superar 40 caracteres")
+
+    device = str(m.get("device", "")).strip()
+    if not device:
+        raise ConfigError("Falta el dispositivo de la programación")
+
+    action = str(m.get("action", "")).strip().lower()
+    if action not in SCHEDULE_ACTIONS:
+        raise ConfigError("Orden no válida (%s)" % ", ".join(SCHEDULE_ACTIONS))
+
+    value = m.get("value")
+    if action == "switch":
+        if not isinstance(value, bool):
+            raise ConfigError("«switch» necesita un valor true o false")
+    elif action in ("level", "position"):
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            raise ConfigError("«%s» necesita un porcentaje de 0 a 100" % action)
+        if not 0 <= value <= 100:
+            raise ConfigError("«%s» necesita un porcentaje de 0 a 100" % action)
+    else:
+        value = None
+
+    cuando = m.get("when") or {}
+    if not isinstance(cuando, dict):
+        raise ConfigError("«when» debe ser un objeto")
+    kind = str(cuando.get("kind", "clock")).strip().lower()
+    if kind not in WHEN_KINDS:
+        raise ConfigError("Momento no válido (%s)" % ", ".join(WHEN_KINDS))
+    when: Dict[str, Any] = {"kind": kind}
+    if kind == "clock":
+        hora = str(cuando.get("time", "")).strip()
+        if not _HORA_RE.match(hora):
+            raise ConfigError("La hora debe tener la forma HH:MM (00:00 a 23:59)")
+        when["time"] = hora
+    else:
+        try:
+            off = int(cuando.get("offset", 0) or 0)
+        except (TypeError, ValueError):
+            raise ConfigError("El desplazamiento debe ser un número de minutos")
+        if not -MAX_OFFSET <= off <= MAX_OFFSET:
+            raise ConfigError("El desplazamiento debe estar entre -%d y %d minutos" % (MAX_OFFSET, MAX_OFFSET))
+        when["offset"] = off
+
+    dias = m.get("days", [1, 2, 3, 4, 5, 6, 7])
+    if not isinstance(dias, list) or not dias:
+        raise ConfigError("Hay que elegir al menos un día de la semana")
+    try:
+        dias = sorted({int(d) for d in dias})
+    except (TypeError, ValueError):
+        raise ConfigError("Los días deben ser números del 1 (lunes) al 7 (domingo)")
+    if any(d < 1 or d > 7 for d in dias):
+        raise ConfigError("Los días deben ser números del 1 (lunes) al 7 (domingo)")
+
+    cond = m.get("condition")
+    condition = None
+    if cond:
+        if not isinstance(cond, dict):
+            raise ConfigError("«condition» debe ser un objeto")
+        metric = str(cond.get("metric", "")).strip().lower()
+        if not re.match(r"^[a-z_]{1,12}$", metric):
+            raise ConfigError("La magnitud de la condición no es válida")
+        op = str(cond.get("op", "")).strip()
+        if op not in CONDITION_OPS:
+            raise ConfigError("El operador de la condición debe ser %s" % ", ".join(CONDITION_OPS))
+        try:
+            umbral = float(cond.get("value"))
+        except (TypeError, ValueError):
+            raise ConfigError("El valor de la condición debe ser un número")
+        try:
+            durante = int(cond.get("for", 0) or 0)
+        except (TypeError, ValueError):
+            raise ConfigError("«for» debe ser un número de segundos")
+        if not 0 <= durante <= MAX_CONDITION_FOR:
+            raise ConfigError("«for» debe estar entre 0 y %d segundos" % MAX_CONDITION_FOR)
+        condition = {"metric": metric, "op": op, "value": umbral, "for": durante}
+
+    return {
+        "id": base.get("id") or raw.get("id") or "",
+        "name": nombre,
+        "enabled": bool(m.get("enabled", True)),
+        "device": device,
+        "action": action,
+        "value": value,
+        "when": when,
+        "days": dias,
+        "condition": condition,
+        "skip_if_manual": bool(m.get("skip_if_manual", False)),
+        "last_fire": float(base.get("last_fire") or 0),
+        "last_result": base.get("last_result") or "",
+    }
+
+
 def public_device(dev: Dict[str, Any]) -> Dict[str, Any]:
     """Vista del enchufe sin la Local Key (nunca sale por la API)."""
     out = {k: v for k, v in dev.items() if k != "local_key"}
@@ -225,6 +346,7 @@ class Config:
         self.lock = threading.RLock()
         self.options: Dict[str, Any] = dict(OPTION_DEFAULTS)
         self.devices: List[Dict[str, Any]] = []
+        self.schedules: List[Dict[str, Any]] = []
         self._mtime: Optional[float] = None
         self.load()
 
@@ -245,6 +367,14 @@ class Config:
                 raise ConfigError("No se puede leer %s: %s" % (self.path, exc))
             self.options = {**OPTION_DEFAULTS, **data.get("options", {})}
             self.devices = []
+            self.schedules = []
+            for raw in data.get("schedules", [])[:MAX_SCHEDULES]:
+                try:
+                    sch = normalize_schedule(raw)
+                except ConfigError:
+                    continue                      # una programación rota no impide arrancar
+                sch["id"] = raw.get("id") or self._new_sched_id(sch["name"])
+                self.schedules.append(sch)
             for raw in data.get("devices", [])[:MAX_DEVICES]:
                 dev = normalize_device(raw)
                 dev["id"] = raw.get("id") or self._new_id(dev["name"])
@@ -268,7 +398,7 @@ class Config:
     def save(self) -> None:
         with self.lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            payload = json.dumps({"options": self.options, "devices": self.devices},
+            payload = json.dumps({"options": self.options, "devices": self.devices, "schedules": self.schedules},
                                  ensure_ascii=False, indent=2)
             fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), prefix=".cfg-")
             try:
@@ -363,6 +493,76 @@ class Config:
                 skipped.append({"name": str(name), "motivo": str(exc)})
         return {"añadidos": added, "omitidos": skipped}
 
+    # ---- Programaciones ------------------------------------------------
+    def _new_sched_id(self, name: str) -> str:
+        usados = {s["id"] for s in self.schedules}
+        base, n, cand = _slug(name) or "prog", 2, _slug(name) or "prog"
+        while cand in usados:
+            cand, n = "%s-%d" % (base, n), n + 1
+        return cand
+
+    def _check_device(self, dev_id: str) -> None:
+        if not any(d["id"] == dev_id for d in self.devices):
+            raise ConfigError("No hay ningún dispositivo con el identificador «%s»" % dev_id)
+
+    def get_schedule(self, sched_id: str) -> Optional[Dict[str, Any]]:
+        with self.lock:
+            return next((s for s in self.schedules if s["id"] == sched_id), None)
+
+    def add_schedule(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            if len(self.schedules) >= MAX_SCHEDULES:
+                raise ConfigError("Máximo %d programaciones" % MAX_SCHEDULES)
+            sch = normalize_schedule(raw)
+            self._check_device(sch["device"])
+            sch["id"] = self._new_sched_id(sch["name"])
+            self.schedules.append(sch)
+            self.save()
+            return sch
+
+    def update_schedule(self, sched_id: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            cur = next((s for s in self.schedules if s["id"] == sched_id), None)
+            if cur is None:
+                raise KeyError(sched_id)
+            nuevo = normalize_schedule({k: v for k, v in raw.items() if k != "id"}, cur)
+            self._check_device(nuevo["device"])
+            nuevo["id"] = sched_id
+            self.schedules[self.schedules.index(cur)] = nuevo
+            self.save()
+            return nuevo
+
+    def delete_schedule(self, sched_id: str) -> None:
+        with self.lock:
+            cur = next((s for s in self.schedules if s["id"] == sched_id), None)
+            if cur is None:
+                raise KeyError(sched_id)
+            self.schedules.remove(cur)
+            self.save()
+
+    def mark_schedule(self, sched_id: str, cuando: float, resultado: str) -> None:
+        """Anota que una programación se ha evaluado, para no repetirla y poder mostrar qué pasó."""
+        with self.lock:
+            cur = next((s for s in self.schedules if s["id"] == sched_id), None)
+            if cur is None:
+                return
+            cur["last_fire"] = cuando
+            cur["last_result"] = resultado[:120]
+            self.save()
+
+    def set_place(self, lat: Any, lon: Any) -> Dict[str, Any]:
+        """Lugar para calcular el amanecer y el anochecer."""
+        with self.lock:
+            try:
+                la, lo = float(lat), float(lon)
+            except (TypeError, ValueError):
+                raise ConfigError("La latitud y la longitud deben ser números")
+            if not -90 <= la <= 90 or not -180 <= lo <= 180:
+                raise ConfigError("Latitud entre -90 y 90, longitud entre -180 y 180")
+            self.options = {**self.options, "lat": la, "lon": lo}
+            self.save()
+            return self.public_options()
+
     # ---- Exportar / importar toda la configuración ---------------------
     def export_config(self, ruta: Optional[str] = None) -> Dict[str, Any]:
         """Configuración completa y portable: dispositivos (con su Local Key), credenciales de Tuya y ajustes.
@@ -379,6 +579,8 @@ class Config:
                 **({"servicio": {"ruta": clean_ruta(ruta)}} if ruta else {}),
                 "options": {k: self.options.get(k, OPTION_DEFAULTS[k]) for k in EXPORT_OPTIONS},
                 "devices": [dict(d) for d in self.devices],
+                "schedules": [{k: v for k, v in s.items() if k not in ("last_fire", "last_result")}
+                              for s in self.schedules],
             }
 
     def _clean_export_options(self, raw: Any) -> Dict[str, Any]:
@@ -394,6 +596,16 @@ class Config:
             out["cloud_poll_interval"] = self._int_opt(raw, "cloud_poll_interval", MIN_CLOUD_POLL, MAX_POLL, "Intervalo de la nube (s)")
         if "retention_days" in raw:
             out["retention_days"] = self._int_opt(raw, "retention_days", 1, 3650, "Retención (días)")
+        for clave in ("lat", "lon"):
+            if clave in raw:
+                try:
+                    v = float(raw[clave])
+                except (TypeError, ValueError):
+                    raise ConfigError("«%s» debe ser un número" % clave)
+                tope = 90 if clave == "lat" else 180
+                if not -tope <= v <= tope:
+                    raise ConfigError("«%s» fuera de rango" % clave)
+                out[clave] = v
         if "cloud_region" in raw:
             region = str(raw["cloud_region"] or "").strip()
             if region not in CLOUD_REGIONS:
@@ -464,6 +676,28 @@ class Config:
                 report["actualizados" if prev else "añadidos"].append(dev["name"])
             self.options = {**self.options, **opts}
             self.devices = result
+            # Programaciones: solo las que apunten a un dispositivo que haya quedado
+            ids = {d["id"] for d in self.devices}
+            nuevas, usados = [], set()
+            for raw in (data.get("schedules") or []):
+                if len(nuevas) >= MAX_SCHEDULES:
+                    break
+                try:
+                    sch = normalize_schedule(raw if isinstance(raw, dict) else {})
+                except ConfigError as exc:
+                    report["omitidos"].append({"name": str((raw or {}).get("name", "programación"))[:40], "motivo": str(exc)})
+                    continue
+                if sch["device"] not in ids:
+                    report["omitidos"].append({"name": sch["name"], "motivo": "Su dispositivo no está en el fichero"})
+                    continue
+                base, n, cand = _slug(sch["name"]) or "prog", 2, _slug(sch["name"]) or "prog"
+                while cand in usados:
+                    cand, n = "%s-%d" % (base, n), n + 1
+                sch["id"], _ = cand, usados.add(cand)
+                nuevas.append(sch)
+            if replace or nuevas:
+                self.schedules = nuevas if replace else self.schedules + nuevas[:MAX_SCHEDULES - len(self.schedules)]
+            report["programaciones"] = len(nuevas)
             self.save()
             report["cloud_cambiada"] = "cloud_api_key" in opts
             srv = data.get("servicio")

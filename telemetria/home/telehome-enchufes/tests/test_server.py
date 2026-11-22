@@ -568,3 +568,57 @@ def test_cli_user_password(tmp_path, monkeypatch, capsys):
     assert main(["--data-dir", str(d), "user-password", "--password-env", "TH_USER"]) == 2
     assert main(["--data-dir", str(d), "user-password", "--quitar"]) == 0
     assert not Config(d / "config.json").options["user_password_hash"]
+
+
+def test_api_de_programaciones(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    prog = {"name": "Mañanas", "device": dev0, "action": "switch", "value": True,
+            "when": {"kind": "clock", "time": "07:00"}, "days": [1, 2, 3, 4, 5]}
+    st, s = call(base, "/api/schedules", "POST", prog)
+    assert st == 201 and s["id"] == "mananas" and s["enabled"] is True
+    st, state = call(base, "/api/state")
+    assert [x["id"] for x in state["schedules"]] == ["mananas"] and state["max_schedules"] == 32
+    st, s2 = call(base, "/api/schedules/mananas", "PUT", {"enabled": False})
+    assert st == 200 and s2["enabled"] is False and s2["when"]["time"] == "07:00"
+    assert call(base, "/api/schedules", "POST", {**prog, "device": "no-existe"})[0] == 400
+    assert call(base, "/api/schedules", "POST", {**prog, "when": {"kind": "clock", "time": "99:99"}})[0] == 400
+    assert call(base, "/api/schedules/no-hay", "PUT", {"enabled": True})[0] == 404
+    st, r = call(base, "/api/schedules/mananas/run", "POST", {})
+    assert st == 200 and r["resultado"] == "ejecutada"
+    assert call(base, "/api/schedules/mananas", "DELETE")[0] == 200
+    assert call(base, "/api/state")[1]["schedules"] == []
+
+
+def test_api_lugar_y_sol(app):
+    base, cfg, mon = app
+    st, r = call(base, "/api/sun")
+    assert st == 200 and r["sunrise"] < r["sunset"] and round(r["lat"], 2) == 38.27
+    st, o = call(base, "/api/place", "PUT", {"lat": 40.4, "lon": -3.7})
+    assert st == 200 and o["lat"] == 40.4
+    assert call(base, "/api/place", "PUT", {"lat": 999, "lon": 0})[0] == 400
+    assert call(base, "/api/sun")[1]["lat"] == 40.4
+
+
+def test_las_programaciones_son_cosa_de_administradores(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    cfg.add_schedule({"name": "Mañanas", "device": dev0, "action": "switch", "value": True,
+                      "when": {"kind": "clock", "time": "07:00"}})
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    # el usuario de confianza no las ve ni las toca
+    utok = call(base, "/api/login", "POST", {"password": "clave-usuario-1"})[1]["token"]
+    assert call(base, "/api/state", headers={"X-TeleHome-Admin": utok})[1]["schedules"] == []
+    for metodo, ruta, cuerpo in (("POST", "/api/schedules", {"name": "x"}),
+                                 ("PUT", "/api/schedules/mananas", {"enabled": False}),
+                                 ("DELETE", "/api/schedules/mananas", None),
+                                 ("POST", "/api/schedules/mananas/run", {}),
+                                 ("PUT", "/api/place", {"lat": 1, "lon": 1})):
+        assert call(base, ruta, metodo, cuerpo, headers={"X-TeleHome-Admin": utok})[0] == 403, ruta
+    # el administrador sí
+    atok = call(base, "/api/login", "POST", {"password": "clave-admin-1"})[1]["token"]
+    assert len(call(base, "/api/state", headers={"X-TeleHome-Admin": atok})[1]["schedules"]) == 1
+    assert call(base, "/api/schedules/mananas", "PUT", {"enabled": False}, headers={"X-TeleHome-Admin": atok})[0] == 200
+    # api/sun es de lectura: lo ve cualquiera
+    assert call(base, "/api/sun")[0] == 200

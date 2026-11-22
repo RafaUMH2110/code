@@ -20,6 +20,7 @@ from .cloud import REGIONS, CloudError, CloudHub, SimCloudHub
 from .config import CLOUD_REGIONS, MAX_DEVICES, Config, ConfigError, data_dir
 from .devices import PlugError, make_plug, scan_network
 from .monitor import Monitor
+from .scheduler import Scheduler, instante
 from .server import AppContext, make_server
 from .store import Store
 
@@ -94,8 +95,10 @@ def cmd_serve(args) -> int:
         hub.on_calls = store.add_api_calls  # llamadas a la nube guardadas por día
     monitor = Monitor(cfg, store, simulate=bool(args.simulate), hub=hub)
     loopback = args.host in ("127.0.0.1", "localhost", "::1")
+    scheduler = Scheduler(cfg, monitor, store)
     ctx = AppContext(cfg, store, monitor, bool(args.simulate), loopback_only=loopback,
-                     extra_hosts=args.allow_host, hub=hub, extra_origins=args.allow_origin)
+                     extra_hosts=args.allow_host, hub=hub, extra_origins=args.allow_origin,
+                     scheduler=scheduler)
     try:
         server = make_server(ctx, args.host, args.port)
     except OSError as exc:
@@ -103,10 +106,14 @@ def cmd_serve(args) -> int:
         return 1
 
     monitor.start()
+    scheduler.start()
     print("%s %s%s\n  Interfaz: %s\n  Datos:    %s\n  Pulsa Ctrl+C para salir."
           % (APP_NAME, __version__, " (SIMULACIÓN)" if args.simulate else "", url, base))
     if not loopback and not cfg.options.get("password_hash"):
         print("  AVISO: escuchando fuera de localhost SIN contraseña. Ponla con: telehome password")
+    activas = [x for x in cfg.schedules if x.get("enabled")]
+    if activas:
+        print("  Programaciones: %d activas de %d" % (len(activas), len(cfg.schedules)))
     if any(d["mode"] == "nube" for d in cfg.devices) and not hub.configured():
         print("  AVISO: hay enchufes en modo nube pero faltan las credenciales (telehome cloud-setup)")
     if not args.no_browser:
@@ -116,6 +123,7 @@ def cmd_serve(args) -> int:
     except KeyboardInterrupt:
         print("\nCerrando…")
     finally:
+        scheduler.stop()
         monitor.stop()
         server.server_close()
     return 0
@@ -212,6 +220,74 @@ def cmd_import_config(args) -> int:
     if rep.get("servicio"):
         print("Ruta del servicio indicada en el fichero: %s (se usa en la app TeleHome, campo «Servicio TeleHome»)" % rep["servicio"]["ruta"])
     print("Total: %d/%d (la contraseña del servicio no se ha tocado)" % (rep["total"], MAX_DEVICES))
+    return 0
+
+
+def _texto_momento(sch) -> str:
+    w = sch["when"]
+    if w["kind"] == "clock":
+        return "a las " + w["time"]
+    cual = "amanecer" if w["kind"] == "sunrise" else "anochecer"
+    off = w.get("offset", 0)
+    if not off:
+        return "al " + cual
+    return "%d min %s del %s" % (abs(off), "antes" if off < 0 else "después", cual)
+
+
+def _texto_orden(sch) -> str:
+    a, v = sch["action"], sch["value"]
+    if a == "switch":
+        return "encender" if v else "apagar"
+    if a == "level":
+        return "brillo al %d %%" % v
+    if a == "position":
+        return "abrir al %d %%" % v
+    return "parar"
+
+
+def cmd_schedules(args) -> int:
+    """Lista las programaciones, o activa y desactiva una."""
+    cfg = _cfg(args)
+    if args.activar or args.desactivar:
+        quien = args.activar or args.desactivar
+        sch = next((x for x in cfg.schedules if quien in (x["id"], x["name"])), None)
+        if sch is None:
+            print("No hay ninguna programación «%s»" % quien, file=sys.stderr)
+            return 2
+        cfg.update_schedule(sch["id"], {"enabled": bool(args.activar)})
+        print("«%s» %s." % (sch["name"], "activada" if args.activar else "desactivada"))
+        return 0
+    if args.borrar:
+        sch = next((x for x in cfg.schedules if args.borrar in (x["id"], x["name"])), None)
+        if sch is None:
+            print("No hay ninguna programación «%s»" % args.borrar, file=sys.stderr)
+            return 2
+        cfg.delete_schedule(sch["id"])
+        print("«%s» borrada." % sch["name"])
+        return 0
+    if not cfg.schedules:
+        print("No hay programaciones. Se crean desde la app, en Ajustes → Programaciones.")
+        return 0
+    dias_cortos = ["L", "M", "X", "J", "V", "S", "D"]
+    for x in cfg.schedules:
+        dias = "".join(dias_cortos[d - 1] if d in x["days"] else "·" for d in range(1, 8))
+        extra = []
+        if x.get("condition"):
+            c = x["condition"]
+            extra.append("si %s %s %g%s" % (c["metric"], c["op"], c["value"],
+                                            " durante %d s" % c["for"] if c.get("for") else ""))
+        if x.get("skip_if_manual"):
+            extra.append("salvo si lo tocaste")
+        print("%-22s %-3s %-8s %-26s %s → %s" % (
+            x["id"], "on" if x["enabled"] else "off", dias, _texto_momento(x),
+            _texto_orden(x), x["device"]))
+        if extra:
+            print("%-22s     %s" % ("", "; ".join(extra)))
+        if x.get("last_result"):
+            print("%-22s     última vez: %s (%s)" % ("", x["last_result"],
+                  time.strftime("%d/%m %H:%M", time.localtime(x["last_fire"])) if x.get("last_fire") else "nunca"))
+    n = len(cfg.schedules)
+    print("%d %s" % (n, "programación" if n == 1 else "programaciones"))
     return 0
 
 
@@ -412,6 +488,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--quitar", action="store_true")
     s.add_argument("--password-env", metavar="VAR", help="leer la contraseña de esta variable de entorno")
     s.set_defaults(fn=cmd_user_password)
+
+    s = sub.add_parser("schedules", help="lista las programaciones (o activa, desactiva y borra una)")
+    s.add_argument("--activar", metavar="ID")
+    s.add_argument("--desactivar", metavar="ID")
+    s.add_argument("--borrar", metavar="ID")
+    s.set_defaults(fn=cmd_schedules)
 
     s = sub.add_parser("list", help="lista los enchufes configurados")
     s.set_defaults(fn=cmd_list)

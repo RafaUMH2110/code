@@ -219,6 +219,20 @@ details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margi
 .cfg-warn { color:var(--critical); }
 .cfg-radio { display:flex; align-items:flex-start; gap:8px; font-weight:400; }
 .cfg-radio input { margin-top:3px; width:auto; }
+.sch { border:1px solid var(--border); border-radius:12px; padding:11px 13px; margin-bottom:8px; display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.sch.off { opacity:.55; }
+.sch .sch-t { flex:1; min-width:200px; }
+.sch .sch-t b { display:block; }
+.sch .sch-t small { color:var(--ink2); display:block; margin-top:2px; }
+.sch .sch-t .last { color:var(--ink2); font-size:12.5px; margin-top:3px; display:block; }
+.sch .sch-b { display:flex; gap:6px; flex-wrap:wrap; }
+.sch-days { border:1px solid var(--border); border-radius:10px; padding:6px 10px 10px; }
+.sch-days legend { font-size:12.5px; color:var(--ink2); padding:0 4px; }
+.sch-days label { display:inline-flex; align-items:center; gap:4px; margin-right:10px; font-weight:400; }
+.sch-days input { width:auto; }
+.sch-chk { display:flex; align-items:center; gap:8px; font-weight:400; }
+.sch-chk input { width:auto; }
+.sch-cond { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; }
 .msg.ok { color:var(--ink2); }
 .found { display:flex; align-items:center; gap:10px; padding:8px 10px; font-size:13.5px; border:1px solid var(--border); border-radius:10px; margin-top:6px; }
 .found code { flex:1; font-family:var(--mono); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; }
@@ -371,7 +385,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 16:23</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 17:04</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -399,6 +413,7 @@ details.hint > p { margin:6px 0 0; }
     <button type="button" role="tab" data-tab="nube" aria-selected="false">Nube de Tuya</button>
     <button type="button" role="tab" data-tab="buscar" aria-selected="false">Buscar e importar</button>
     <button type="button" role="tab" data-tab="opciones" aria-selected="false">Opciones</button>
+    <button type="button" role="tab" data-tab="programaciones" aria-selected="false">Programaciones</button>
     <button type="button" role="tab" data-tab="compartir" aria-selected="false">Compartir</button>
   </div>
   <div class="dlg-b">
@@ -530,6 +545,63 @@ details.hint > p { margin:6px 0 0; }
         <h3>Llamadas a la API de Tuya</h3>
         <p class="desc">Cuántas llamadas ha hecho el servicio a la nube de Tuya (lectura de estado, órdenes y renovación del token). El uso oficial lo muestra iot.tuya.com en Cloud → Usage (API Statistics); compáralo con estas cifras. Los créditos de Cobuilder (IA) no cuentan estas llamadas.</p>
         <div id="callsBox"></div>
+      </section>
+    </div>
+
+
+    <div data-panel="programaciones" role="tabpanel" hidden>
+      <section>
+        <h3>Programaciones</h3>
+        <p class="desc">Encienden, apagan o regulan un enchufe a una hora, al amanecer o al anochecer. Las evalúa el servicio, así que funcionan aunque no tengas la app abierta. <span id="sunInfo"></span></p>
+        <div id="schList"></div>
+        <div class="full" style="margin-top:10px"><button class="btn primary" id="btnSchNew" type="button">Añadir programación</button></div>
+        <div class="msg" id="schMsg" role="alert"></div>
+      </section>
+      <section id="schFormBox" hidden>
+        <h3 id="schFormTitle">Nueva programación</h3>
+        <form class="f" id="schForm">
+          <label>Nombre<input name="name" type="text" maxlength="40" required placeholder="Luz del salón al anochecer"></label>
+          <label>Enchufe<select name="device" required></select></label>
+          <label>Qué hace<select name="action">
+            <option value="switch">Encender o apagar</option>
+            <option value="level">Poner un brillo</option>
+            <option value="position">Poner una apertura</option>
+            <option value="stop">Parar</option>
+          </select></label>
+          <label id="schValSwitch">Valor<select name="onoff"><option value="1">Encender</option><option value="0">Apagar</option></select></label>
+          <label id="schValPct" hidden>Porcentaje<input name="pct" type="number" min="0" max="100" value="50"></label>
+          <label>Cuándo<select name="kind">
+            <option value="clock">A una hora</option>
+            <option value="sunrise">Al amanecer</option>
+            <option value="sunset">Al anochecer</option>
+          </select></label>
+          <label id="schTimeBox">Hora<input name="time" type="time" value="07:00"></label>
+          <label id="schOffsetBox" hidden>Minutos antes (−) o después (+)<input name="offset" type="number" min="-720" max="720" value="0"></label>
+          <fieldset class="full sch-days"><legend>Días</legend><span id="schDays"></span></fieldset>
+          <label class="full sch-chk"><input type="checkbox" name="hascond"> Solo si se cumple una condición</label>
+          <div class="full sch-cond" id="schCondBox" hidden>
+            <label>Magnitud<input name="cmetric" type="text" value="p" maxlength="12" placeholder="p"></label>
+            <label>Operador<select name="cop"><option>&lt;</option><option>&lt;=</option><option>&gt;</option><option>&gt;=</option></select></label>
+            <label>Valor<input name="cvalue" type="number" step="any" value="5"></label>
+            <label>Mantenida (s)<input name="cfor" type="number" min="0" max="86400" value="0"></label>
+          </div>
+          <label class="full sch-chk"><input type="checkbox" name="skip"> No hacerlo si he manejado el enchufe a mano desde la vez anterior</label>
+          <div class="full">
+            <button class="btn primary" type="submit">Guardar</button>
+            <button class="btn" id="btnSchCancel" type="button">Cancelar</button>
+          </div>
+        </form>
+        <div class="msg" id="schFormMsg" role="alert"></div>
+      </section>
+      <section>
+        <h3>Lugar</h3>
+        <p class="desc">Para calcular el amanecer y el anochecer.</p>
+        <form class="f" id="placeForm">
+          <label>Latitud<input name="lat" type="number" step="any" min="-90" max="90"></label>
+          <label>Longitud<input name="lon" type="number" step="any" min="-180" max="180"></label>
+          <div class="full"><button class="btn" type="submit">Guardar lugar</button></div>
+        </form>
+        <div class="msg" id="placeMsg" role="alert"></div>
       </section>
     </div>
 
@@ -1080,6 +1152,148 @@ function showTab(name) {
   document.querySelectorAll("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== name; });
 }
 function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? tab : (ADMIN.isAdmin() ? "enchufes" : "opciones")); $("#dlg").showModal(); fillOptions(); aplicarSoloLectura(); }
+
+/* ---------- programaciones ---------- */
+const DIAS = [["L", 1], ["M", 2], ["X", 3], ["J", 4], ["V", 5], ["S", 6], ["D", 7]];
+let schEditando = null;
+const horaTxt = (t) => new Date(t * 1000).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+function momentoTxt(w) {
+  if (w.kind === "clock") return "a las " + w.time;
+  const cual = w.kind === "sunrise" ? "amanecer" : "anochecer", off = w.offset || 0;
+  if (!off) return "al " + cual;
+  return Math.abs(off) + " min " + (off < 0 ? "antes" : "después") + " del " + cual;
+}
+function ordenTxt(x) {
+  if (x.action === "switch") return x.value ? "encender" : "apagar";
+  if (x.action === "level") return "brillo al " + x.value + " %";
+  if (x.action === "position") return "abrir al " + x.value + " %";
+  return "parar";
+}
+function diasTxt(d) {
+  if (d.length === 7) return "todos los días";
+  if (String(d) === "1,2,3,4,5") return "de lunes a viernes";
+  if (String(d) === "6,7") return "fines de semana";
+  return DIAS.filter(([, n]) => d.includes(n)).map(([l]) => l).join(" ");
+}
+/* la app genérica tiene devs(); la interfaz del servicio usa S.state.devices */
+const schDevs = () => (typeof devs === "function" ? devs() : ((S.state && S.state.devices) || []));
+function nombreDe(id) { const d = schDevs().find((x) => x.id === id); return d ? d.name : id; }
+function renderSchedules() {
+  const box = $("#schList"); if (!box) return;
+  const list = (S.state && S.state.schedules) || [];
+  box.replaceChildren();
+  if (!list.length) {
+    box.append(el("p", { class: "desc", text: "Todavía no hay ninguna. Las que crees aquí las ejecuta el servicio." }));
+    return;
+  }
+  for (const x of list) {
+    const extra = [];
+    if (x.condition) extra.push("solo si " + x.condition.metric + " " + x.condition.op + " " + x.condition.value +
+      (x.condition.for ? " durante " + x.condition.for + " s" : ""));
+    if (x.skip_if_manual) extra.push("salvo si lo has tocado");
+    const fila = el("div", { class: "sch" + (x.enabled ? "" : " off") },
+      el("div", { class: "sch-t" },
+        el("b", { text: x.name }),
+        el("small", { text: ordenTxt(x) + " «" + nombreDe(x.device) + "» " + momentoTxt(x.when) + ", " + diasTxt(x.days) + (extra.length ? " · " + extra.join(" · ") : "") }),
+        x.last_result ? el("span", { class: "last", text: "Última vez: " + x.last_result + (x.last_fire ? " (" + new Date(x.last_fire * 1000).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) + ")" : "") }) : null),
+      el("div", { class: "sch-b" },
+        el("button", { class: "btn", type: "button", text: x.enabled ? "Desactivar" : "Activar",
+          onclick: () => schGuardar(x.id, { enabled: !x.enabled }) }),
+        el("button", { class: "btn", type: "button", text: "Probar", onclick: () => schProbar(x) }),
+        el("button", { class: "btn", type: "button", text: "Editar", onclick: () => schEditar(x) }),
+        el("button", { class: "btn danger", type: "button", text: "Borrar", onclick: () => schBorrar(x) })));
+    box.append(fila);
+  }
+}
+async function schGuardar(id, cambios) {
+  try { await api("api/schedules/" + id, { method: "PUT", body: cambios }); await refresh(); renderSchedules();
+    setMsg("#schMsg", "Guardado.", true); }
+  catch (e) { setMsg("#schMsg", e.message, false); }
+}
+async function schProbar(x) {
+  setMsg("#schMsg", "Probando «" + x.name + "»…", true);
+  try { const r = await api("api/schedules/" + x.id + "/run", { method: "POST", body: {} });
+    setMsg("#schMsg", "«" + x.name + "»: " + r.resultado, !/^error/.test(r.resultado)); await refresh(); renderSchedules(); }
+  catch (e) { setMsg("#schMsg", e.message, false); }
+}
+async function schBorrar(x) {
+  if (!confirm("¿Borrar la programación «" + x.name + "»?")) return;
+  try { await api("api/schedules/" + x.id, { method: "DELETE" }); await refresh(); renderSchedules();
+    setMsg("#schMsg", "Borrada.", true); }
+  catch (e) { setMsg("#schMsg", e.message, false); }
+}
+function schPintarDias(sel) {
+  const box = $("#schDays"); box.replaceChildren();
+  for (const [lab, n] of DIAS) {
+    const c = el("input", { type: "checkbox", value: String(n) });
+    c.checked = sel.includes(n);
+    box.append(el("label", {}, c, lab));
+  }
+}
+function schModo() {
+  const f = $("#schForm"), a = f.action.value, k = f.kind.value;
+  $("#schValSwitch").hidden = a !== "switch";
+  $("#schValPct").hidden = !(a === "level" || a === "position");
+  $("#schTimeBox").hidden = k !== "clock";
+  $("#schOffsetBox").hidden = k === "clock";
+  $("#schCondBox").hidden = !f.hascond.checked;
+}
+function schNuevo() {
+  schEditando = null;
+  const f = $("#schForm");
+  f.reset(); f.name.value = ""; f.action.value = "switch"; f.kind.value = "clock";
+  f.time.value = "07:00"; f.offset.value = "0"; f.pct.value = "50";
+  f.cmetric.value = "p"; f.cop.value = "<"; f.cvalue.value = "5"; f.cfor.value = "0";
+  f.hascond.checked = false; f.skip.checked = false;
+  schPintarDias([1, 2, 3, 4, 5, 6, 7]); schRellenarDispositivos();
+  $("#schFormTitle").textContent = "Nueva programación";
+  $("#schFormBox").hidden = false; schModo(); setMsg("#schFormMsg", "", true);
+  f.name.focus({ preventScroll: true });
+}
+function schEditar(x) {
+  schEditando = x.id;
+  const f = $("#schForm");
+  schRellenarDispositivos();
+  f.name.value = x.name; f.device.value = x.device; f.action.value = x.action; f.kind.value = x.when.kind;
+  f.onoff.value = x.value ? "1" : "0";
+  f.pct.value = String(typeof x.value === "number" ? x.value : 50);
+  f.time.value = x.when.time || "07:00"; f.offset.value = String(x.when.offset || 0);
+  f.hascond.checked = !!x.condition;
+  if (x.condition) { f.cmetric.value = x.condition.metric; f.cop.value = x.condition.op;
+    f.cvalue.value = String(x.condition.value); f.cfor.value = String(x.condition.for || 0); }
+  f.skip.checked = !!x.skip_if_manual;
+  schPintarDias(x.days);
+  $("#schFormTitle").textContent = "Editar «" + x.name + "»";
+  $("#schFormBox").hidden = false; schModo(); setMsg("#schFormMsg", "", true);
+}
+function schRellenarDispositivos() {
+  const sel = $("#schForm").device, actual = sel.value;
+  sel.replaceChildren(...schDevs().map((d) => el("option", { value: d.id, text: d.name })));
+  if (actual) sel.value = actual;
+}
+function schDesdeFormulario() {
+  const f = $("#schForm");
+  const dias = Array.from($("#schDays").querySelectorAll("input:checked")).map((c) => +c.value);
+  const cuerpo = {
+    name: f.name.value.trim(), device: f.device.value, action: f.action.value,
+    when: f.kind.value === "clock" ? { kind: "clock", time: f.time.value }
+                                   : { kind: f.kind.value, offset: +f.offset.value || 0 },
+    days: dias, skip_if_manual: f.skip.checked,
+    condition: f.hascond.checked ? { metric: f.cmetric.value.trim(), op: f.cop.value,
+      value: +f.cvalue.value, "for": +f.cfor.value || 0 } : null,
+  };
+  if (f.action.value === "switch") cuerpo.value = f.onoff.value === "1";
+  else if (f.action.value !== "stop") cuerpo.value = +f.pct.value;
+  return cuerpo;
+}
+async function pintarSol() {
+  const info = $("#sunInfo"); if (!info) return;
+  try {
+    const r = await api("api/sun");
+    info.textContent = "Hoy amanece a las " + horaTxt(r.sunrise) + " y anochece a las " + horaTxt(r.sunset) + ".";
+    const f = $("#placeForm"); f.lat.value = r.lat; f.lon.value = r.lon;
+  } catch (e) { info.textContent = ""; }
+}
 function pintarEstadoPw() {
   const o = (S.state && S.state.options) || {};
   $("#pwSection").hidden = !ADMIN.isAdmin();
@@ -1102,6 +1316,8 @@ function fillOptions() {
   sel.value = o.cloud_region || "eu"; cf.api_key.value = o.cloud_api_key || ""; cf.api_secret.value = "";
   cf.api_secret.placeholder = o.cloud_secret_set ? "(guardado; déjalo vacío para conservarlo)" : "";
   pintarEstadoPw();
+  renderSchedules();
+  pintarSol();
 }
 function renderCalls() {
   const box = $("#callsBox"); if (!box) return;
@@ -1265,6 +1481,31 @@ function bindDialog() {
       e.target.password.value = ""; $("#admDlg").close();
       renderAdmin(); await refresh(); toast("Has entrado como " + ADMIN.etiqueta().toLowerCase() + ".");
     } catch (err) { $("#admMsg").textContent = err.message; $("#admMsg").className = "msg bad"; }
+  });
+  /* ---- programaciones ---- */
+  $("#btnSchNew").addEventListener("click", schNuevo);
+  $("#btnSchCancel").addEventListener("click", () => { $("#schFormBox").hidden = true; });
+  for (const n of ["action", "kind"]) $("#schForm")[n].addEventListener("change", schModo);
+  $("#schForm").hascond.addEventListener("change", schModo);
+  $("#schForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const cuerpo = schDesdeFormulario();
+    if (!cuerpo.days.length) return setMsg("#schFormMsg", "Elige al menos un día.", false);
+    try {
+      if (schEditando) await api("api/schedules/" + schEditando, { method: "PUT", body: cuerpo });
+      else await api("api/schedules", { method: "POST", body: cuerpo });
+      $("#schFormBox").hidden = true;
+      await refresh(); renderSchedules();
+      setMsg("#schMsg", schEditando ? "Programación guardada." : "Programación creada.", true);
+    } catch (err) { setMsg("#schFormMsg", err.message, false); }
+  });
+  $("#placeForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await api("api/place", { method: "PUT", body: { lat: +e.target.lat.value, lon: +e.target.lon.value } });
+      await refresh(); await pintarSol();
+      setMsg("#placeMsg", "Lugar guardado.", true);
+    } catch (err) { setMsg("#placeMsg", err.message, false); }
   });
   /* ---- contraseña del usuario de confianza (solo administradores) ---- */
   $("#userForm").addEventListener("submit", async (e) => {

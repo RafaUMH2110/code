@@ -17,7 +17,8 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import APP_NAME, __version__
 from .cloud import REGIONS, CloudError
-from .config import DEVICE_TYPES, MAX_DEVICES, Config, ConfigError, public_device, verify_password
+from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_SCHEDULES, Config, ConfigError,
+                     public_device, verify_password)
 from .devices import PlugError, scan_network
 from .monitor import Monitor
 from .store import Store
@@ -40,7 +41,7 @@ _VIEW_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days")
 class AppContext:
     def __init__(self, config: Config, store: Store, monitor: Monitor, simulate: bool,
                  loopback_only: bool = True, extra_hosts: Optional[List[str]] = None, hub=None,
-                 extra_origins: Optional[List[str]] = None):
+                 extra_origins: Optional[List[str]] = None, scheduler=None):
         self.config = config
         self.store = store
         self.monitor = monitor
@@ -51,6 +52,7 @@ class AppContext:
         self.allowed_hosts = LOOPBACK_HOSTS | self.extra_hosts
         # orígenes web externos autorizados a usar la API desde el navegador (CORS), p. ej. https://usuario.github.io
         self.extra_origins = {o.strip().rstrip("/").lower() for o in (extra_origins or []) if o.strip()}
+        self.scheduler = scheduler
         self.scan_lock = threading.Lock()
         self.admin_tokens: Dict[str, Tuple[float, str, str]] = {}   # token -> (caduca, huella de las contraseñas, nivel)
         self.admin_lock = threading.Lock()
@@ -324,6 +326,8 @@ def r_state(h: Handler, q):
                   "admin": {"required": bool(h._admin_hash()), "active": admin},
                   "sesion": {"nivel": nivel, "admin_required": bool(h._admin_hash()), "user_required": bool(h._user_hash()),
                              "puede_mandar": nivel in ("user", "admin")},
+                  "schedules": [dict(x) for x in c.config.schedules] if admin else [],
+                  "max_schedules": MAX_SCHEDULES,
                   "options": options, "regions": REGIONS,
                   "cloud": llamadas,
                   "devices": devices})
@@ -539,6 +543,57 @@ def r_password(h: Handler, q):
     h._json(200, h.ctx.config.public_options())
 
 
+def _sched_body(h: Handler) -> Dict[str, Any]:
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    return body
+
+
+def r_sched_add(h: Handler, q):
+    sch = h.ctx.config.add_schedule(_sched_body(h))
+    h._json(201, sch)
+
+
+def r_sched_upd(h: Handler, q, sched_id):
+    h._json(200, h.ctx.config.update_schedule(sched_id, _sched_body(h)))
+
+
+def r_sched_del(h: Handler, q, sched_id):
+    h.ctx.config.delete_schedule(sched_id)
+    h._json(200, {"deleted": sched_id})
+
+
+def r_sched_run(h: Handler, q, sched_id):
+    """Dispara una programación ahora mismo, para probarla sin esperar a su hora."""
+    sch = h.ctx.config.get_schedule(sched_id)
+    if sch is None:
+        raise KeyError(sched_id)
+    motor = h.ctx.scheduler
+    if motor is None:                 # servidor levantado sin hilo de programaciones: vale uno de usar y tirar
+        from .scheduler import Scheduler
+        motor = Scheduler(h.ctx.config, h.ctx.monitor, h.ctx.store)
+    ahora = time.time()
+    resultado = motor.ejecutar_ahora(sch, ahora)
+    h._json(200, {"id": sched_id, "resultado": resultado})
+
+
+def r_place(h: Handler, q):
+    """Lugar para calcular el amanecer y el anochecer."""
+    body = _sched_body(h)
+    h._json(200, h.ctx.config.set_place(body.get("lat"), body.get("lon")))
+
+
+def r_sun(h: Handler, q):
+    """Amanecer y anochecer de hoy, para que la app los enseñe junto a las programaciones."""
+    from .sun import LAT_POR_DEFECTO, LON_POR_DEFECTO, _eventos
+    from datetime import date as _date
+    lat = float(h.ctx.config.options.get("lat", LAT_POR_DEFECTO))
+    lon = float(h.ctx.config.options.get("lon", LON_POR_DEFECTO))
+    amanece, anochece = _eventos(_date.today(), lat, lon)
+    h._json(200, {"lat": lat, "lon": lon, "sunrise": amanece, "sunset": anochece})
+
+
 def r_options(h: Handler, q):
     body = h._body()
     if not isinstance(body, dict):
@@ -637,6 +692,12 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("PUT", _r(r"/api/user-password"), r_user_password),
     ("POST", _r(r"/api/config/export"), r_config_export),
     ("POST", _r(r"/api/config/import"), r_config_import),
+    ("GET", _r(r"/api/sun"), r_sun),
+    ("POST", _r(r"/api/schedules"), r_sched_add),
+    ("PUT", _r(r"/api/schedules/([a-z0-9-]+)"), r_sched_upd),
+    ("DELETE", _r(r"/api/schedules/([a-z0-9-]+)"), r_sched_del),
+    ("POST", _r(r"/api/schedules/([a-z0-9-]+)/run"), r_sched_run),
+    ("PUT", _r(r"/api/place"), r_place),
     ("PUT", _r(r"/api/options"), r_options),
     ("PUT", _r(r"/api/password"), r_password),
     ("PUT", _r(r"/api/cloud"), r_cloud_set),

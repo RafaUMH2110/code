@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.8.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.9.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -171,6 +171,15 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   `telehome import-config config.json` (o «Compartir → Importar») y no tiene que configurar nada: por defecto reemplaza sus enchufes
   (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
   El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
+- **Programaciones** (0.9.0): encienden, apagan o regulan un dispositivo **a una hora fija, al amanecer o al
+  anochecer** (con desplazamiento en minutos), los días de la semana que elijas. Las evalúa el servicio cada 20 s,
+  así que funcionan sin tener ninguna app abierta. Dos refinamientos: una **condición** sobre una magnitud
+  («solo si la potencia lleva 10 min por debajo de 5 W», para apagar la lavadora al acabar) y
+  **«no me pises»** (`skip_if_manual`), que se salta la orden si has manejado el aparato a mano desde la vez
+  anterior. Tras una parada del servicio solo se recupera lo de la última hora, para no disparar de golpe todo lo
+  que tocaba de madrugada. El amanecer y el anochecer se calculan con el algoritmo del NOAA sin dependencias, a
+  partir del lugar que se guarda en las opciones (`lat`/`lon`, Elche por omisión). Se gestionan en
+  «Ajustes → Programaciones» y con `telehome schedules`. Máximo 32.
 - **Usuario de confianza** (0.8.0): `telehome user-password` pone una tercera contraseña. Quien entre con ella puede
   **encender, apagar y regular** los enchufes, pero no cambiar la configuración ni ninguna contraseña, y `api/state`
   le oculta lo mismo que a quien solo mira. Los tres niveles son: sin contraseña **solo lectura**, con la de usuario
@@ -200,7 +209,9 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 `POST /api/login {"password":"…"}` (devuelve `nivel`) · `POST /api/logout` ·
 `POST /api/admin/login` y `POST /api/admin/logout` (compatibilidad) ·
 `PUT /api/admin/password {"password":"…"|"quitar":true}` · `PUT /api/user-password {"password":"…"|"quitar":true}` ·
-`PUT /api/password {"password":"…"|"quitar":true}` (contraseña del servicio; solo administradores)
+`PUT /api/password {"password":"…"|"quitar":true}` (contraseña del servicio; solo administradores) ·
+`GET /api/sun` · `POST /api/schedules` · `PUT|DELETE /api/schedules/<id>` · `POST /api/schedules/<id>/run` ·
+`PUT /api/place {"lat":…,"lon":…}`
 
 ### Protocolo genérico de TeleHome (0.5.0)
 
@@ -241,7 +252,7 @@ campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnit
 ## Órdenes
 
 `serve` (por defecto) · `scan` · `probe <enchufe>` · `import <devices.json> [--nube]` · `list` · `cloud-setup` ·
-`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `admin-password [--quitar]` · `user-password [--quitar]` · `export-config [-o fichero] [--ruta /ruta/]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
+`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `admin-password [--quitar]` · `user-password [--quitar]` · `schedules [--activar ID|--desactivar ID|--borrar ID]` · `export-config [-o fichero] [--ruta /ruta/]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
 
 ## Desarrollo
 
