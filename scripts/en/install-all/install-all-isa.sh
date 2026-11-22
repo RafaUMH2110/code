@@ -643,7 +643,7 @@ if telehome:
         if os.path.exists(os.path.join(c, '.git')) and os.path.isdir(os.path.join(c, 'telemetria', 'home', 'telehome-servicio')):
             tdate = git_date(c, 'telemetria/home/telehome-servicio')
             break
-    apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-servicio/', 'title': 'TeleHome',
+    apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-servicio/', 'title': 'TeleHome (servicio)',
                  'description': 'Telemetry and control of Energeeks Wi-Fi plugs (Tuya): power, voltage, current, history and charts.', 'project': '', 'summary': '',
                  'size': 0, 'updated': tdate or datetime.date.today().isoformat(),
                  'category': 'home', 'url': telehome})
