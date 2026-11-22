@@ -172,7 +172,8 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
   El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
 - **Programaciones** (0.9.0): encienden, apagan o regulan un dispositivo **a una hora fija, al amanecer o al
-  anochecer** (con desplazamiento en minutos), los días de la semana que elijas. Las evalúa el servicio cada 20 s,
+  anochecer** (con desplazamiento en minutos), los días de la semana que elijas; **sin ningún día marcado se
+  ejecutan una sola vez** y quedan desactivadas. Las evalúa el servicio cada 20 s,
   así que funcionan sin tener ninguna app abierta. Dos refinamientos: una **condición** sobre una magnitud
   («solo si la potencia lleva 10 min por debajo de 5 W», para apagar la lavadora al acabar) y
   **«no me pises»** (`skip_if_manual`), que se salta la orden si has manejado el aparato a mano desde la vez

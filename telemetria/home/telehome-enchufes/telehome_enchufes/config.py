@@ -267,9 +267,10 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
             raise ConfigError("El desplazamiento debe estar entre -%d y %d minutos" % (MAX_OFFSET, MAX_OFFSET))
         when["offset"] = off
 
-    dias = m.get("days", [1, 2, 3, 4, 5, 6, 7])
-    if not isinstance(dias, list) or not dias:
-        raise ConfigError("Hay que elegir al menos un día de la semana")
+    # Sin días marcados se ejecuta una sola vez, la próxima vez que llegue ese momento.
+    dias = m.get("days", [])
+    if not isinstance(dias, list):
+        raise ConfigError("Los días deben ser una lista")
     try:
         dias = sorted({int(d) for d in dias})
     except (TypeError, ValueError):
@@ -300,6 +301,7 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
             raise ConfigError("«for» debe estar entre 0 y %d segundos" % MAX_CONDITION_FOR)
         condition = {"metric": metric, "op": op, "value": umbral, "for": durante}
 
+    creado = base.get("created", raw.get("created"))
     return {
         "id": base.get("id") or raw.get("id") or "",
         "name": nombre,
@@ -313,6 +315,10 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
         "skip_if_manual": bool(m.get("skip_if_manual", False)),
         "last_fire": float(base.get("last_fire") or 0),
         "last_result": base.get("last_result") or "",
+        # Cuándo se creó. Nunca se dispara un momento anterior a esto, para que crear a las 07:30
+        # una programación de las 07:00 no la ejecute en el acto.
+        "created": float(creado) if creado is not None else time.time(),
+        "once": not dias,
     }
 
 
@@ -540,7 +546,7 @@ class Config:
             self.schedules.remove(cur)
             self.save()
 
-    def mark_schedule(self, sched_id: str, cuando: float, resultado: str) -> None:
+    def mark_schedule(self, sched_id: str, cuando: float, resultado: str, desactivar: bool = False) -> None:
         """Anota que una programación se ha evaluado, para no repetirla y poder mostrar qué pasó."""
         with self.lock:
             cur = next((s for s in self.schedules if s["id"] == sched_id), None)
@@ -548,6 +554,8 @@ class Config:
                 return
             cur["last_fire"] = cuando
             cur["last_result"] = resultado[:120]
+            if desactivar:
+                cur["enabled"] = False
             self.save()
 
     def set_place(self, lat: Any, lon: Any) -> Dict[str, Any]:
@@ -579,7 +587,7 @@ class Config:
                 **({"servicio": {"ruta": clean_ruta(ruta)}} if ruta else {}),
                 "options": {k: self.options.get(k, OPTION_DEFAULTS[k]) for k in EXPORT_OPTIONS},
                 "devices": [dict(d) for d in self.devices],
-                "schedules": [{k: v for k, v in s.items() if k not in ("last_fire", "last_result")}
+                "schedules": [{k: v for k, v in s.items() if k not in ("last_fire", "last_result", "created")}
                               for s in self.schedules],
             }
 

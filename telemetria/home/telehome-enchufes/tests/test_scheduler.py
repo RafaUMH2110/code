@@ -34,10 +34,23 @@ def app(tmp_path):
 
 
 def prog(**kw):
+    """Programación de ejemplo. Por defecto se repite todos los días; sin «days» sería de una sola vez."""
     base = {"name": "Prueba", "device": "nevera", "action": "switch", "value": True,
-            "when": {"kind": "clock", "time": "07:00"}}
+            "when": {"kind": "clock", "time": "07:00"}, "days": [1, 2, 3, 4, 5, 6, 7]}
     base.update(kw)
     return base
+
+
+def crear(cfg, **kw):
+    """Da de alta la programación y la fecha como creada hace tiempo, para poder probar
+    momentos de hoy que ya han pasado."""
+    s = cfg.add_schedule(prog(**kw))
+    cfg.update_schedule(s["id"], {})
+    for x in cfg.schedules:
+        if x["id"] == s["id"]:
+            x["created"] = 0.0
+    cfg.save()
+    return cfg.get_schedule(s["id"])
 
 
 # ---------- validación ----------
@@ -47,7 +60,15 @@ def test_alta_y_valores_por_defecto(app):
     s = cfg.add_schedule(prog())
     assert s["id"] == "prueba" and s["enabled"] is True and s["days"] == [1, 2, 3, 4, 5, 6, 7]
     assert s["condition"] is None and s["skip_if_manual"] is False and s["last_fire"] == 0
+    assert s["once"] is False and s["created"] > 0
     assert json.loads((cfg.path).read_text())["schedules"][0]["name"] == "Prueba"
+
+
+def test_sin_dias_es_de_una_sola_vez(app):
+    cfg, *_ = app
+    s = cfg.add_schedule({"name": "Solo hoy", "device": "nevera", "action": "switch", "value": False,
+                          "when": {"kind": "clock", "time": "07:00"}})
+    assert s["days"] == [] and s["once"] is True
 
 
 def test_validacion(app):
@@ -62,7 +83,7 @@ def test_validacion(app):
         prog(when={"kind": "clock", "time": "25:00"}),
         prog(when={"kind": "clock", "time": "7:00"}),
         prog(when={"kind": "sunrise", "offset": 900}),
-        prog(days=[]), prog(days=[0]), prog(days=[8]),
+        prog(days=[0]), prog(days=[8]),
         prog(condition={"metric": "p", "op": "~", "value": 5}),
         prog(condition={"metric": "p", "op": "<", "value": "mucho"}),
         prog(condition={"metric": "p", "op": "<", "value": 5, "for": 999999}),
@@ -129,7 +150,7 @@ def test_el_lugar_cambia_el_amanecer(app):
 
 def test_dispara_una_vez_y_no_se_repite(app):
     cfg, mon, store, sch = app
-    s = cfg.add_schedule(prog(when={"kind": "clock", "time": "07:00"}, value=False))
+    s = crear(cfg, when={"kind": "clock", "time": "07:00"}, value=False)
     ahora = hoy_a(7, 0) + 60
     assert [r for _, r in sch.tick(ahora)] == ["ejecutada"]
     assert mon.latest["nevera"].on is False
@@ -139,35 +160,35 @@ def test_dispara_una_vez_y_no_se_repite(app):
 
 def test_no_dispara_antes_de_hora_ni_mucho_despues(app):
     cfg, mon, store, sch = app
-    cfg.add_schedule(prog(when={"kind": "clock", "time": "07:00"}))
+    crear(cfg, when={"kind": "clock", "time": "07:00"})
     assert sch.tick(hoy_a(6, 59)) == []                    # todavía no
     assert sch.tick(hoy_a(7, 0) + 7200) == []              # demasiado tarde: no se recupera
 
 
 def test_desactivada_no_dispara(app):
     cfg, mon, store, sch = app
-    cfg.add_schedule(prog(enabled=False))
+    crear(cfg, enabled=False)
     assert sch.tick(hoy_a(7, 1)) == []
 
 
 def test_solo_los_dias_elegidos(app):
     cfg, mon, store, sch = app
     manana = date.fromtimestamp(time.time() + 86400)
-    cfg.add_schedule(prog(days=[manana.isoweekday()]))
+    crear(cfg, days=[manana.isoweekday()])
     if manana.isoweekday() != date.today().isoweekday():
         assert sch.tick(hoy_a(7, 1)) == []
 
 
 def test_la_orden_programada_no_cuenta_como_manual(app):
     cfg, mon, store, sch = app
-    cfg.add_schedule(prog(value=False))
+    crear(cfg, value=False)
     sch.tick(hoy_a(7, 1))
     assert "nevera" not in mon.last_manual                 # si contara, se saltaría a sí misma
 
 
 def test_saltar_si_lo_tocaste_a_mano(app):
     cfg, mon, store, sch = app
-    cfg.add_schedule(prog(skip_if_manual=True, value=False))
+    crear(cfg, skip_if_manual=True, value=False)
     mon.set_power("nevera", True)                          # orden manual, ahora
     assert [r for _, r in sch.tick(hoy_a(7, 1))][0].startswith("saltada: lo manejaste a mano")
     assert mon.latest["nevera"].on is True                 # no la ha tocado
@@ -181,8 +202,8 @@ def test_condicion_sobre_la_lectura(app):
     cfg, mon, store, sch = app
     _leer(mon)
     potencia = mon.latest["nevera"].power_w
-    cfg.add_schedule(prog(name="Si consume poco", value=False,
-                          condition={"metric": "p", "op": "<", "value": potencia / 2}))
+    crear(cfg, name="Si consume poco", value=False,
+          condition={"metric": "p", "op": "<", "value": potencia / 2})
     assert [r for _, r in sch.tick(hoy_a(7, 1))][0].startswith("saltada: no se cumple")
     cfg.schedules[0]["last_fire"] = 0
     cfg.update_schedule(cfg.schedules[0]["id"], {"condition": {"metric": "p", "op": ">", "value": potencia / 2}})
@@ -199,8 +220,8 @@ def test_condicion_mantenida_durante(app):
     hace_un_minuto = time.localtime(time.time() - 60)
     hhmm = time.strftime("%H:%M", hace_un_minuto)
     potencia = mon.latest["nevera"].power_w
-    cfg.add_schedule(prog(value=False, when={"kind": "clock", "time": hhmm},
-                          condition={"metric": "p", "op": ">", "value": potencia / 2, "for": 120}))
+    crear(cfg, value=False, when={"kind": "clock", "time": hhmm},
+          condition={"metric": "p", "op": ">", "value": potencia / 2, "for": 120})
     assert [r for _, r in sch.tick()] == ["ejecutada"]
     # con un umbral imposible no se cumple nunca
     cfg.schedules[0]["last_fire"] = 0
@@ -215,7 +236,7 @@ def test_condicion_mantenida_durante(app):
 
 def test_dispositivo_borrado(app):
     cfg, mon, store, sch = app
-    cfg.add_schedule(prog())
+    crear(cfg)
     cfg.devices.clear()
     assert [r for _, r in sch.tick(hoy_a(7, 1))] == ["saltada: el dispositivo ya no existe"]
 
@@ -255,3 +276,42 @@ def test_set_place_valida(app):
         with pytest.raises(ConfigError):
             cfg.set_place(*mala)
     assert cfg.set_place(40.4, -3.7)["lat"] == 40.4
+
+
+def test_una_sola_vez_se_ejecuta_y_se_desactiva(app):
+    """Sin días marcados: se hace una vez, en el próximo momento, y se queda desactivada."""
+    cfg, mon, store, sch = app
+    hace_un_minuto = time.strftime("%H:%M", time.localtime(time.time() - 60))
+    s = cfg.add_schedule({"name": "Solo esta vez", "device": "nevera", "action": "switch", "value": False,
+                          "when": {"kind": "clock", "time": hace_un_minuto}})
+    assert s["once"] is True
+    # recién creada, el momento de hace un minuto es anterior a ella: no se dispara
+    assert sch.tick() == []
+    for x in cfg.schedules:
+        x["created"] = 0.0
+    r = [r for _, r in sch.tick()]
+    assert r == ["ejecutada (una sola vez: queda desactivada)"]
+    assert mon.latest["nevera"].on is False
+    assert cfg.schedules[0]["enabled"] is False
+    assert sch.tick() == []                                   # y no vuelve
+
+
+def test_una_sola_vez_se_gasta_aunque_se_salte(app):
+    """Una sola vez es una sola evaluación: si se salta, tampoco vuelve mañana."""
+    cfg, mon, store, sch = app
+    hace_un_minuto = time.strftime("%H:%M", time.localtime(time.time() - 60))
+    cfg.add_schedule({"name": "Solo esta vez", "device": "nevera", "action": "switch", "value": False,
+                      "when": {"kind": "clock", "time": hace_un_minuto}})
+    for x in cfg.schedules:
+        x["created"] = 0.0
+    cfg.devices.clear()                                        # el dispositivo desaparece
+    r = [r for _, r in sch.tick()][0]
+    assert r.startswith("saltada: el dispositivo ya no existe") and "una sola vez" in r
+    assert cfg.schedules[0]["enabled"] is False
+
+
+def test_no_dispara_un_momento_anterior_a_su_creacion(app):
+    cfg, mon, store, sch = app
+    hace_un_minuto = time.strftime("%H:%M", time.localtime(time.time() - 60))
+    cfg.add_schedule(prog(when={"kind": "clock", "time": hace_un_minuto}, days=[date.today().isoweekday()]))
+    assert sch.tick() == []                                    # hoy ya pasó antes de existir

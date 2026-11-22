@@ -44,8 +44,9 @@ def _medianoche(t: float) -> float:
 
 
 def instante(sch: Dict[str, Any], dia: date, lat: float, lon: float) -> Optional[float]:
-    """Cuándo toca esta programación ese día, o None si ese día no aplica."""
-    if dia.isoweekday() not in sch["days"]:
+    """Cuándo toca esta programación ese día, o None si ese día no aplica.
+    Sin días marcados vale cualquier día: es de un solo uso y se desactiva al ejecutarse."""
+    if sch["days"] and dia.isoweekday() not in sch["days"]:
         return None
     when = sch["when"]
     if when["kind"] == "clock":
@@ -140,6 +141,8 @@ class Scheduler:
                     continue
                 if t <= float(sch.get("last_fire") or 0):
                     continue
+                if t <= float(sch.get("created") or 0):
+                    continue              # un momento anterior a la propia programación no cuenta
                 if mejor is None or t > mejor:
                     mejor = t
             if mejor is not None:
@@ -152,7 +155,12 @@ class Scheduler:
         hechos = []
         for sch, momento in self.pendientes(ahora):
             resultado = self._ejecutar(sch, momento, ahora)
-            self.config.mark_schedule(sch["id"], momento, resultado)
+            # «Una sola vez» es una sola evaluación: se gasta aunque se salte o falle,
+            # para que no reaparezca al día siguiente sin que nadie lo haya pedido.
+            una_vez = not sch["days"]
+            if una_vez:
+                resultado += " (una sola vez: queda desactivada)"
+            self.config.mark_schedule(sch["id"], momento, resultado, desactivar=una_vez)
             hechos.append((sch["id"], resultado))
             log.info("Programación «%s»: %s", sch["name"], resultado)
         return hechos
