@@ -3,14 +3,11 @@
 **Autor:** Rafa · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · r.puerto@umh.es
 *Generado con IA · Revisado por el autor*
 
-TeleHome Enchufes: telemetría y control de enchufes Wi-Fi con medidor de consumo Energeeks EG-EW008MC / EG-EW009MC (Tuya).
+TeleHome: telemetría y control del hogar (enchufes Wi-Fi con medidor de consumo Energeeks EG-EW008MC / EG-EW009MC, Tuya; también sensores, luces y persianas).
 
 | Carpeta | Para qué sirve |
 |---|---|
-| [`telehome-enchufes/`](telehome-enchufes/README.md) | Aplicación (0.5.4): interfaz web, histórico SQLite, modo local y modo nube (API de Tuya IoT), macOS y Linux (systemd) y contraseña opcional. Sustituye a la antigua versión «local» (0.1.0), que ya está incluida. |
-| [`telehome-enchufes-vscode/`](telehome-enchufes-vscode/README.md) | Pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV), antes de instalar la aplicación. Ver su [manual](telehome-enchufes-vscode/MANUAL.md). |
+| [`telehome-servicio/`](telehome-servicio/README.md) | Servicio (0.9.0): interfaz web, histórico SQLite, modo local y modo nube (API de Tuya IoT), programaciones, niveles de acceso (administrador / usuario de confianza), macOS y Linux (systemd). Se instala como `telehome`. |
+| [`telehome-pruebas/`](telehome-pruebas/README.md) | Pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV), antes de instalar el servicio. Ver su [manual](telehome-pruebas/MANUAL.md). |
 
-| [`telehome-enchufes-iphone/`](telehome-enchufes-iphone/README.md) | Versión para **iPhone**: una página que consulta y controla los enchufes (pestañas, gráfica, resumen, ajustes). Se despliega con `instalar-todo` y usa el servicio ya publicado en Apache. |
-| [`telehome-enchufes-ipad/`](telehome-enchufes-ipad/README.md) | Versión para **iPad**: vista dividida (lista + detalle), vertical, horizontal y Split View. Mismo despliegue y mismo servicio. |
-
-Las lecturas de la estación meteorológica están en [`../meteo/`](../meteo/README.md).
+Las apps cliente (web genérica, iPhone e iPad) están en el repo [`apps`](https://github.com/RafaUMH2110/apps/tree/main/telemetria/home). Las lecturas de la estación meteorológica están en [`../meteo/`](../meteo/README.md).

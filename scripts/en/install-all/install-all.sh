@@ -67,12 +67,12 @@ Telemetry
                       or asked on the terminal. Without them the service is left
                       ready but not started.
 
-  --telehome          Installs TeleHome Enchufes (from code/telemetria/home) as a systemd
+  --telehome          Installs TeleHome (from code/telemetria/home) as a systemd
                       service and publishes it in Apache at <entry>telehome/
                       (reverse proxy to 127.0.0.1:8765). Adds the «Home» category to the
                       portal. This is the default when code/telemetria/home is among the
                       cloned repos; --no-telehome skips it.
-  --no-telehome       Does not install TeleHome Enchufes even if it is available.
+  --no-telehome       Does not install TeleHome even if it is available.
 Other
   --cron "EXPR"       Schedule the task in cron, e.g. --cron "0 3 * * *"
   -h, --help          This help
@@ -463,7 +463,7 @@ copied=0; d_new=0; d_mod=0; d_del=0; d_bytes=0
 for r in "${SEL_REPOS[@]}"; do
   [ -d "$SOURCE/$r/.git" ] || [ -f "$SOURCE/$r/.git" ] || continue
   extra=()
-  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-enchufes/') # TeleHome from code is not copied (it is a service; published through a proxy)
+  pre=(); [ "$r" = code ] && pre=(--exclude='telehome-servicio/') # TeleHome from code is not copied (it is a service; published through a proxy)
   [ -n "$BACKUP_DIR" ] && extra=(--backup --backup-dir="$BACKUP_DIR/$r")
   rsync_out="$(mktemp)"
   if $SUDO env LC_ALL=C rsync "${pre[@]}" "${RSYNC_OPTS[@]}" "${extra[@]}" -i --stats "$SOURCE/$r/" "$DEST/$r/" >"$rsync_out" 2>&1; then
@@ -501,7 +501,7 @@ done
 # nearest README (project and summary).
 tmp_json="$(mktemp)"
 TELEHOME_URL=""
-telehome_disponible() { find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
+telehome_disponible() { find "$SOURCE" -type f -path '*/telemetria/home/telehome-servicio/linux/instalar-linux.sh' 2>/dev/null | grep -q .; }
 if { [ "$TELEHOME" != 0 ] && telehome_disponible; } || [ -f /etc/apache2/conf-enabled/telehome.conf ] || [ -f /etc/apache2/conf-enabled/telehome-enchufes.conf ]; then TELEHOME_URL="${ENTRY}telehome/"; fi
 python3 -I - "$SOURCE" "$DEST" "$tmp_json" "$HOME" "$GH_USER" "$TELEHOME_URL" >/dev/null <<'PYEOF'
 import sys, os, re, json, subprocess, html, datetime
@@ -609,7 +609,7 @@ for repo in sorted(os.listdir(dest_root)):
                 continue
             full = os.path.join(root_dir, f)
             rel = os.path.relpath(full, repo_dest).replace(os.sep, '/')
-            if repo == 'code' and 'telehome-enchufes/' in rel:
+            if repo == 'code' and 'telehome-servicio/' in rel:
                 continue  # its interface is published through a proxy (see below)
             # clone that contains this file (this run's one may be partial)
             clone = next((c for c in clones if os.path.exists(os.path.join(c, rel))), None)
@@ -622,16 +622,16 @@ for repo in sorted(os.listdir(dest_root)):
                          'project': project_name, 'summary': summary_text,
                          'size': os.path.getsize(full), 'updated': date_str})
 
-# TeleHome category: the TeleHome Enchufes interface is served by a service behind an Apache
+# TeleHome category: the TeleHome interface is served by a service behind an Apache
 # reverse proxy, so it is added as an entry of its own (with its URL), not as a static file.
 if telehome:
     tdate = ''
     for o in origins:
         c = os.path.join(o, 'code')
-        if os.path.exists(os.path.join(c, '.git')) and os.path.isdir(os.path.join(c, 'telemetria', 'home', 'telehome-enchufes')):
-            tdate = git_date(c, 'telemetria/home/telehome-enchufes')
+        if os.path.exists(os.path.join(c, '.git')) and os.path.isdir(os.path.join(c, 'telemetria', 'home', 'telehome-servicio')):
+            tdate = git_date(c, 'telemetria/home/telehome-servicio')
             break
-    apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-enchufes/', 'title': 'TeleHome Enchufes',
+    apps.append({'repo': 'code', 'path': 'telemetria/home/telehome-servicio/', 'title': 'TeleHome',
                  'description': 'Telemetry and control of Energeeks Wi-Fi plugs (Tuya): power, voltage, current, history and charts.', 'project': '', 'summary': '',
                  'size': 0, 'updated': tdate or datetime.date.today().isoformat(),
                  'category': 'home', 'url': telehome})
@@ -852,9 +852,9 @@ TELEHOME_PUERTO=8765
 instalar_telehome() {
   local inst ruta puerto="$TELEHOME_PUERTO" h
   local hosts=() args=()
-  inst="$(find "$SOURCE" -type f -path '*/telemetria/home/telehome-enchufes/linux/instalar-linux.sh' 2>/dev/null | head -1)"
+  inst="$(find "$SOURCE" -type f -path '*/telemetria/home/telehome-servicio/linux/instalar-linux.sh' 2>/dev/null | head -1)"
   if [ -z "$inst" ]; then
-    [ "$TELEHOME" = 1 ] && log "WARNING: telehome-enchufes was not found in the cloned repos (is code/telemetria selected?)"
+    [ "$TELEHOME" = 1 ] && log "WARNING: telehome-servicio was not found in the cloned repos (is code/telemetria selected?)"
     return 0
   fi
   ruta="${ENTRY}telehome/"
@@ -878,7 +878,7 @@ instalar_telehome() {
     $SUDO rm -f /etc/apache2/conf-available/telehome-enchufes.conf
   fi
   $SUDO tee /etc/apache2/conf-available/telehome.conf >/dev/null <<EOF
-# TeleHome Enchufes: the service listens on 127.0.0.1:$puerto and is published at $ruta
+# TeleHome: the service listens on 127.0.0.1:$puerto and is published at $ruta
 RedirectMatch "^${ruta%/}\$" "$ruta"
 <Location "$ruta">
     ProxyPreserveHost On
@@ -888,7 +888,7 @@ RedirectMatch "^${ruta%/}\$" "$ruta"
 EOF
   $SUDO a2enconf telehome >/dev/null
   TELEHOME_CONF=1
-  log "Apache: TeleHome Enchufes published at $ruta (conf telehome)"
+  log "Apache: TeleHome published at $ruta (conf telehome)"
 }
 
 if [ "$COLLECTOR" -eq 1 ]; then

@@ -208,8 +208,8 @@
     'notas-rapidas': 'Notas rápidas', 'generador-apps': 'Generador de apps', 'mejora-de-codigo': 'Mejora de código',
     'python-app-api-anthropic': 'Python App API Anthropic', 'plantilla_base': 'Plantilla base', 'instalar-todo': 'Instalar todo',
     'app_web': 'App web', 'app_tk': 'App Tkinter', 'app_wx': 'App wxPython', 'app_toga': 'App Toga',
-    'app_pyside6': 'App PySide6', 'app_pyobjc': 'App PyObjC', 'telehome-enchufes-iphone': 'TeleHome Enchufes · iPhone',
-    'telehome-enchufes-ipad': 'TeleHome Enchufes · iPad', 'scripts': 'Scripts', 'macos': 'macOS', 'linux': 'Linux', 'windows': 'Windows'
+    'app_pyside6': 'App PySide6', 'app_pyobjc': 'App PyObjC',
+    'scripts': 'Scripts', 'macos': 'macOS', 'linux': 'Linux', 'windows': 'Windows'
   };
 
   function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
@@ -227,13 +227,11 @@
 
   // Entrada de apps.json → app con área, subgrupo, familia y versión
   function toApp(e) {
-    if (e.url) {   // TeleHome Enchufes: lo sirve un servicio detrás del proxy de Apache
-      return { area: 'telemetria', sub: 'home', fam: 'telehome-enchufes', name: e.title, v: '', os: '', pag: '', desc: e.description || '', href: e.url, path: e.path, repo: e.repo };
+    if (e.url) {   // TeleHome: lo sirve un servicio detrás del proxy de Apache
+      return { area: 'telemetria', sub: 'home', fam: 'telehome', name: e.title, v: '', os: '', pag: '', desc: e.description || '', href: e.url, path: e.path, repo: e.repo };
     }
     var folders = e.path.split('/'), file = folders.pop(), base = file.replace(/\.html?$/i, '');
     if (e.repo === 'apps' && (e.path === 'index.html' || /^appindex\//.test(e.path))) return null;   // portada y catálogo de apps: van en los botones
-    // La demostración de TeleHome (pensada para GitHub Pages) no se lista: en el servidor está la interfaz real
-    if (e.repo === 'apps' && /^telemetria\/home\/telehome-enchufes\/index\.html$/.test(e.path)) return null;
     // Plantillas de esta misma página de entrada (instalar-todo, install-all, panel de servidores): no son apps
     if (e.repo === 'code' && /(^|\/)(instalar-todo|install-all)[^\/]*\/index\.html$|\/recursos\/index\.html$/.test(e.path)) return null;
     var area = '', sub = '', os = '', carpetaCat = '';

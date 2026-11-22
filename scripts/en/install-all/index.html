@@ -261,7 +261,7 @@
     if (e.url) {
       var ck = (e.category || 'home');
       return {
-        repo: e.repo, path: e.path, key: 'telehome-enchufes', os: '', title: e.title, desc: e.description || '',
+        repo: e.repo, path: e.path, key: 'telehome', os: '', title: e.title, desc: e.description || '',
         gid: ck, glabel: CAT[ck] || titleCase(ck), gsub: '', project: '', crumb: '',
         size: '', updated: fmtDate(e.updated), variant: '', href: e.url
       };

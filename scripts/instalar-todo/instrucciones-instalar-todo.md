@@ -117,8 +117,8 @@ Combinaciones habituales:
 | Opción | Descripción |
 |---|---|
 | `--colector` | Instala el colector de telemetría como servicio. Ver [sección 8](#8-colector-de-telemetría). |
-| `--sin-telehome` | No instala TeleHome Enchufes. Por defecto se instala cuando `code/telemetria/home` está entre los repos clonados. |
-| `--telehome` | Instala **TeleHome Enchufes** (`code/telemetria/home/telehome-enchufes`) como servicio systemd en `127.0.0.1:8765`, lo publica en Apache en `<entrada>telehome/` (proxy inverso, conf `telehome-enchufes`) y añade al portal la categoría **Home** (y las apps de `telemetria` del repo `apps` se agrupan en **Meteo**). Es el comportamiento por defecto cuando `code/telemetria/home` está entre los repos clonados (la opción sirve para forzarlo y avisar si falta). Una vez instalado, el portal lo sigue listando. El servicio solo acepta los nombres del servidor (`hostname`, FQDN e IPs), que se pasan como `--allow-host`. |
+| `--sin-telehome` | No instala TeleHome. Por defecto se instala cuando `code/telemetria/home` está entre los repos clonados. |
+| `--telehome` | Instala **TeleHome** (`code/telemetria/home/telehome-servicio`) como servicio systemd en `127.0.0.1:8765`, lo publica en Apache en `<entrada>telehome/` (proxy inverso, conf `telehome-enchufes`) y añade al portal la categoría **Home** (y las apps de `telemetria` del repo `apps` se agrupan en **Meteo**). Es el comportamiento por defecto cuando `code/telemetria/home` está entre los repos clonados (la opción sirve para forzarlo y avisar si falta). Una vez instalado, el portal lo sigue listando. El servicio solo acepta los nombres del servidor (`hostname`, FQDN e IPs), que se pasan como `--allow-host`. |
 | `--cron "EXPR"` | Programa la ejecución periódica, p. ej. `--cron "0 3 * * *"`. |
 | `-h`, `--help` | Muestra la ayuda. |
 

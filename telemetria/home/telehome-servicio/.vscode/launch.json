@@ -1,0 +1,18 @@
+{
+  // F5 o panel «Ejecutar y depurar». Requiere la extensión «Python Debugger» y el intérprete de .venv.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TeleHome: interfaz web (simulación, 3 enchufes)",
+      "type": "debugpy", "request": "launch", "console": "integratedTerminal",
+      "module": "telehome", "cwd": "${workspaceFolder}",
+      "args": ["serve", "--simulate", "3"]
+    },
+    {
+      "name": "TeleHome: interfaz web (datos reales)",
+      "type": "debugpy", "request": "launch", "console": "integratedTerminal",
+      "module": "telehome", "cwd": "${workspaceFolder}",
+      "args": ["serve"]
+    }
+  ]
+}

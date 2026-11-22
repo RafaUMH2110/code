@@ -21,11 +21,9 @@ code/
     │   ├── telemeteo-consulta/ ← consulta puntual y cliente síncrono (+ GUI)
     │   ├── telemeteo-monitor/  ← monitor asíncrono (+ GUI)
     │   └── telemeteo-puente/   ← puente HTTP → MQTT
-    └── home/                   ← TeleHome Enchufes (telemetría y control de enchufes Tuya)
-        ├── telehome-enchufes/         ← interfaz web, modo local y nube, macOS y Linux
-        ├── telehome-enchufes-vscode/  ← pruebas por línea de órdenes (VS Code)
-        ├── telehome-enchufes-iphone/  ← versión para iPhone (una página, usa el servicio)
-        └── telehome-enchufes-ipad/    ← versión para iPad (vista dividida)
+    └── home/                   ← TeleHome (telemetría y control del hogar; enchufes Tuya)
+        ├── telehome-servicio/  ← servicio Python: interfaz web, modo local y nube, programaciones, macOS y Linux
+        └── telehome-pruebas/   ← pruebas por línea de órdenes (VS Code)
 ```
 
 Contenido de cada app de escritorio (ejemplo con `notas-rapidas`):
@@ -76,11 +74,9 @@ Abre `code.code-workspace` (menú *Archivo → Abrir workspace desde archivo*): 
 |---|---|
 | [`telemetria/`](telemetria/) | Telemetría en Python, en dos carpetas: [`meteo/`](telemetria/meteo/) y [`home/`](telemetria/home/). Ver su [README](telemetria/README.md). |
 | [`telemetria/meteo/`](telemetria/meteo/) | Scripts Python para leer la estación meteorológica Vevor YT60234 (Weather Underground / Earth Network): en tres carpetas `telemeteo-consulta/`, `telemeteo-monitor/` y `telemeteo-puente/` (consulta y cliente síncrono, monitor asíncrono, GUIs Tkinter y puente MQTT). Antes era el repo `RafaUMH2110/telemetria`. Ver su [README](telemetria/meteo/README.md). |
-| [`telemetria/home/`](telemetria/home/) | **TeleHome**: enchufes inteligentes Energeeks/Tuya, en dos carpetas (siguientes filas). Ver su [README](telemetria/home/README.md). |
-| [`telemetria/home/telehome-enchufes/`](telemetria/home/telehome-enchufes/) | **TeleHome Enchufes** (0.5.4): telemetría y control de hasta 7 enchufes Wi-Fi Energeeks EG-EW008MC / EG-EW009MC (Tuya), con interfaz web, histórico SQLite, **modo local** (red local) y **modo nube** (API de Tuya IoT, para leer los enchufes desde fuera de su red, p. ej. una VM de Azure), instaladores para macOS y Linux (systemd) y contraseña opcional. Ver su [README](telemetria/home/telehome-enchufes/README.md). |
-| [`telemetria/home/telehome-enchufes-vscode/`](telemetria/home/telehome-enchufes-vscode/) | **TeleHome Enchufes · vscode**: herramienta de pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV, datos crudos), configurable por JSON y por variables del código, con `.vscode/` listo. Ver su [README](telemetria/home/telehome-enchufes-vscode/README.md) y su [manual](telemetria/home/telehome-enchufes-vscode/MANUAL.md). |
-| [`telemetria/home/telehome-enchufes-iphone/`](telemetria/home/telehome-enchufes-iphone/) | **TeleHome Enchufes · iPhone**: página única para iPhone (añadir a pantalla de inicio) que consulta y controla los enchufes a través del servicio publicado en Apache (`/rafa/telehome/enchufes/`): lista, gráfica, resumen, CSV y ajustes. Ver su [README](telemetria/home/telehome-enchufes-iphone/README.md). |
-| [`telemetria/home/telehome-enchufes-ipad/`](telemetria/home/telehome-enchufes-ipad/) | **TeleHome Enchufes · iPad**: igual que la de iPhone, con vista dividida (lista + detalle) y soporte de vertical, horizontal y Split View. Ver su [README](telemetria/home/telehome-enchufes-ipad/README.md). |
+| [`telemetria/home/`](telemetria/home/) | **TeleHome**: telemetría y control del hogar (enchufes inteligentes Energeeks/Tuya), en dos carpetas (siguientes filas); los clientes web, iPhone e iPad, están en el repo `apps`. Ver su [README](telemetria/home/README.md). |
+| [`telemetria/home/telehome-servicio/`](telemetria/home/telehome-servicio/) | **TeleHome** (servicio, 0.9.0): telemetría y control de hasta 7 enchufes Wi-Fi Energeeks EG-EW008MC / EG-EW009MC (Tuya), con interfaz web, histórico SQLite, **modo local** (red local) y **modo nube** (API de Tuya IoT, para leer los enchufes desde fuera de su red, p. ej. una VM de Azure), instaladores para macOS y Linux (systemd) y contraseña opcional. Ver su [README](telemetria/home/telehome-servicio/README.md). |
+| [`telemetria/home/telehome-pruebas/`](telemetria/home/telehome-pruebas/) | **TeleHome · vscode**: herramienta de pruebas preliminares por línea de órdenes (estado, encender, apagar, vigilar a CSV, datos crudos), configurable por JSON y por variables del código, con `.vscode/` listo. Ver su [README](telemetria/home/telehome-pruebas/README.md) y su [manual](telemetria/home/telehome-pruebas/MANUAL.md). |
 | [`scripts/`](scripts/) | Instaladores para clonar los repos y desplegar las apps en Apache (con opción de instalar el colector TeleMet), informes del colector por SSH, auditoría de los repos de `RafaUMH2110`, la guía para mover repos y la configuración de iTerm2 con perfiles por servidor y SSH por clave. Ver su [README](scripts/README.md). |
 
 ## Notas Rápidas: diferencias entre plataformas

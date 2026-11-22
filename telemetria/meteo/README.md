@@ -12,7 +12,7 @@ WH2600/WH2900) desde la nube de Wunderground/Earth Network, y fue creciendo en
 iteraciones sucesivas: de una consulta puntual por línea de comandos hasta un
 monitor asíncrono con reconexión y un puente que republica los datos por MQTT.
 
-> **Enchufes inteligentes:** TeleHome Enchufes (telemetría y control de enchufes Energeeks/Tuya) no está aquí, sino en [`../home/`](../home/README.md).
+> **Enchufes inteligentes:** TeleHome (telemetría y control de enchufes Energeeks/Tuya) no está aquí, sino en [`../home/`](../home/README.md).
 
 ## Índice
 
