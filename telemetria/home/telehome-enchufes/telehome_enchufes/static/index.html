@@ -227,7 +227,8 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 
 /* Ocultar minigráficas de la lista (botón «Ocultar gráficas»; la elección se recuerda en el navegador) */
 html.sin-graficas .p-spark { display:none; }
-html.sin-historico #chartPanel { display:none; }
+html.sin-historico #chartPanel > :not(.panel-h) { display:none; }
+html.sin-historico #chartPanel .panel-h { margin-bottom:0; }
 @media (min-width:761px) {
   html.sin-graficas .plug { grid-template-columns:minmax(0,1.25fr) minmax(130px,.85fr) minmax(0,1.35fr) auto; grid-template-areas:"id pow meta sw"; }
 }
@@ -294,12 +295,13 @@ html.sin-historico #chartPanel { display:none; }
     </div>
   </section>
 
-  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <button class="btn" id="btnHist" type="button" aria-pressed="false" title="Oculta o muestra la ficha del histórico con su gráfica">Ocultar histórico</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
+  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
   <section class="plugs" id="cards" aria-label="Enchufes"></section>
 
   <section class="panel" id="chartPanel">
     <div class="panel-h">
       <h2 id="chartTitle">Potencia</h2>
+      <button class="btn" id="btnHist" type="button" aria-pressed="false" title="Oculta o muestra la gráfica del histórico (la ficha queda plegada)">Ocultar gráfica</button>
       <button class="btn" id="btnCsv" type="button" title="Descargar las lecturas del enchufe seleccionado">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar CSV</button>
     </div>
@@ -335,7 +337,7 @@ html.sin-historico #chartPanel { display:none; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 01:40</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 02:07</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -501,7 +503,7 @@ const HIST_KEY = "telehome_sin_historico";
 function setHistHidden(hide, save) {
   document.documentElement.classList.toggle("sin-historico", hide);
   const b = document.getElementById("btnHist");
-  if (b) { b.textContent = hide ? "Mostrar histórico" : "Ocultar histórico"; b.setAttribute("aria-pressed", hide ? "true" : "false"); }
+  if (b) { b.textContent = hide ? "Mostrar gráfica" : "Ocultar gráfica"; b.setAttribute("aria-pressed", hide ? "true" : "false"); }
   if (save) { try { localStorage.setItem(HIST_KEY, hide ? "1" : "0"); } catch (e) { /* sin almacenamiento */ } }
 }
 const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
