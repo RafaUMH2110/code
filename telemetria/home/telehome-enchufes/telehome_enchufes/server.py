@@ -462,6 +462,19 @@ def r_admin_password(h: Handler, q):
     h._json(200, {"required": True, "active": True, "token": h._new_admin_token(), "expires_in": ADMIN_TTL})
 
 
+def r_password(h: Handler, q):
+    """Cambia o quita la contraseña del servicio (solo un administrador). La actual no se puede mostrar:
+    se guarda con PBKDF2 y no hay forma de recuperarla."""
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    if body.get("quitar"):
+        h.ctx.config.set_password(None)
+    else:
+        h.ctx.config.set_password(str(body.get("password") or ""))
+    h._json(200, h.ctx.config.public_options())
+
+
 def r_options(h: Handler, q):
     body = h._body()
     if not isinstance(body, dict):
@@ -558,6 +571,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/config/export"), r_config_export),
     ("POST", _r(r"/api/config/import"), r_config_import),
     ("PUT", _r(r"/api/options"), r_options),
+    ("PUT", _r(r"/api/password"), r_password),
     ("PUT", _r(r"/api/cloud"), r_cloud_set),
     ("POST", _r(r"/api/cloud/test"), r_cloud_test),
     ("POST", _r(r"/api/cloud/devices"), r_cloud_devices),

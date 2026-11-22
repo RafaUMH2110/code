@@ -398,3 +398,36 @@ def test_cli_admin_password(tmp_path, monkeypatch):
     assert main(["--data-dir", str(d), "admin-password", "--password-env", "TH_ADMIN"]) == 2
     assert main(["--data-dir", str(d), "admin-password", "--quitar"]) == 0
     assert not Config(d / "config.json").options["admin_password_hash"]
+
+
+def test_cambiar_y_quitar_la_contrasena_del_servicio_desde_la_api(app):
+    base, cfg, mon = app
+    # sin contraseña de administrador, cualquiera puede (igual que el resto de la API)
+    st, opts = call(base, "/api/password", "PUT", {"password": "clave-nueva-123"})
+    assert st == 200 and opts["password_set"] is True and "password_hash" not in opts
+    basic = {"Authorization": "Basic " + __import__("base64").b64encode(b":clave-nueva-123").decode()}
+    assert call(base, "/api/state")[0] == 401 and call(base, "/api/state", headers=basic)[0] == 200
+    # la nueva contraseña manda de verdad
+    assert call(base, "/api/password", "PUT", {"password": "otra-mas-larga"}, headers=basic)[0] == 200
+    assert call(base, "/api/state", headers=basic)[0] == 401
+    basic2 = {"Authorization": "Basic " + __import__("base64").b64encode(b":otra-mas-larga").decode()}
+    assert call(base, "/api/password", "PUT", {"password": "corta"}, headers=basic2)[0] == 400       # mínimo 8
+    assert call(base, "/api/password", "PUT", {"password": ""}, headers=basic2)[0] == 400            # vacía no borra
+    st, opts = call(base, "/api/password", "PUT", {"quitar": True}, headers=basic2)
+    assert st == 200 and opts["password_set"] is False
+    assert call(base, "/api/state")[0] == 200
+
+
+def test_la_contrasena_del_servicio_solo_la_cambia_un_administrador(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    st, r = call(base, "/api/password", "PUT", {"password": "clave-nueva-123"})
+    assert st == 403 and r["admin_required"] is True and not cfg.options["password_hash"]
+    tok = call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"})[1]["token"]
+    assert call(base, "/api/password", "PUT", {"password": "clave-nueva-123"}, headers={"X-TeleHome-Admin": tok})[0] == 200
+    assert cfg.options["password_hash"].startswith("pbkdf2_sha256$")
+    # la contraseña nunca sale por la API, ni siquiera siendo administrador
+    basic = {"Authorization": "Basic " + __import__("base64").b64encode(b":clave-nueva-123").decode()}
+    st, state = call(base, "/api/state", headers={**basic, "X-TeleHome-Admin": tok})
+    assert state["options"]["password_set"] is True and "password_hash" not in json.dumps(state)
+    assert "clave-nueva-123" not in json.dumps(state)

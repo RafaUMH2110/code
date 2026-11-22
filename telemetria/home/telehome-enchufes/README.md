@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.7.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.7.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -178,7 +178,9 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   (cabecera `X-TeleHome-Admin`) que dura 12 h y vive solo en la pestaña. El servicio rechaza con 403 toda petición que no sea
   `GET` sin ese token, así que no basta con ocultar botones. Sin contraseña de administrador el servicio funciona como antes.
   No se exporta ni se importa con la configuración. Quitarla: `telehome admin-password --quitar`.
-- Contraseña opcional (HTTP Basic, cualquier usuario): `telehome password`. Por HTTP sin cifrar solo tiene
+- Contraseña opcional (HTTP Basic, cualquier usuario): `telehome password`. Desde 0.7.1 también se cambia o se quita
+  en «Ajustes → Opciones → Contraseña del servicio», estando en modo Administrador. **La actual no se puede mostrar**:
+  se guarda con PBKDF2 y no hay forma de recuperarla; solo se puede sustituir por otra. Por HTTP sin cifrar solo tiene
   sentido tras un túnel SSH o un proxy con HTTPS. No uses `--host 0.0.0.0` sin contraseña.
 
 ## API (JSON)
@@ -190,7 +192,8 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 `POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}` ·
 `POST /api/config/export {"ruta":"/rafa/telehome/"}` (descarga la configuración completa; por POST para exigir `X-TeleHome`; `ruta` es opcional) ·
 `POST /api/config/import {"config":{…},"modo":"reemplazar"|"añadir"}` ·
-`POST /api/admin/login {"password":"…"}` · `POST /api/admin/logout` · `PUT /api/admin/password {"password":"…"|"quitar":true}`
+`POST /api/admin/login {"password":"…"}` · `POST /api/admin/logout` · `PUT /api/admin/password {"password":"…"|"quitar":true}` ·
+`PUT /api/password {"password":"…"|"quitar":true}` (contraseña del servicio; solo administradores)
 
 ### Protocolo genérico de TeleHome (0.5.0)
 
