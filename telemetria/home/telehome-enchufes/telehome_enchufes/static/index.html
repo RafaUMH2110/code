@@ -335,7 +335,7 @@ html.sin-historico #chartPanel { display:none; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 00:15</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 01:40</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -555,10 +555,27 @@ function renderMeter() {
   $("#kOnlineS").textContent = caidos.length ? "Sin conexión: " + caidos.map(d => d.name).join(", ") : "";
   $("#kOnline").hidden = $("#kOn").hidden = !devs.length;
 }
-function setStatus(ok, text, when) {
+function setStatus(ok, text, when, title) {
   $("#status").querySelector(".dot").className = "dot" + (ok ? "" : " off");
   $("#statusTxt").textContent = text;
   $("#statusWhen").textContent = when || "";
+  $("#statusWhen").title = title || "";
+}
+/* Hora (con segundos) de una marca de tiempo en ms */
+const horaCorta = (ms) => new Date(ms).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+/* Última actualización del servidor: la lectura más reciente de cualquier enchufe (ts en segundos) */
+function textoUltimoDato() {
+  let t = 0;
+  for (const d of (S.state && S.state.devices) || []) {
+    const r = d.reading && d.reading.ts;
+    if (typeof r === "number" && isFinite(r)) t = Math.max(t, r > 1e11 ? r / 1000 : r);
+  }
+  if (!t) return "Aún sin lecturas del servidor";
+  const ms = t * 1000, edad = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  const mismoDia = new Date(ms).toDateString() === new Date().toDateString();
+  let txt = "Última actualización del servidor: " + (mismoDia ? "" : new Date(ms).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" }) + " ") + horaCorta(ms);
+  if (edad >= 60) txt += " (hace " + (edad < 3600 ? Math.round(edad / 60) + " min" : edad < 86400 ? Math.round(edad / 3600) + " h" : Math.round(edad / 86400) + " d") + ")";
+  return txt;
 }
 
 /* ---------- lista de enchufes ---------- */
@@ -1053,8 +1070,7 @@ async function refresh() {
   const demo = !!(BACKEND && BACKEND.banner && BACKEND.banner());
   $("#modeBadge").hidden = !(demo || sim);
   $("#modeBadge").textContent = demo ? "Demostración" : "Simulación";
-  setStatus(true, BACKEND && BACKEND.label ? BACKEND.label() : "Conectado",
-    "Actualizado a las " + new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  setStatus(true, BACKEND && BACKEND.label ? BACKEND.label() : "Conectado", textoUltimoDato(), "Consultado a las " + horaCorta(Date.now()));
   if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
   renderMeter(); renderCards(); renderFilters();
   if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); renderCalls(); }
