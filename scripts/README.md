@@ -26,6 +26,7 @@ Scripts para clonar los repos públicos de `RafaUMH2110`, desplegar sus apps web
 | | `MANUAL.md`, `README.md`, `vscode-ejemplo/` | Manual detallado, resumen y ejemplos de `launch.json` / `tasks.json` |
 | `clonar-code/` | `clonar-code.sh` | Clona o actualiza el repo `code` **completo** (sin sparse; completa un clon parcial), informa de los directorios nuevos (p. ej. `telemetria/home/…`) y comprueba que existen los exigidos. `--cron` para programarlo |
 | | `instrucciones-clonar-code.md` | Guía de `clonar-code.sh` |
+| `mac/` | `clonar-repo.sh` | Para macOS: clona (o actualiza con `git pull --ff-only`) un repo de GitHub en `/Users/rafa/Repos`. Por defecto `RafaUMH2110/code`; admite otro como argumento (`./clonar-repo.sh RafaUMH2110/apps`). Usa `gh` si está autenticado y, si no, `git` por HTTPS |
 | `mantenimiento-repos/` | `auditar-repos.py` | Revisa los repos de `RafaUMH2110` (secretos, ramas sin integrar, ficheros grandes y duplicados, workflows, enlaces rotos) sin modificar nada. Ver su README y el artifact de mantenimiento |
 | | `README.md` | Guía de uso y de la rutina de mantenimiento |
 | `iterm2/` | `generar_perfiles.py` | Del inventario de servidores en CSV a los perfiles dinámicos de iTerm2 y a `~/.ssh/config.d/servidores.conf` (valida antes de escribir; `--instalar` lo coloca) |
