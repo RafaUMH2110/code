@@ -51,6 +51,9 @@ main.wrap { padding-top:22px; padding-bottom:12px; }
 .brand .ttl { min-width:0; }
 .brand h1 { margin:0; font-size:28px; font-weight:700; letter-spacing:-.025em; line-height:1.15; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .brand .sub { font-size:14.5px; color:var(--meter-mut); line-height:1.35; margin-top:2px; }
+.hbtn.ghost { background:transparent; border-color:rgba(255,255,255,.35); }
+.hbtn.ghost[aria-pressed="true"] { background:rgba(120,220,150,.16); border-color:rgba(120,220,150,.5); }
+.ro-badge { font-size:12px; font-weight:650; color:var(--ink2); background:var(--sunk); border:1px solid var(--border); border-radius:999px; padding:1px 10px; }
 .mode-badge { font-size:12px; font-weight:650; color:#ffd98a; background:rgba(255,196,77,.12); border:1px solid rgba(255,196,77,.38); border-radius:999px; padding:1px 10px; }
 .status { display:inline-flex; align-items:center; gap:8px; padding:7px 14px; border:1px solid var(--meter-line); border-radius:999px; background:rgba(255,255,255,.06); font-size:13.5px; line-height:1.2; white-space:nowrap; }
 .status .st { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
@@ -286,7 +289,7 @@ details.hint > p { margin:6px 0 0; }
       <div class="brand">
         <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.2 2.5 5 14.2h5.9L9.6 21.5 19 9.4h-6z"/></svg></span>
         <div class="ttl">
-          <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span></h1>
+          <h1>TeleHome Enchufes <span class="mode-badge" id="modeBadge" hidden></span> <span class="ro-badge" id="roBadge" hidden>Solo lectura</span></h1>
           <div class="sub">Telemetría y control de enchufes Wi-Fi</div>
         </div>
       </div>
@@ -294,6 +297,9 @@ details.hint > p { margin:6px 0 0; }
         <span class="st"><span class="dot wait"></span><span id="statusTxt">Conectando…</span></span>
         <span class="when" id="statusWhen"></span>
       </div>
+      <button class="hbtn ghost" id="btnAdmin" type="button" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.2-2.9 7.9-7 9-4.1-1.1-7-4.8-7-9V6z"/></svg>
+        <span id="btnAdminTxt">Administrador</span></button>
       <button class="hbtn" id="btnSettings" type="button" aria-label="Ajustes y enchufes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
         <span>Ajustes y enchufes</span></button>
@@ -365,13 +371,29 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 14:35</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 14:52</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
 
+<dialog id="admDlg" aria-labelledby="admTitle">
+  <div class="dlg-h"><h2 id="admTitle">Modo Administrador</h2><button class="btn" id="admClose" type="button">Cerrar</button></div>
+  <div class="dlg-b">
+    <section>
+      <p class="desc">Escribe la contraseña de administrador para configurar el servicio y encender o apagar los enchufes. Sin ella, la interfaz solo muestra sus lecturas.</p>
+      <form class="f" id="admForm">
+        <label class="full">Contraseña de administrador<input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="full"><button class="btn primary" type="submit">Entrar</button></div>
+      </form>
+      <div class="msg" id="admMsg" role="alert"></div>
+      <p class="hint">La sesión dura 12 horas y se cierra al cerrar la pestaña. Se pone o se cambia con <code>telehome admin-password</code>.</p>
+    </section>
+  </div>
+</dialog>
+
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <div class="dlg-h"><h2 id="dlgTitle">Ajustes y enchufes</h2><button class="btn" id="btnClose" type="button">Cerrar</button></div>
+  <p class="msg bad" id="roNote" hidden>Solo lectura: entra como administrador (botón «Administrador» de la cabecera) para cambiar la configuración.</p>
   <div class="tabs" role="tablist" aria-label="Secciones de ajustes">
     <button type="button" role="tab" data-tab="enchufes" aria-selected="true">Enchufes</button>
     <button type="button" role="tab" data-tab="nube" aria-selected="false">Nube de Tuya</button>
@@ -557,15 +579,64 @@ function setHistHidden(hide, save) {
 }
 const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
 
+/* Modo Administrador: el servicio da un token al validar la contraseña; sin él, la interfaz es de solo lectura.
+   Si el servicio no tiene contraseña de administrador, todo sigue abierto como antes. */
+const ADMIN = {
+  KEY: "telehome_admin", token: "", required: false, active: true,
+  load() { try { this.token = sessionStorage.getItem(this.KEY) || ""; } catch (e) { this.token = ""; } },
+  set(tok) { this.token = tok || ""; try { tok ? sessionStorage.setItem(this.KEY, tok) : sessionStorage.removeItem(this.KEY); } catch (e) { /* sin almacenamiento */ } },
+  headers(h) { if (this.token) h["X-TeleHome-Admin"] = this.token; return h; },
+  sync(st) {
+    const a = (st && st.admin) || null;
+    this.required = !!(a && a.required);
+    this.active = a ? !!a.active : true;
+    if (!this.required) this.set("");
+    return this.active;
+  },
+  can() { return this.active; },
+};
+ADMIN.load();
+
 async function api(path, opt = {}) {
   if (BACKEND) return BACKEND.api(path, opt);
-  const init = { method: opt.method || "GET", headers: { "X-TeleHome": "1" } };
+  const init = { method: opt.method || "GET", headers: ADMIN.headers({ "X-TeleHome": "1" }) };
   if (opt.body !== undefined) { init.body = JSON.stringify(opt.body); init.headers["Content-Type"] = "application/json"; }
   const r = await fetch(path, init);
   let data = null;
   try { data = await r.json(); } catch (e) { /* respuesta no JSON */ }
+  if (r.status === 403 && data && data.admin_required) {        // la sesión de administrador ha caducado o no existe
+    ADMIN.required = true; ADMIN.active = false; ADMIN.set(""); renderAdmin();
+    throw new Error("Hace falta el modo Administrador: pulsa «Administrador» en la cabecera.");
+  }
   if (!r.ok) throw new Error((data && data.error) || ("Error " + r.status));
   return data;
+}
+function renderAdmin() {                 // refleja en la interfaz si se puede configurar o solo mirar
+  const b = $("#btnAdmin"), ro = !ADMIN.can();
+  document.documentElement.classList.toggle("solo-lectura", ro);
+  b.hidden = !ADMIN.required;
+  b.setAttribute("aria-pressed", String(!ro));
+  $("#btnAdminTxt").textContent = ro ? "Administrador" : "Salir de administrador";
+  b.title = ro ? "Entra como administrador para configurar y mandar órdenes" : "Vuelve al modo de solo lectura";
+  $("#roBadge").hidden = !ro;
+  if (S.state) { renderCards(); if ($("#dlg").open) { renderDevList(); aplicarSoloLectura(); } }
+}
+/* En solo lectura, los ajustes se ven pero no se pueden tocar (el servicio también los rechaza). */
+function aplicarSoloLectura() {
+  const ro = !ADMIN.can();
+  $("#dlgTitle").textContent = ro ? "Ajustes y enchufes (solo lectura)" : "Ajustes y enchufes";
+  for (const c of $("#dlg").querySelectorAll("input, select, textarea, button")) {
+    if (c.id === "btnClose" || c.closest(".tabs")) continue;
+    if (ro) { if (!c.disabled) { c.dataset.ro = "1"; c.disabled = true; } }
+    else if (c.dataset.ro === "1") { delete c.dataset.ro; c.disabled = false; }   // solo se reactiva lo que apagó el modo lectura
+  }
+  $("#roNote").hidden = !ro;
+}
+function abrirAdmin(texto) {
+  $("#admMsg").textContent = texto || ""; $("#admMsg").className = "msg ok";
+  $("#admForm").password.value = "";
+  $("#admDlg").showModal();
+  $("#admForm").password.focus({ preventScroll: true });
 }
 const color = (dev) => "var(--series-" + (((dev.slot ?? 0) % 7) + 1) + ")";
 
@@ -649,6 +720,7 @@ function sparkline(d) {
 }
 
 async function togglePlug(d, sw) {
+  if (!ADMIN.can()) return abrirAdmin("Entra como administrador para encender o apagar los enchufes.");
   const r = d.reading, want = !(r && r.on);
   S.busy.add(d.id); sw.setAttribute("aria-checked", String(want)); sw.classList.add("busy"); sw.disabled = true;
   try {
@@ -677,7 +749,8 @@ function renderCards() {
     row.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); row.click(); } });
     const sw = el("button", { class: "switch" + (busy ? " busy" : ""), role: "switch", type: "button", "aria-label": "Alimentación de " + d.name,
       "aria-checked": String(!!(r && r.on)) });
-    sw.disabled = !online || busy;
+    sw.disabled = !online || busy || !ADMIN.can();
+    if (!ADMIN.can()) sw.title = "Entra como administrador para encender o apagar";
     sw.addEventListener("click", (e) => { e.stopPropagation(); togglePlug(d, sw); });
     const modo = d.mode === "nube" ? "nube de Tuya" : "red local";
     const estado = online ? (r.on ? "Encendido" : "Apagado") : (r ? "Sin conexión" : "Conectando…");
@@ -956,20 +1029,22 @@ function showTab(name) {
   document.querySelectorAll(".tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   document.querySelectorAll("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== name; });
 }
-function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? tab : "enchufes"); $("#dlg").showModal(); fillOptions(); }
+function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? tab : (ADMIN.can() ? "enchufes" : "opciones")); $("#dlg").showModal(); fillOptions(); aplicarSoloLectura(); }
 function fillOptions() {
-  const o = S.state.options, f = $("#optForm");
+  const o = S.state.options || {}, f = $("#optForm");
   f.poll_interval.value = o.poll_interval; f.cloud_poll_interval.value = o.cloud_poll_interval; f.retention_days.value = o.retention_days;
   updateEstimate(); renderCalls();
   const cf = $("#cloudForm"), sel = $("#regionSel");
   if (!sel.options.length) for (const [k, v] of Object.entries(S.state.regions || {})) sel.append(el("option", { value: k, text: v + " (" + k + ")" }));
-  sel.value = o.cloud_region; cf.api_key.value = o.cloud_api_key || ""; cf.api_secret.value = "";
+  sel.value = o.cloud_region || "eu"; cf.api_key.value = o.cloud_api_key || ""; cf.api_secret.value = "";
   cf.api_secret.placeholder = o.cloud_secret_set ? "(guardado; déjalo vacío para conservarlo)" : "";
 }
 function renderCalls() {
   const box = $("#callsBox"); if (!box) return;
   const c = (S.state && S.state.cloud) || {};
+  if (!ADMIN.can()) { box.replaceChildren(el("p", { class: "hint", text: "El recuento de llamadas solo se ve en el modo Administrador." })); return; }
   if (!Array.isArray(c.by_day)) { box.replaceChildren(el("p", { class: "hint", text: "Este servicio no guarda el recuento de llamadas." })); return; }
+  if (!c.by_day.length) { box.replaceChildren(el("p", { class: "hint", text: "Aún no hay llamadas registradas." })); return; }
   const stat = (v, t) => el("div", {}, el("b", { text: nf(0).format(v || 0) }), el("span", { text: t }));
   const days = c.by_day.slice(-30), max = Math.max(1, ...days.map(d => d.n));
   const bars = el("div", { class: "cbars", role: "img", "aria-label": "Llamadas por día, últimos 30 días" },
@@ -1110,6 +1185,23 @@ function bindDialog() {
       $("#cfgFile").value = ""; $("#btnCfgImport").disabled = true;
     } catch (err) { setMsg("#cfgMsg", err.message, false); }
   });
+  $("#btnAdmin").addEventListener("click", async () => {
+    if (ADMIN.can()) {
+      try { await api("api/admin/logout", { method: "POST", body: {} }); } catch (e) { /* da igual: el token se tira igualmente */ }
+      ADMIN.set(""); ADMIN.active = false; renderAdmin();
+      await refresh(); toast("Has salido del modo Administrador.");
+    } else abrirAdmin();
+  });
+  $("#admClose").addEventListener("click", () => $("#admDlg").close());
+  $("#admForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api("api/admin/login", { method: "POST", body: { password: e.target.password.value } });
+      ADMIN.set(r.token || ""); ADMIN.active = true; ADMIN.required = !!r.required;
+      e.target.password.value = ""; $("#admDlg").close();
+      renderAdmin(); await refresh(); toast("Modo Administrador activado.");
+    } catch (err) { $("#admMsg").textContent = err.message; $("#admMsg").className = "msg bad"; }
+  });
   $("#btnSettings").addEventListener("click", () => openDialog());
   $("#btnClose").addEventListener("click", () => $("#dlg").close());
   $("#btnCancel").addEventListener("click", () => { resetForm(); renderDevList(); });
@@ -1178,6 +1270,8 @@ async function refresh() {
   $("#modeBadge").hidden = !(demo || sim);
   $("#modeBadge").textContent = demo ? "Demostración" : "Simulación";
   setStatus(true, BACKEND && BACKEND.label ? BACKEND.label() : "Conectado", textoUltimoDato(), "Consultado a las " + horaCorta(Date.now()));
+  ADMIN.sync(S.state); renderAdmin();
+  if ($("#dlg").open) aplicarSoloLectura();
   if (S.sel !== "all" && !S.state.devices.some(d => d.id === S.sel)) S.sel = "all";
   renderMeter(); renderCards(); renderFilters();
   if ($("#dlg").open) { $("#dlgCount").textContent = "(" + S.state.devices.length + " de " + S.state.max_devices + ")"; updateEstimate(); renderCalls(); }

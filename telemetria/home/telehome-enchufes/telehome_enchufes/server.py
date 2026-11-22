@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import re
+import secrets
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +27,12 @@ log = logging.getLogger("telehome")
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+ADMIN_TTL = 12 * 3600          # s; duración de una sesión de administrador
+ADMIN_MAX_SESSIONS = 50
+# Lo que ve quien no es administrador: sin direcciones, identificadores ni mapas de datos de los dispositivos.
+_CONFIG_FIELDS = ("dev_id", "ip", "version", "has_key")
+_CONFIG_PREFIXES = ("dp_", "code_", "scale_")
+_VIEW_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days")
 
 
 class AppContext:
@@ -42,6 +50,8 @@ class AppContext:
         # orígenes web externos autorizados a usar la API desde el navegador (CORS), p. ej. https://usuario.github.io
         self.extra_origins = {o.strip().rstrip("/").lower() for o in (extra_origins or []) if o.strip()}
         self.scan_lock = threading.Lock()
+        self.admin_tokens: Dict[str, Tuple[float, str]] = {}    # token -> (caduca, huella de la contraseña de administrador)
+        self.admin_lock = threading.Lock()
 
 
 def _host_only(header: str) -> str:
@@ -54,6 +64,38 @@ def _host_only(header: str) -> str:
 class Handler(BaseHTTPRequestHandler):
     server_version = "TeleHomeEnchufes/" + __version__
     ctx: AppContext  # lo fija make_server
+
+    # ---- modo Administrador ---------------------------------------------------
+    def _admin_hash(self) -> str:
+        return self.ctx.config.options.get("admin_password_hash") or ""
+
+    @staticmethod
+    def _fingerprint(stored: str) -> str:
+        return hashlib.sha256(stored.encode("utf-8")).hexdigest()[:16]
+
+    def _is_admin(self) -> bool:
+        """Sin contraseña de administrador todo está abierto (como antes). Con ella, hace falta una sesión válida."""
+        stored = self._admin_hash()
+        if not stored:
+            return True
+        tok = self.headers.get("X-TeleHome-Admin", "")
+        if not tok:
+            return False
+        with self.ctx.admin_lock:
+            ent = self.ctx.admin_tokens.get(tok)
+        return bool(ent and ent[0] > time.time() and ent[1] == self._fingerprint(stored))
+
+    def _new_admin_token(self) -> str:
+        stored = self._admin_hash()
+        tok = secrets.token_urlsafe(32)
+        now = time.time()
+        with self.ctx.admin_lock:
+            toks = {t: e for t, e in self.ctx.admin_tokens.items() if e[0] > now}
+            while len(toks) >= ADMIN_MAX_SESSIONS:                 # se descartan las más antiguas
+                toks.pop(min(toks, key=lambda t: toks[t][0]))
+            toks[tok] = (now + ADMIN_TTL, self._fingerprint(stored))
+            self.ctx.admin_tokens = toks
+        return tok
 
     # ---- utilidades -------------------------------------------------------
     def log_message(self, fmt, *args):  # silencia el log por petición
@@ -153,6 +195,8 @@ class Handler(BaseHTTPRequestHandler):
             for m, rx, fn in ROUTES:
                 match = rx.match(url.path)
                 if m == method and match:
+                    if method != "GET" and fn not in ADMIN_OPEN and not self._is_admin():
+                        return self._json(403, {"error": "Se requiere el modo Administrador", "admin_required": True})
                     return fn(self, query, *match.groups())
             self._json(404, {"error": "No encontrado"})
         except ConfigError as exc:
@@ -177,7 +221,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Access-Control-Allow-Credentials", "true")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "X-TeleHome, Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "X-TeleHome, X-TeleHome-Admin, Content-Type, Authorization")
         self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Vary", "Origin")
@@ -226,7 +270,7 @@ def r_health(h: Handler, q):
     # «app» no cambia, para que las apps anteriores sigan reconociendo el servicio;
     # «api» y «types» le dicen a la app genérica TeleHome que puede hablarle directamente.
     h._json(200, {"app": APP_NAME, "version": __version__, "ok": True,
-                  "api": "telehome", "types": list(DEVICE_TYPES)})
+                  "api": "telehome", "types": list(DEVICE_TYPES), "admin_required": bool(h._admin_hash())})
 
 
 def r_state(h: Handler, q):
@@ -244,10 +288,17 @@ def r_state(h: Handler, q):
                 "today": por_dia[-1]["n"], "yesterday": por_dia[-2]["n"],
                 "month": sum(d["n"] for d in por_dia if d["day"].startswith(mes)),
                 "last30": sum(d["n"] for d in por_dia[-30:]), "by_day": por_dia}
+    admin = h._is_admin()
+    options = c.config.public_options()
+    if not admin:    # modo solo lectura: se ve lo que miden los dispositivos, no cómo están configurados
+        devices = [{k: v for k, v in d.items() if k not in _CONFIG_FIELDS and not k.startswith(_CONFIG_PREFIXES)} for d in devices]
+        options = {k: options[k] for k in _VIEW_OPTIONS if k in options}
+        llamadas = {"configured": False, "calls": 0, "today": 0, "yesterday": 0, "month": 0, "last30": 0, "by_day": []}
     h._json(200, {"app": APP_NAME, "version": __version__, "simulate": c.simulate,
                   "max_devices": MAX_DEVICES, "server_time": time.time(),
                   "api": "telehome", "types": list(DEVICE_TYPES),
-                  "options": c.config.public_options(), "regions": REGIONS,
+                  "admin": {"required": bool(h._admin_hash()), "active": admin},
+                  "options": options, "regions": REGIONS,
                   "cloud": llamadas,
                   "devices": devices})
 
@@ -374,6 +425,43 @@ def r_config_import(h: Handler, q):
     h._json(200, report)
 
 
+def r_admin_login(h: Handler, q):
+    """Abre una sesión de administrador: devuelve un token que la app manda en X-TeleHome-Admin."""
+    body = h._body()
+    pw = str(body.get("password") or "") if isinstance(body, dict) else ""
+    stored = h._admin_hash()
+    if not stored:
+        return h._json(200, {"required": False, "active": True})
+    if not verify_password(pw, stored):
+        time.sleep(0.5)  # frena los intentos por fuerza bruta
+        return h._json(403, {"error": "Contraseña de administrador incorrecta"})
+    h._json(200, {"required": True, "active": True, "token": h._new_admin_token(), "expires_in": ADMIN_TTL})
+
+
+def r_admin_logout(h: Handler, q):
+    tok = h.headers.get("X-TeleHome-Admin", "")
+    with h.ctx.admin_lock:
+        h.ctx.admin_tokens.pop(tok, None)
+    h._json(200, {"required": bool(h._admin_hash()), "active": not h._admin_hash()})
+
+
+def r_admin_password(h: Handler, q):
+    """Pone, cambia o quita la contraseña de administrador (solo un administrador puede). Cierra todas las sesiones."""
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    if body.get("quitar"):
+        h.ctx.config.set_admin_password(None)
+        with h.ctx.admin_lock:
+            h.ctx.admin_tokens = {}
+        return h._json(200, {"required": False, "active": True})
+    pw = str(body.get("password") or "")
+    h.ctx.config.set_admin_password(pw)
+    with h.ctx.admin_lock:
+        h.ctx.admin_tokens = {}
+    h._json(200, {"required": True, "active": True, "token": h._new_admin_token(), "expires_in": ADMIN_TTL})
+
+
 def r_options(h: Handler, q):
     body = h._body()
     if not isinstance(body, dict):
@@ -464,6 +552,9 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/devices/import"), r_import),
     ("PUT", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_upd),
     ("DELETE", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_del),
+    ("POST", _r(r"/api/admin/login"), r_admin_login),
+    ("POST", _r(r"/api/admin/logout"), r_admin_logout),
+    ("PUT", _r(r"/api/admin/password"), r_admin_password),
     ("POST", _r(r"/api/config/export"), r_config_export),
     ("POST", _r(r"/api/config/import"), r_config_import),
     ("PUT", _r(r"/api/options"), r_options),
@@ -473,6 +564,10 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/cloud/import"), r_cloud_import),
     ("POST", _r(r"/api/discover"), r_discover),
 ]
+
+
+# Todo lo que no sea GET exige ser administrador (si hay contraseña de administrador), salvo abrir y cerrar sesión.
+ADMIN_OPEN = {r_admin_login, r_admin_logout}
 
 
 def make_server(ctx: AppContext, host: str, port: int) -> ThreadingHTTPServer:

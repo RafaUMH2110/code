@@ -289,3 +289,112 @@ def test_cli_exportar_e_importar(tmp_path, capsys):
     assert c2.options["cloud_api_secret"] == "secretsecret1234" and c2.devices[0]["name"] == "Uno" and not c2.options["password_hash"]
     (tmp_path / "mal.json").write_text('{"format": "otro"}')
     assert main(["--data-dir", str(d2), "import-config", str(tmp_path / "mal.json")]) == 2
+
+
+def _admin_headers(token):
+    return {"X-TeleHome-Admin": token} if token else {}
+
+
+def test_modo_administrador_solo_lectura_sin_sesion(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    # sin contraseña de administrador todo está abierto, como antes
+    st, state = call(base, "/api/state")
+    assert state["admin"] == {"required": False, "active": True} and "dev_id" in state["devices"][0]
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": False})[0] == 200
+    cfg.set_admin_password("clave-admin-1")
+    assert call(base, "/api/health")[1]["admin_required"] is True
+    # solo lectura: se ven las lecturas, no la configuración
+    st, state = call(base, "/api/state")
+    assert st == 200 and state["admin"] == {"required": True, "active": False}
+    d = state["devices"][0]
+    assert d["name"] and d["reading"] and not any(k in d for k in ("dev_id", "ip", "version", "has_key", "dp_power", "code_power", "scale_power"))
+    assert set(state["options"]) <= {"poll_interval", "cloud_poll_interval", "retention_days"} and state["cloud"]["configured"] is False
+    assert call(base, "/api/history?dev=all&range=600")[0] == 200 and call(base, "/api/summary")[0] == 200
+    # todo lo que cambia algo exige ser administrador
+    for method, path, body in (("POST", "/api/devices/%s/command" % dev0, {"action": "switch", "value": True}),
+                               ("POST", "/api/plugs/%s/power" % dev0, {"on": True}),
+                               ("POST", "/api/devices", {"name": "X", "dev_id": "bf99999999", "local_key": "0123456789abcdef"}),
+                               ("PUT", "/api/devices/%s" % dev0, {"name": "Otro"}),
+                               ("DELETE", "/api/devices/%s" % dev0, None),
+                               ("POST", "/api/devices/import", {"devices": []}),
+                               ("PUT", "/api/options", {"poll_interval": 9}),
+                               ("PUT", "/api/cloud", {"region": "eu"}),
+                               ("POST", "/api/cloud/test", {}), ("POST", "/api/discover", {}),
+                               ("POST", "/api/config/export", None), ("POST", "/api/config/import", {"config": {}}),
+                               ("PUT", "/api/admin/password", {"password": "otra-clave-9"})):
+        st, r = call(base, path, method, body)
+        assert st == 403 and r.get("admin_required") is True, (method, path, st)
+    assert len(cfg.devices) == 2 and cfg.options["poll_interval"] == 5
+
+
+def test_login_de_administrador(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    cfg.set_admin_password("clave-admin-1")
+    st, r = call(base, "/api/admin/login", "POST", {"password": "mala-mala"})
+    assert st == 403 and "incorrecta" in r["error"] and "token" not in r
+    assert call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"}, headers={"X-TeleHome": ""})[0] == 403   # sin X-TeleHome
+    st, r = call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"})
+    assert st == 200 and r["active"] and len(r["token"]) >= 32
+    tok = r["token"]
+    st, state = call(base, "/api/state", headers=_admin_headers(tok))
+    assert state["admin"] == {"required": True, "active": True} and state["devices"][0]["dev_id"]
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": False}, headers=_admin_headers(tok))[0] == 200
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": True}, headers=_admin_headers("falso"))[0] == 403
+    st, exp = call(base, "/api/config/export", "POST", headers=_admin_headers(tok))
+    assert st == 200 and "admin_password_hash" not in json.dumps(exp) and "pbkdf2" not in json.dumps(exp)
+    # cerrar sesión invalida el token
+    assert call(base, "/api/admin/logout", "POST", {}, headers=_admin_headers(tok))[0] == 200
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": True}, headers=_admin_headers(tok))[0] == 403
+
+
+def test_cambiar_o_quitar_la_contrasena_de_administrador(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    tok = call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"})[1]["token"]
+    st, r = call(base, "/api/admin/password", "PUT", {"password": "corta"}, headers=_admin_headers(tok))
+    assert st == 400                                                         # mínimo 8
+    st, r = call(base, "/api/admin/password", "PUT", {"password": "clave-nueva-2"}, headers=_admin_headers(tok))
+    assert st == 200 and r["token"] and r["token"] != tok
+    assert call(base, "/api/options", "PUT", {"poll_interval": 8}, headers=_admin_headers(tok))[0] == 403     # sesiones antiguas cerradas
+    assert call(base, "/api/options", "PUT", {"poll_interval": 8}, headers=_admin_headers(r["token"]))[0] == 200
+    assert call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"})[0] == 403
+    assert call(base, "/api/admin/password", "PUT", {"quitar": True}, headers=_admin_headers(r["token"]))[0] == 200
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9})[0] == 200                                  # vuelve a estar abierto
+    assert call(base, "/api/state")[1]["admin"] == {"required": False, "active": True}
+
+
+def test_cambiar_la_contrasena_por_la_cli_cierra_las_sesiones(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    tok = call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"})[1]["token"]
+    other = Config(cfg.path)                                                 # como hace «telehome admin-password» en otro proceso
+    other.set_admin_password("clave-cli-nueva")
+    assert call(base, "/api/options", "PUT", {"poll_interval": 8}, headers=_admin_headers(tok))[0] == 403
+
+
+def test_administrador_y_contrasena_del_servicio_conviven(app):
+    base, cfg, mon = app
+    cfg.set_password("clave-del-servicio")
+    cfg.set_admin_password("clave-admin-1")
+    basic = {"Authorization": "Basic " + __import__("base64").b64encode(b":clave-del-servicio").decode()}
+    assert call(base, "/api/state")[0] == 401                                # sin la del servicio no se ve nada
+    assert call(base, "/api/state", headers=basic)[1]["admin"]["active"] is False
+    tok = call(base, "/api/admin/login", "POST", {"password": "clave-admin-1"}, headers=basic)[1]["token"]
+    st, _ = call(base, "/api/options", "PUT", {"poll_interval": 8}, headers={**basic, **_admin_headers(tok)})
+    assert st == 200
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9}, headers=_admin_headers(tok))[0] == 401   # la del servicio sigue mandando
+
+
+def test_cli_admin_password(tmp_path, monkeypatch):
+    from telehome_enchufes.cli import main
+    d = tmp_path / "d"
+    monkeypatch.setenv("TH_ADMIN", "clave-admin-cli")
+    assert main(["--data-dir", str(d), "admin-password", "--password-env", "TH_ADMIN"]) == 0
+    c = Config(d / "config.json")
+    assert c.options["admin_password_hash"] and c.public_options()["admin_set"] is True and "admin_password_hash" not in c.public_options()
+    monkeypatch.setenv("TH_ADMIN", "corta")
+    assert main(["--data-dir", str(d), "admin-password", "--password-env", "TH_ADMIN"]) == 2
+    assert main(["--data-dir", str(d), "admin-password", "--quitar"]) == 0
+    assert not Config(d / "config.json").options["admin_password_hash"]

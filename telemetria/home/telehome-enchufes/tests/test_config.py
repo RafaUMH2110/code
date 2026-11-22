@@ -194,3 +194,20 @@ def test_importar_devuelve_la_ruta_pero_no_la_guarda(tmp_path):
     datos["servicio"] = {"ruta": "<script>"}
     assert destino.import_config(datos)["servicio"] is None                              # ruta no válida: se ignora
     assert destino.import_config(origen.export_config())["servicio"] is None
+
+
+def test_la_contrasena_de_administrador_no_sale_en_la_exportacion_ni_se_importa(tmp_path):
+    cfg = _cfg_completa(tmp_path)
+    cfg.set_admin_password("clave-admin-1")
+    texto = json.dumps(cfg.export_config())
+    assert "admin_password_hash" not in texto and "pbkdf2" not in texto
+    destino = Config(tmp_path / "destino.json")
+    destino.set_admin_password("clave-admin-2")
+    antes = destino.options["admin_password_hash"]
+    malicioso = cfg.export_config()
+    malicioso["options"]["admin_password_hash"] = "pbkdf2_sha256$1$x$y"
+    malicioso["options"]["password_hash"] = "pbkdf2_sha256$1$x$y"
+    destino.import_config(malicioso)
+    assert destino.options["admin_password_hash"] == antes and destino.options["password_hash"] == ""
+    with pytest.raises(ConfigError):
+        cfg.set_admin_password("corta")

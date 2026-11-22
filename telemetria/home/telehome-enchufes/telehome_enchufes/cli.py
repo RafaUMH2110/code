@@ -245,6 +245,28 @@ def cmd_password(args) -> int:
     return 0
 
 
+def cmd_admin_password(args) -> int:
+    """Contraseña del modo Administrador: con ella puesta, quien no la tenga solo puede ver los datos."""
+    cfg = _cfg(args)
+    if args.quitar:
+        cfg.set_admin_password(None)
+        print("Modo Administrador desactivado: cualquiera que llegue al servicio puede cambiarlo todo.")
+        return 0
+    pw = os.environ.get(args.password_env, "") if args.password_env else ""
+    if not pw:
+        pw = getpass.getpass("Nueva contraseña de administrador (mín. 8): ")
+        if pw != getpass.getpass("Repítela: "):
+            print("No coinciden.", file=sys.stderr)
+            return 2
+    try:
+        cfg.set_admin_password(pw)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print("Contraseña de administrador guardada: sin ella, la interfaz queda en solo lectura (se aplica al momento).")
+    return 0
+
+
 def cmd_cloud_setup(args) -> int:
     cfg = _cfg(args)
     secret = os.environ.get(args.secret_env, "") if args.secret_env else ""
@@ -355,6 +377,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("fichero")
     s.add_argument("--anadir", action="store_true", help="solo añade los dispositivos que falten (por defecto reemplaza)")
     s.set_defaults(fn=cmd_import_config)
+
+    s = sub.add_parser("admin-password", help="pone (o quita) la contraseña del modo Administrador (sin ella la interfaz es de solo lectura)")
+    s.add_argument("--quitar", action="store_true")
+    s.add_argument("--password-env", metavar="VAR", help="leer la contraseña de esta variable de entorno")
+    s.set_defaults(fn=cmd_admin_password)
 
     s = sub.add_parser("list", help="lista los enchufes configurados")
     s.set_defaults(fn=cmd_list)

@@ -36,8 +36,9 @@ OPTION_DEFAULTS: Dict[str, Any] = {
     "cloud_api_key": "",
     "cloud_api_secret": "",
     "password_hash": "",
+    "admin_password_hash": "",   # modo Administrador: sin él, cualquiera que llegue al servicio puede cambiarlo todo
 }
-SECRET_OPTIONS = ("cloud_api_secret", "password_hash")
+SECRET_OPTIONS = ("cloud_api_secret", "password_hash", "admin_password_hash")
 
 # Exportación de la configuración para compartirla con otro usuario. Lleva las credenciales
 # de la nube de Tuya y la Local Key de cada enchufe; NUNCA la contraseña del servicio.
@@ -475,6 +476,7 @@ class Config:
             out = {k: v for k, v in self.options.items() if k not in SECRET_OPTIONS}
             out["cloud_secret_set"] = bool(self.options.get("cloud_api_secret"))
             out["password_set"] = bool(self.options.get("password_hash"))
+            out["admin_set"] = bool(self.options.get("admin_password_hash"))
             return out
 
     def _int_opt(self, raw, key, lo, hi, label) -> int:
@@ -517,6 +519,14 @@ class Config:
             self.options = opts
             self.save()
             return self.public_options()
+
+    def set_admin_password(self, password: Optional[str]) -> None:
+        """Contraseña del modo Administrador (distinta de la del servicio). Vacía = sin modo Administrador."""
+        with self.lock:
+            if password is not None and len(password) < 8:
+                raise ConfigError("La contraseña de administrador debe tener al menos 8 caracteres")
+            self.options = {**self.options, "admin_password_hash": hash_password(password) if password else ""}
+            self.save()
 
     def set_password(self, password: Optional[str]) -> None:
         with self.lock:
