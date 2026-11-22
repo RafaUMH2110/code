@@ -13,6 +13,7 @@ Ejemplos de código y apps de escritorio en Python (macOS, Windows, Linux), más
 - Las claves de API no van en el código: variables de entorno o `.env` local (ya excluido por `.gitignore`; solo se versiona `.env.example`).
 - Los `.vscode/` de cada app **sí** se versionan.
 - Si cambias una app, actualiza su manual y la tabla de apps del README.
+- Los documentos **generales** (guías de flujo de trabajo, traspasos, procedimientos) van en [`docs/`](docs/README.md); el manual de una app va junto a su app. Si añades uno en `docs/`, actualiza su índice.
 - Antes de subir un cambio grande: `python3 scripts/mantenimiento-repos/auditar-repos.py` (ver su [README](scripts/mantenimiento-repos/README.md)).
 
 ## Commits

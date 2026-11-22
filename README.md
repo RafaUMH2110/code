@@ -16,6 +16,7 @@ code/
 │   └── notas-rapidas/          ← app «Notas Rápidas» (.deb para Debian, Ubuntu y Mint)
 ├── generador-apps/             ← generador de apps web con IA (el mismo en los tres sistemas)
 ├── scripts/                    ← instaladores, informes del colector, mantenimiento de repos, iTerm2
+├── docs/                       ← guías y documentos generales (parches en git, traspasos…)
 └── telemetria/                 ← scripts Python de telemetría
     ├── meteo/                  ← estación meteorológica Vevor YT60234 (Weather Underground)
     │   ├── telemeteo-consulta/ ← consulta puntual y cliente síncrono (+ GUI)
