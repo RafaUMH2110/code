@@ -371,29 +371,29 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 15:15</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 16:23</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
 
 <dialog id="admDlg" aria-labelledby="admTitle">
-  <div class="dlg-h"><h2 id="admTitle">Modo Administrador</h2><button class="btn" id="admClose" type="button">Cerrar</button></div>
+  <div class="dlg-h"><h2 id="admTitle">Entrar</h2><button class="btn" id="admClose" type="button">Cerrar</button></div>
   <div class="dlg-b">
     <section>
-      <p class="desc">Escribe la contraseña de administrador para configurar el servicio y encender o apagar los enchufes. Sin ella, la interfaz solo muestra sus lecturas.</p>
+      <p class="desc">Escribe tu contraseña. La de <strong>usuario</strong> permite encender y apagar; la de <strong>administrador</strong>, además, configurarlo todo. Sin ninguna, la interfaz solo muestra las lecturas.</p>
       <form class="f" id="admForm">
-        <label class="full">Contraseña de administrador<input name="password" type="password" autocomplete="current-password" required></label>
+        <label class="full">Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
         <div class="full"><button class="btn primary" type="submit">Entrar</button></div>
       </form>
       <div class="msg" id="admMsg" role="alert"></div>
-      <p class="hint">La sesión dura 12 horas y se cierra al cerrar la pestaña. Se pone o se cambia con <code>telehome admin-password</code>.</p>
+      <p class="hint">La sesión dura 12 horas y se cierra al cerrar la pestaña. Las contraseñas se ponen con <code>telehome admin-password</code> y <code>telehome user-password</code>.</p>
     </section>
   </div>
 </dialog>
 
 <dialog id="dlg" aria-labelledby="dlgTitle">
   <div class="dlg-h"><h2 id="dlgTitle">Ajustes y enchufes</h2><button class="btn" id="btnClose" type="button">Cerrar</button></div>
-  <p class="msg bad" id="roNote" hidden>Solo lectura: entra como administrador (botón «Administrador» de la cabecera) para cambiar la configuración.</p>
+  <p class="msg bad" id="roNote" hidden>Solo un administrador puede cambiar la configuración. Si has entrado como usuario, puedes manejar los enchufes pero no tocar los ajustes.</p>
   <div class="tabs" role="tablist" aria-label="Secciones de ajustes">
     <button type="button" role="tab" data-tab="enchufes" aria-selected="true">Enchufes</button>
     <button type="button" role="tab" data-tab="nube" aria-selected="false">Nube de Tuya</button>
@@ -512,6 +512,20 @@ details.hint > p { margin:6px 0 0; }
         <div class="msg" id="pwMsg" role="alert"></div>
         <p class="hint">La contraseña actual no se puede mostrar: se guarda cifrada en un solo sentido (PBKDF2), así que ni el servicio la conoce. La del modo Administrador se cambia con <code>telehome admin-password</code>.</p>
       </section>
+      <section id="userSection" hidden>
+        <h3>Contraseña de usuario de confianza</h3>
+        <p class="desc">Quien la tenga puede manejar los enchufes (encender, apagar, regular), pero no cambiar la configuración ni las contraseñas. <strong id="userState"></strong></p>
+        <form class="f" id="userForm">
+          <label>Nueva contraseña (mín. 8)<input name="u1" type="password" autocomplete="new-password"></label>
+          <label>Repítela<input name="u2" type="password" autocomplete="new-password"></label>
+          <div class="full">
+            <button class="btn primary" type="submit">Guardar contraseña</button>
+            <button class="btn danger" id="btnUserDel" type="button">Quitar contraseña</button>
+          </div>
+        </form>
+        <div class="msg" id="userMsg" role="alert"></div>
+        <p class="hint">Tampoco se puede mostrar la actual: se guarda cifrada en un solo sentido. Sin contraseña de administrador puesta, esta por sí sola deja la configuración accesible solo desde la línea de órdenes.</p>
+      </section>
       <section>
         <h3>Llamadas a la API de Tuya</h3>
         <p class="desc">Cuántas llamadas ha hecho el servicio a la nube de Tuya (lectura de estado, órdenes y renovación del token). El uso oficial lo muestra iot.tuya.com en Cloud → Usage (API Statistics); compáralo con estas cifras. Los créditos de Cobuilder (IA) no cuentan estas llamadas.</p>
@@ -593,21 +607,29 @@ function setHistHidden(hide, save) {
 }
 const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
 
-/* Modo Administrador: el servicio da un token al validar la contraseña; sin él, la interfaz es de solo lectura.
-   Si el servicio no tiene contraseña de administrador, todo sigue abierto como antes. */
+/* Sesión: el servicio da un token al validar una contraseña y devuelve el nivel.
+     «none»  solo lectura: se ven los datos y nada más
+     «user»  usuario de confianza: además manda órdenes a los enchufes
+     «admin» administrador: también configura y cambia contraseñas
+   Si el servicio no tiene ninguna contraseña puesta, todo sigue abierto como antes. */
 const ADMIN = {
-  KEY: "telehome_admin", token: "", required: false, active: true,
+  KEY: "telehome_admin", token: "", nivel: "admin", adminRequired: false, userRequired: false,
   load() { try { this.token = sessionStorage.getItem(this.KEY) || ""; } catch (e) { this.token = ""; } },
   set(tok) { this.token = tok || ""; try { tok ? sessionStorage.setItem(this.KEY, tok) : sessionStorage.removeItem(this.KEY); } catch (e) { /* sin almacenamiento */ } },
   headers(h) { if (this.token) h["X-TeleHome-Admin"] = this.token; return h; },
+  /* api/state trae «sesion» desde 0.8.0; en servicios anteriores se deduce de «admin» */
   sync(st) {
-    const a = (st && st.admin) || null;
-    this.required = !!(a && a.required);
-    this.active = a ? !!a.active : true;
-    if (!this.required) this.set("");
-    return this.active;
+    const ses = st && st.sesion, a = (st && st.admin) || null;
+    if (ses) { this.nivel = ses.nivel; this.adminRequired = !!ses.admin_required; this.userRequired = !!ses.user_required; }
+    else { this.adminRequired = !!(a && a.required); this.userRequired = false; this.nivel = a ? (a.active ? "admin" : "none") : "admin"; }
+    if (!this.pideClave()) this.set("");
+    return this.nivel;
   },
-  can() { return this.active; },
+  pideClave() { return this.adminRequired || this.userRequired; },
+  can() { return this.nivel === "user" || this.nivel === "admin"; },   // puede mandar órdenes
+  isAdmin() { return this.nivel === "admin"; },                        // puede configurar
+  etiqueta() { return this.nivel === "admin" ? "Administrador" : this.nivel === "user" ? "Usuario" : "Solo lectura"; },
+  caduca() { this.nivel = "none"; this.set(""); },
 };
 ADMIN.load();
 
@@ -619,25 +641,38 @@ async function api(path, opt = {}) {
   let data = null;
   try { data = await r.json(); } catch (e) { /* respuesta no JSON */ }
   if (r.status === 403 && data && data.admin_required) {        // la sesión de administrador ha caducado o no existe
-    ADMIN.required = true; ADMIN.active = false; ADMIN.set(""); renderAdmin();
-    throw new Error("Hace falta el modo Administrador: pulsa «Administrador» en la cabecera.");
+    if (data.nivel_necesario !== "admin" || !ADMIN.can()) ADMIN.caduca();   // la sesión caducó o no basta
+    renderAdmin();
+    throw new Error(data.nivel_necesario === "user" ? "Hace falta la contraseña: pulsa «Entrar» en la cabecera."
+      : "Esto solo puede hacerlo un administrador.");
   }
   if (!r.ok) throw new Error((data && data.error) || ("Error " + r.status));
   return data;
 }
+/* Entra con la contraseña que sea. Los servicios anteriores a 0.8.0 solo tienen api/admin/login. */
+async function entrar(pw) {
+  try { return await api("api/login", { method: "POST", body: { password: pw } }); }
+  catch (e) {
+    if (!/404/.test(e.message)) throw e;
+    const r = await api("api/admin/login", { method: "POST", body: { password: pw } });
+    return { nivel: "admin", token: r.token };
+  }
+}
 function renderAdmin() {                 // refleja en la interfaz si se puede configurar o solo mirar
-  const b = $("#btnAdmin"), ro = !ADMIN.can();
-  document.documentElement.classList.toggle("solo-lectura", ro);
-  b.hidden = !ADMIN.required;
-  b.setAttribute("aria-pressed", String(!ro));
-  $("#btnAdminTxt").textContent = ro ? "Administrador" : "Salir de administrador";
-  b.title = ro ? "Entra como administrador para configurar y mandar órdenes" : "Vuelve al modo de solo lectura";
-  $("#roBadge").hidden = !ro;
+  const b = $("#btnAdmin"), dentro = ADMIN.nivel !== "none";
+  document.documentElement.classList.toggle("solo-lectura", !ADMIN.isAdmin());
+  document.documentElement.classList.toggle("sin-mando", !ADMIN.can());
+  b.hidden = !ADMIN.pideClave();
+  b.setAttribute("aria-pressed", String(dentro));
+  $("#btnAdminTxt").textContent = dentro ? "Salir (" + ADMIN.etiqueta().toLowerCase() + ")" : "Entrar";
+  b.title = dentro ? "Vuelve al modo de solo lectura" : "Escribe tu contraseña de usuario o de administrador";
+  $("#roBadge").textContent = ADMIN.etiqueta();
+  $("#roBadge").hidden = ADMIN.isAdmin();
   if (S.state) { renderCards(); if ($("#dlg").open) { renderDevList(); aplicarSoloLectura(); } }
 }
 /* En solo lectura, los ajustes se ven pero no se pueden tocar (el servicio también los rechaza). */
 function aplicarSoloLectura() {
-  const ro = !ADMIN.can();
+  const ro = !ADMIN.isAdmin();
   $("#dlgTitle").textContent = ro ? "Ajustes y enchufes (solo lectura)" : "Ajustes y enchufes";
   for (const c of $("#dlg").querySelectorAll("input, select, textarea, button")) {
     if (c.id === "btnClose" || c.closest(".tabs")) continue;
@@ -735,7 +770,7 @@ function sparkline(d) {
 }
 
 async function togglePlug(d, sw) {
-  if (!ADMIN.can()) return abrirAdmin("Entra como administrador para encender o apagar los enchufes.");
+  if (!ADMIN.can()) return abrirAdmin("Escribe tu contraseña para encender o apagar los enchufes.");
   const r = d.reading, want = !(r && r.on);
   S.busy.add(d.id); sw.setAttribute("aria-checked", String(want)); sw.classList.add("busy"); sw.disabled = true;
   try {
@@ -765,7 +800,7 @@ function renderCards() {
     const sw = el("button", { class: "switch" + (busy ? " busy" : ""), role: "switch", type: "button", "aria-label": "Alimentación de " + d.name,
       "aria-checked": String(!!(r && r.on)) });
     sw.disabled = !online || busy || !ADMIN.can();
-    if (!ADMIN.can()) sw.title = "Entra como administrador para encender o apagar";
+    if (!ADMIN.can()) sw.title = "Escribe tu contraseña para encender o apagar";
     sw.addEventListener("click", (e) => { e.stopPropagation(); togglePlug(d, sw); });
     const modo = d.mode === "nube" ? "nube de Tuya" : "red local";
     const estado = online ? (r.on ? "Encendido" : "Apagado") : (r ? "Sin conexión" : "Conectando…");
@@ -1044,10 +1079,15 @@ function showTab(name) {
   document.querySelectorAll(".tabs [data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   document.querySelectorAll("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== name; });
 }
-function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? tab : (ADMIN.can() ? "enchufes" : "opciones")); $("#dlg").showModal(); fillOptions(); aplicarSoloLectura(); }
+function openDialog(tab) { renderDevList(); showTab(typeof tab === "string" ? tab : (ADMIN.isAdmin() ? "enchufes" : "opciones")); $("#dlg").showModal(); fillOptions(); aplicarSoloLectura(); }
 function pintarEstadoPw() {
   const o = (S.state && S.state.options) || {};
-  $("#pwSection").hidden = !ADMIN.can();
+  $("#pwSection").hidden = !ADMIN.isAdmin();
+  $("#userSection").hidden = !ADMIN.isAdmin();
+  $("#userState").textContent = o.user_set
+    ? "Ahora mismo hay una contraseña de usuario puesta."
+    : "Ahora mismo no hay ninguna: sin ella, quien no sea administrador solo puede mirar.";
+  $("#btnUserDel").hidden = !o.user_set;
   $("#pwState").textContent = o.password_set
     ? "Ahora mismo hay una contraseña puesta."
     : "Ahora mismo no hay ninguna: cualquiera que llegue al servicio ve la interfaz.";
@@ -1066,7 +1106,7 @@ function fillOptions() {
 function renderCalls() {
   const box = $("#callsBox"); if (!box) return;
   const c = (S.state && S.state.cloud) || {};
-  if (!ADMIN.can()) { box.replaceChildren(el("p", { class: "hint", text: "El recuento de llamadas solo se ve en el modo Administrador." })); return; }
+  if (!ADMIN.isAdmin()) { box.replaceChildren(el("p", { class: "hint", text: "El recuento de llamadas solo se ve en el modo Administrador." })); return; }
   if (!Array.isArray(c.by_day)) { box.replaceChildren(el("p", { class: "hint", text: "Este servicio no guarda el recuento de llamadas." })); return; }
   if (!c.by_day.length) { box.replaceChildren(el("p", { class: "hint", text: "Aún no hay llamadas registradas." })); return; }
   const stat = (v, t) => el("div", {}, el("b", { text: nf(0).format(v || 0) }), el("span", { text: t }));
@@ -1211,20 +1251,43 @@ function bindDialog() {
   });
   $("#btnAdmin").addEventListener("click", async () => {
     if (ADMIN.can()) {
-      try { await api("api/admin/logout", { method: "POST", body: {} }); } catch (e) { /* da igual: el token se tira igualmente */ }
-      ADMIN.set(""); ADMIN.active = false; renderAdmin();
-      await refresh(); toast("Has salido del modo Administrador.");
+      try { await api("api/logout", { method: "POST", body: {} }); } catch (e) { /* da igual: el token se tira igualmente */ }
+      ADMIN.caduca(); renderAdmin();
+      await refresh(); toast("Has salido: vuelves al modo de solo lectura.");
     } else abrirAdmin();
   });
   $("#admClose").addEventListener("click", () => $("#admDlg").close());
   $("#admForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      const r = await api("api/admin/login", { method: "POST", body: { password: e.target.password.value } });
-      ADMIN.set(r.token || ""); ADMIN.active = true; ADMIN.required = !!r.required;
+      const r = await entrar(e.target.password.value);
+      ADMIN.set(r.token || ""); ADMIN.nivel = r.nivel || "admin";
       e.target.password.value = ""; $("#admDlg").close();
-      renderAdmin(); await refresh(); toast("Modo Administrador activado.");
+      renderAdmin(); await refresh(); toast("Has entrado como " + ADMIN.etiqueta().toLowerCase() + ".");
     } catch (err) { $("#admMsg").textContent = err.message; $("#admMsg").className = "msg bad"; }
+  });
+  /* ---- contraseña del usuario de confianza (solo administradores) ---- */
+  $("#userForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, pw = f.u1.value;
+    if (pw.length < 8) return setMsg("#userMsg", "La contraseña debe tener al menos 8 caracteres.", false);
+    if (pw !== f.u2.value) return setMsg("#userMsg", "Las dos contraseñas no coinciden.", false);
+    try {
+      const r = await api("api/user-password", { method: "PUT", body: { password: pw } });
+      if (r.token) ADMIN.set(r.token);                 // cambiarla cierra las sesiones; conservamos la nuestra
+      f.u1.value = f.u2.value = "";
+      setMsg("#userMsg", "Contraseña de usuario guardada. Las sesiones abiertas con la anterior se han cerrado.", true);
+      await refresh(); fillOptions();
+    } catch (err) { setMsg("#userMsg", err.message, false); }
+  });
+  $("#btnUserDel").addEventListener("click", async () => {
+    if (!confirm("Sin contraseña de usuario, quien no sea administrador solo podrá mirar. ¿Quitarla?")) return;
+    try {
+      const r = await api("api/user-password", { method: "PUT", body: { quitar: true } });
+      if (r.token) ADMIN.set(r.token);
+      setMsg("#userMsg", "Contraseña de usuario quitada.", true);
+      await refresh(); fillOptions();
+    } catch (err) { setMsg("#userMsg", err.message, false); }
   });
   /* ---- contraseña del servicio (solo en modo Administrador; la actual no se puede mostrar) ---- */
   $("#pwForm").addEventListener("submit", async (e) => {

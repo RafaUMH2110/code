@@ -431,3 +431,140 @@ def test_la_contrasena_del_servicio_solo_la_cambia_un_administrador(app):
     st, state = call(base, "/api/state", headers={**basic, "X-TeleHome-Admin": tok})
     assert state["options"]["password_set"] is True and "password_hash" not in json.dumps(state)
     assert "clave-nueva-123" not in json.dumps(state)
+
+
+def _hdr(token):
+    return {"X-TeleHome-Admin": token} if token else {}
+
+
+def _login(base, pw, ruta="/api/login"):
+    return call(base, ruta, "POST", {"password": pw})
+
+
+def test_usuario_de_confianza_manda_ordenes_pero_no_configura(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    st, salud = call(base, "/api/health")
+    assert salud["admin_required"] is True and salud["user_required"] is True
+    # sin sesión: solo lectura
+    st, state = call(base, "/api/state")
+    assert state["sesion"] == {"nivel": "none", "admin_required": True, "user_required": True, "puede_mandar": False}
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": True})[0] == 403
+    # con la contraseña de usuario
+    st, r = _login(base, "clave-usuario-1")
+    assert st == 200 and r["nivel"] == "user" and r["active"] is False and r["token"]
+    tok = r["token"]
+    st, state = call(base, "/api/state", headers=_hdr(tok))
+    assert state["sesion"]["nivel"] == "user" and state["sesion"]["puede_mandar"] is True
+    assert state["admin"]["active"] is False
+    assert "dev_id" not in state["devices"][0]                      # sigue sin ver la configuración
+    # puede encender y apagar, por las dos rutas
+    assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": False}, headers=_hdr(tok))[0] == 200
+    assert call(base, "/api/plugs/%s/power" % dev0, "POST", {"on": True}, headers=_hdr(tok))[0] == 200
+    # no puede tocar nada más
+    for method, path, body in (("POST", "/api/devices", {"name": "X", "dev_id": "bf99999999", "local_key": "0123456789abcdef"}),
+                               ("PUT", "/api/devices/%s" % dev0, {"name": "Otro"}),
+                               ("DELETE", "/api/devices/%s" % dev0, None),
+                               ("PUT", "/api/options", {"poll_interval": 9}),
+                               ("PUT", "/api/cloud", {"region": "eu"}),
+                               ("PUT", "/api/password", {"password": "loquesea12"}),
+                               ("PUT", "/api/admin/password", {"password": "otra-clave-9"}),
+                               ("PUT", "/api/user-password", {"password": "otra-clave-9"}),
+                               ("POST", "/api/config/export", None),
+                               ("POST", "/api/config/import", {"config": {}}),
+                               ("POST", "/api/discover", {})):
+        st, r = call(base, path, method, body, headers=_hdr(tok))
+        assert st == 403 and r.get("nivel_necesario") == "admin", (method, path, st)
+    assert len(cfg.devices) == 2 and cfg.options["poll_interval"] == 5 and cfg.options["admin_password_hash"]
+
+
+def test_el_administrador_sigue_pudiendo_todo(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    st, r = _login(base, "clave-admin-1")
+    assert st == 200 and r["nivel"] == "admin" and r["active"] is True
+    tok = r["token"]
+    st, state = call(base, "/api/state", headers=_hdr(tok))
+    assert state["sesion"]["nivel"] == "admin" and state["devices"][0]["dev_id"]
+    assert call(base, "/api/options", "PUT", {"poll_interval": 8}, headers=_hdr(tok))[0] == 200
+    assert call(base, "/api/devices/%s/command" % cfg.devices[0]["id"], "POST", {"action": "switch", "value": True}, headers=_hdr(tok))[0] == 200
+    assert _login(base, "pues-no-acierto")[0] == 403
+
+
+def test_poner_y_quitar_la_contrasena_de_usuario(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    tok = _login(base, "clave-admin-1")[1]["token"]
+    assert call(base, "/api/state", headers=_hdr(tok))[1]["sesion"]["user_required"] is False
+    st, r = call(base, "/api/user-password", "PUT", {"password": "corta"}, headers=_hdr(tok))
+    assert st == 400 and not cfg.options["user_password_hash"]
+    st, r = call(base, "/api/user-password", "PUT", {"password": "clave-usuario-1"}, headers=_hdr(tok))
+    assert st == 200 and r["user_required"] is True and r["token"]
+    assert call(base, "/api/options", "PUT", {"poll_interval": 7}, headers=_hdr(tok))[0] == 403      # la sesión vieja ya no vale
+    tok = r["token"]                                                                                 # la nueva sí
+    assert call(base, "/api/options", "PUT", {"poll_interval": 7}, headers=_hdr(tok))[0] == 200
+    assert _login(base, "clave-usuario-1")[1]["nivel"] == "user"
+    st, r = call(base, "/api/user-password", "PUT", {"quitar": True}, headers=_hdr(tok))
+    assert st == 200 and r["user_required"] is False
+    assert _login(base, "clave-usuario-1")[0] == 403
+
+
+def test_cambiar_la_contrasena_de_administrador_cierra_las_sesiones_de_usuario(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    utok = _login(base, "clave-usuario-1")[1]["token"]
+    atok = _login(base, "clave-admin-1")[1]["token"]
+    assert call(base, "/api/admin/password", "PUT", {"password": "clave-admin-2"}, headers=_hdr(atok))[0] == 200
+    assert call(base, "/api/devices/%s/command" % cfg.devices[0]["id"], "POST", {"action": "switch", "value": True}, headers=_hdr(utok))[0] == 403
+
+
+def test_cerrar_sesion_y_compatibilidad_con_la_ruta_de_administrador(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    # la ruta antigua solo acepta la de administrador
+    assert _login(base, "clave-usuario-1", "/api/admin/login")[0] == 403
+    st, r = _login(base, "clave-admin-1", "/api/admin/login")
+    assert st == 200 and r["active"] is True and r["nivel"] == "admin"
+    tok = r["token"]
+    assert call(base, "/api/admin/logout", "POST", {}, headers=_hdr(tok))[0] == 200
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9}, headers=_hdr(tok))[0] == 403
+    utok = _login(base, "clave-usuario-1")[1]["token"]
+    assert call(base, "/api/logout", "POST", {}, headers=_hdr(utok))[0] == 200
+    assert call(base, "/api/devices/%s/command" % cfg.devices[0]["id"], "POST", {"action": "switch", "value": True}, headers=_hdr(utok))[0] == 403
+
+
+def test_sin_contrasenas_el_servicio_sigue_abierto(app):
+    base, cfg, mon = app
+    st, state = call(base, "/api/state")
+    assert state["sesion"] == {"nivel": "admin", "admin_required": False, "user_required": False, "puede_mandar": True}
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9})[0] == 200
+    assert _login(base, "")[1]["nivel"] == "admin"
+
+
+def test_solo_contrasena_de_usuario_sin_administrador(app):
+    base, cfg, mon = app
+    cfg.set_user_password("clave-usuario-1")
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9})[0] == 403        # ya no está abierto
+    tok = _login(base, "clave-usuario-1")[1]["token"]
+    assert call(base, "/api/devices/%s/command" % cfg.devices[0]["id"], "POST", {"action": "switch", "value": True}, headers=_hdr(tok))[0] == 200
+    assert call(base, "/api/options", "PUT", {"poll_interval": 9}, headers=_hdr(tok))[0] == 403
+
+
+def test_cli_user_password(tmp_path, monkeypatch, capsys):
+    from telehome_enchufes.cli import main
+    d = tmp_path / "d"
+    monkeypatch.setenv("TH_USER", "clave-usuario-1")
+    assert main(["--data-dir", str(d), "user-password", "--password-env", "TH_USER"]) == 0
+    assert "AVISO" in capsys.readouterr().err                      # sin contraseña de administrador, avisa
+    c = Config(d / "config.json")
+    assert c.options["user_password_hash"] and c.public_options()["user_set"] is True
+    assert "user_password_hash" not in c.public_options() and "user_password_hash" not in json.dumps(c.export_config())
+    monkeypatch.setenv("TH_USER", "corta")
+    assert main(["--data-dir", str(d), "user-password", "--password-env", "TH_USER"]) == 2
+    assert main(["--data-dir", str(d), "user-password", "--quitar"]) == 0
+    assert not Config(d / "config.json").options["user_password_hash"]

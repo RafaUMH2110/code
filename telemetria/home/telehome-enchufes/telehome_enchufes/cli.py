@@ -267,6 +267,31 @@ def cmd_admin_password(args) -> int:
     return 0
 
 
+def cmd_user_password(args) -> int:
+    """Contraseña del usuario de confianza: puede encender y apagar, pero no cambiar nada."""
+    cfg = _cfg(args)
+    if args.quitar:
+        cfg.set_user_password(None)
+        print("Usuario de confianza desactivado.")
+        return 0
+    pw = os.environ.get(args.password_env, "") if args.password_env else ""
+    if not pw:
+        pw = getpass.getpass("Nueva contraseña de usuario (mín. 8): ")
+        if pw != getpass.getpass("Repítela: "):
+            print("No coinciden.", file=sys.stderr)
+            return 2
+    try:
+        cfg.set_user_password(pw)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    print("Contraseña de usuario guardada: con ella se pueden mandar órdenes, pero no cambiar la configuración.")
+    if not cfg.options.get("admin_password_hash"):
+        print("AVISO: no hay contraseña de administrador (telehome admin-password). Mientras no la pongas, quien no "
+              "tenga sesión no podrá mandar órdenes y la configuración solo se cambia desde aquí.", file=sys.stderr)
+    return 0
+
+
 def cmd_cloud_setup(args) -> int:
     cfg = _cfg(args)
     secret = os.environ.get(args.secret_env, "") if args.secret_env else ""
@@ -382,6 +407,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--quitar", action="store_true")
     s.add_argument("--password-env", metavar="VAR", help="leer la contraseña de esta variable de entorno")
     s.set_defaults(fn=cmd_admin_password)
+
+    s = sub.add_parser("user-password", help="pone (o quita) la contraseña del usuario de confianza (manda órdenes, no configura)")
+    s.add_argument("--quitar", action="store_true")
+    s.add_argument("--password-env", metavar="VAR", help="leer la contraseña de esta variable de entorno")
+    s.set_defaults(fn=cmd_user_password)
 
     s = sub.add_parser("list", help="lista los enchufes configurados")
     s.set_defaults(fn=cmd_list)

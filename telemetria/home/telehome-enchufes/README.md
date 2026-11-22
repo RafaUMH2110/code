@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.7.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.8.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -171,6 +171,11 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   `telehome import-config config.json` (o «Compartir → Importar») y no tiene que configurar nada: por defecto reemplaza sus enchufes
   (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
   El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
+- **Usuario de confianza** (0.8.0): `telehome user-password` pone una tercera contraseña. Quien entre con ella puede
+  **encender, apagar y regular** los enchufes, pero no cambiar la configuración ni ninguna contraseña, y `api/state`
+  le oculta lo mismo que a quien solo mira. Los tres niveles son: sin contraseña **solo lectura**, con la de usuario
+  **manda órdenes**, y con la de administrador **todo**. `POST /api/login` acepta cualquiera de las dos y devuelve el
+  nivel; `api/state` lo trae en `sesion.nivel`. Quitarla: `telehome user-password --quitar`.
 - **Modo Administrador** (0.7.0): `telehome admin-password` pone una contraseña *distinta* de la del servicio. Con ella puesta,
   quien abra la interfaz solo ve las lecturas de los dispositivos: no puede encender ni apagar nada, ni cambiar la configuración,
   y `api/state` oculta Device ID, IP, versión, mapas de datos (DPS), credenciales de Tuya y el recuento de llamadas. Para
@@ -192,7 +197,9 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 `POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}` ·
 `POST /api/config/export {"ruta":"/rafa/telehome/"}` (descarga la configuración completa; por POST para exigir `X-TeleHome`; `ruta` es opcional) ·
 `POST /api/config/import {"config":{…},"modo":"reemplazar"|"añadir"}` ·
-`POST /api/admin/login {"password":"…"}` · `POST /api/admin/logout` · `PUT /api/admin/password {"password":"…"|"quitar":true}` ·
+`POST /api/login {"password":"…"}` (devuelve `nivel`) · `POST /api/logout` ·
+`POST /api/admin/login` y `POST /api/admin/logout` (compatibilidad) ·
+`PUT /api/admin/password {"password":"…"|"quitar":true}` · `PUT /api/user-password {"password":"…"|"quitar":true}` ·
 `PUT /api/password {"password":"…"|"quitar":true}` (contraseña del servicio; solo administradores)
 
 ### Protocolo genérico de TeleHome (0.5.0)
@@ -234,7 +241,7 @@ campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnit
 ## Órdenes
 
 `serve` (por defecto) · `scan` · `probe <enchufe>` · `import <devices.json> [--nube]` · `list` · `cloud-setup` ·
-`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `admin-password [--quitar]` · `export-config [-o fichero] [--ruta /ruta/]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
+`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `admin-password [--quitar]` · `user-password [--quitar]` · `export-config [-o fichero] [--ruta /ruta/]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
 
 ## Desarrollo
 
