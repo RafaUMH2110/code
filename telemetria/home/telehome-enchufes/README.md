@@ -167,7 +167,7 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   `Origin` propio en las operaciones de escritura (CSRF).
 - **Compartir la configuración** (0.6.0): `telehome export-config -o config.json` (o «Ajustes → Compartir → Exportar
   configuración») guarda los enchufes con su Local Key, el Access ID y el Access Secret de tuya.com y los ajustes
-  (intervalos, retención, región), **sin la contraseña del servicio**. Otra persona lo carga con
+  (intervalos, retención, región) y, si se indica, la ruta por la que se llega al servicio (`--ruta /rafa/telehome/`; la interfaz y la app TeleHome la añaden solas), **sin la contraseña del servicio**. Otra persona lo carga con
   `telehome import-config config.json` (o «Compartir → Importar») y no tiene que configurar nada: por defecto reemplaza sus enchufes
   (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
   El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
@@ -181,7 +181,7 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·
 `POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}` ·
-`POST /api/config/export` (descarga la configuración completa; por POST para exigir `X-TeleHome`) ·
+`POST /api/config/export {"ruta":"/rafa/telehome/"}` (descarga la configuración completa; por POST para exigir `X-TeleHome`; `ruta` es opcional) ·
 `POST /api/config/import {"config":{…},"modo":"reemplazar"|"añadir"}`
 
 ### Protocolo genérico de TeleHome (0.5.0)
@@ -223,7 +223,7 @@ campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnit
 ## Órdenes
 
 `serve` (por defecto) · `scan` · `probe <enchufe>` · `import <devices.json> [--nube]` · `list` · `cloud-setup` ·
-`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `export-config [-o fichero]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
+`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `export-config [-o fichero] [--ruta /ruta/]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
 
 ## Desarrollo
 

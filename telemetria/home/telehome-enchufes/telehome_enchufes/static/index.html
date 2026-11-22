@@ -365,7 +365,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 14:19</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 14:35</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -1082,7 +1082,9 @@ function bindDialog() {
   });
   /* ---- Compartir: exportar / importar toda la configuración ---- */
   const exportarConfig = (BACKEND && BACKEND.exportConfig) ? () => BACKEND.exportConfig() : async () => {
-    const r = await fetch("api/config/export", { method: "POST", headers: { "X-TeleHome": "1" } });
+    /* la ruta por la que se llega al servicio (p. ej. /rafa/telehome/) va en el fichero para la app TeleHome del otro usuario */
+    const ruta = location.pathname.replace(/[^/]*$/, "");
+    const r = await fetch("api/config/export", { method: "POST", headers: { "X-TeleHome": "1", "Content-Type": "application/json" }, body: JSON.stringify(ruta && ruta !== "/" ? { ruta } : {}) });
     if (!r.ok) { let m = "Error " + r.status; try { m = (await r.json()).error || m; } catch (e) { /* no es JSON */ } throw new Error(m); }
     return { blob: await r.blob(), name: (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] };
   };
@@ -1090,7 +1092,7 @@ function bindDialog() {
     try {
       const r = await exportarConfig(), name = r.name || "telehome-config.json";
       const a = el("a", { href: URL.createObjectURL(r.blob), download: name }); document.body.append(a); a.click(); a.remove();
-      setMsg("#cfgMsg", "Configuración exportada en «" + name + "». Contiene credenciales: compártela solo con quien debas.", true);
+      setMsg("#cfgMsg", "Configuración exportada en «" + name + "»" + (location.pathname.replace(/[^/]*$/, "") !== "/" ? " (con la ruta del servicio: " + location.pathname.replace(/[^/]*$/, "") + ")" : "") + ". Contiene credenciales: compártela solo con quien debas.", true);
     } catch (err) { setMsg("#cfgMsg", err.message, false); }
   });
   $("#cfgFile").addEventListener("change", (e) => { $("#btnCfgImport").disabled = !e.target.files[0]; });
@@ -1104,7 +1106,7 @@ function bindDialog() {
       const partes = [r["añadidos"].length + " añadidos", r["actualizados"].length + " actualizados"];
       if (r["omitidos"].length) partes.push(r["omitidos"].length + " omitidos (" + r["omitidos"].map((o) => o.name + ": " + o.motivo).join("; ") + ")");
       await refresh(); fillOptions(); renderDevList();
-      setMsg("#cfgMsg", "Configuración importada: " + partes.join(", ") + (r.opciones.length ? ". Ajustes aplicados: " + r.opciones.length + "." : "."), !r["omitidos"].length);
+      setMsg("#cfgMsg", "Configuración importada: " + partes.join(", ") + (r.opciones.length ? ". Ajustes aplicados: " + r.opciones.length + "." : ".") + (r.servicio ? " Ruta del servicio indicada en el fichero: " + r.servicio.ruta + "." : ""), !r["omitidos"].length);
       $("#cfgFile").value = ""; $("#btnCfgImport").disabled = true;
     } catch (err) { setMsg("#cfgMsg", err.message, false); }
   });

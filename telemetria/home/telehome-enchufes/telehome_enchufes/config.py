@@ -45,6 +45,13 @@ EXPORT_FORMAT = "telehome-config"
 EXPORT_VERSION = 1
 EXPORT_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days", "cloud_region", "cloud_api_key", "cloud_api_secret")
 _ID_RE = re.compile(r"^[a-z0-9-]{1,40}$")
+_RUTA_RE = re.compile(r"^(/[^\s\"<>]{0,200}|https?://[^\s\"<>]{1,200})$")
+
+
+def clean_ruta(ruta: Any) -> str:
+    """Ruta del servicio TeleHome (/rafa/telehome/ o una URL completa). Cadena vacía si no es válida."""
+    ruta = str(ruta or "").strip()
+    return ruta if _RUTA_RE.match(ruta) else ""
 
 # Valores típicos de un enchufe Tuya con medidor. En modo local se usan los
 # números de DPS; en modo nube, los códigos estándar de Tuya.
@@ -355,15 +362,19 @@ class Config:
         return {"añadidos": added, "omitidos": skipped}
 
     # ---- Exportar / importar toda la configuración ---------------------
-    def export_config(self) -> Dict[str, Any]:
+    def export_config(self, ruta: Optional[str] = None) -> Dict[str, Any]:
         """Configuración completa y portable: dispositivos (con su Local Key), credenciales de Tuya y ajustes.
-        Excluye la contraseña del servicio (password_hash)."""
+        Excluye la contraseña del servicio (password_hash). `ruta` es dónde se llega a este servicio
+        (p. ej. /rafa/telehome/): el servicio no la conoce (va detrás de un proxy), así que la pone quien exporta."""
+        if ruta not in (None, "") and not clean_ruta(ruta):
+            raise ConfigError("La ruta del servicio no es válida (usa /ruta/ o http(s)://servidor/ruta/)")
         with self.lock:
             return {
                 "format": EXPORT_FORMAT,
                 "version": EXPORT_VERSION,
                 "exported_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 "aviso": "Este fichero contiene credenciales de Tuya y las Local Key de tus dispositivos: compártelo solo con quien debas.",
+                **({"servicio": {"ruta": clean_ruta(ruta)}} if ruta else {}),
                 "options": {k: self.options.get(k, OPTION_DEFAULTS[k]) for k in EXPORT_OPTIONS},
                 "devices": [dict(d) for d in self.devices],
             }
@@ -453,6 +464,8 @@ class Config:
             self.devices = result
             self.save()
             report["cloud_cambiada"] = "cloud_api_key" in opts
+            srv = data.get("servicio")
+            report["servicio"] = {"ruta": clean_ruta(srv.get("ruta"))} if isinstance(srv, dict) and clean_ruta(srv.get("ruta")) else None
             report["total"] = len(self.devices)
             return report
 

@@ -172,3 +172,25 @@ def test_importar_omite_entradas_malas_y_respeta_el_maximo(tmp_path):
     rep = destino.import_config({"format": "telehome-config", "version": 1, "devices": devs})
     assert len(destino.devices) == MAX_DEVICES and len(rep["omitidos"]) == 4
     assert len({d["id"] for d in destino.devices}) == MAX_DEVICES and len({d["slot"] for d in destino.devices}) == MAX_DEVICES
+
+
+def test_export_lleva_la_ruta_del_servicio_si_se_indica(tmp_path):
+    cfg = _cfg_completa(tmp_path)
+    assert "servicio" not in cfg.export_config()
+    assert cfg.export_config("/rafa/telehome/")["servicio"] == {"ruta": "/rafa/telehome/"}
+    assert cfg.export_config("http://127.0.0.1:8765/")["servicio"]["ruta"] == "http://127.0.0.1:8765/"
+    for mala in ("rafa/telehome", "javascript:alert(1)", "/a b", "/" + "x" * 300, '/a"b'):
+        with pytest.raises(ConfigError, match="ruta"):
+            cfg.export_config(mala)
+
+
+def test_importar_devuelve_la_ruta_pero_no_la_guarda(tmp_path):
+    origen = _cfg_completa(tmp_path)
+    destino = Config(tmp_path / "destino.json")
+    rep = destino.import_config(origen.export_config("/rafa/telehome/"))
+    assert rep["servicio"] == {"ruta": "/rafa/telehome/"}
+    assert "servicio" not in json.loads((tmp_path / "destino.json").read_text())      # el servicio no la conserva
+    datos = origen.export_config("/rafa/telehome/")
+    datos["servicio"] = {"ruta": "<script>"}
+    assert destino.import_config(datos)["servicio"] is None                              # ruta no válida: se ignora
+    assert destino.import_config(origen.export_config())["servicio"] is None

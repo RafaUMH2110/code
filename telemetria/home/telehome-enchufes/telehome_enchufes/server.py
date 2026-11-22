@@ -351,7 +351,9 @@ def r_import(h: Handler, q):
 def r_config_export(h: Handler, q):
     """Descarga toda la configuración (dispositivos, credenciales de Tuya y ajustes, sin la contraseña del servicio).
     Va por POST para que exija la cabecera X-TeleHome y no pueda pedirla otra web."""
-    data = json.dumps(h.ctx.config.export_config(), ensure_ascii=False, indent=2).encode("utf-8")
+    body = h._body()
+    ruta = body.get("ruta") if isinstance(body, dict) else None      # la pone la interfaz: es por donde se llega al servicio
+    data = json.dumps(h.ctx.config.export_config(ruta), ensure_ascii=False, indent=2).encode("utf-8")
     fname = "telehome-config-%s.json" % time.strftime("%Y%m%d")
     h._send(200, data, "application/json; charset=utf-8",
             {"Content-Disposition": 'attachment; filename="%s"' % fname})

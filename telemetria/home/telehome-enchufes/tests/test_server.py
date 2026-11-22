@@ -250,7 +250,10 @@ def test_exportar_e_importar_configuracion_por_api(app):
     st, _ = call(base, "/api/config/export", "POST")
     assert st == 401                                           # exige la contraseña del servicio
     st, exp = call(base, "/api/config/export", "POST", headers=auth)
-    assert st == 200 and exp["format"] == "telehome-config" and len(exp["devices"]) == 2
+    assert st == 200 and exp["format"] == "telehome-config" and len(exp["devices"]) == 2 and "servicio" not in exp
+    st, con_ruta = call(base, "/api/config/export", "POST", {"ruta": "/rafa/telehome/"}, headers=auth)
+    assert st == 200 and con_ruta["servicio"] == {"ruta": "/rafa/telehome/"}
+    assert call(base, "/api/config/export", "POST", {"ruta": "no-es-ruta"}, headers=auth)[0] == 400
     assert exp["options"]["cloud_api_secret"] == "secretsecret1234" and "password_hash" not in json.dumps(exp)
     req = urllib.request.Request(base + "/api/config/export", method="POST", headers={"X-TeleHome": "1", **auth})
     with urllib.request.urlopen(req, timeout=5) as r:
@@ -277,6 +280,10 @@ def test_cli_exportar_e_importar(tmp_path, capsys):
     fich = tmp_path / "cfg.json"
     assert main(["--data-dir", str(d1), "export-config", "-o", str(fich)]) == 0
     assert oct(fich.stat().st_mode & 0o777) == "0o600" and "pbkdf2" not in fich.read_text()
+    fich2 = tmp_path / "cfg2.json"
+    assert main(["--data-dir", str(d1), "export-config", "-o", str(fich2), "--ruta", "/rafa/telehome/"]) == 0
+    assert json.loads(fich2.read_text())["servicio"]["ruta"] == "/rafa/telehome/"
+    assert main(["--data-dir", str(d1), "export-config", "-o", str(tmp_path / "x.json"), "--ruta", "mala"]) == 2
     assert main(["--data-dir", str(d2), "import-config", str(fich)]) == 0
     c2 = Config(d2 / "config.json")
     assert c2.options["cloud_api_secret"] == "secretsecret1234" and c2.devices[0]["name"] == "Uno" and not c2.options["password_hash"]

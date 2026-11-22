@@ -177,7 +177,11 @@ def cmd_import(args) -> int:
 def cmd_export_config(args) -> int:
     """Escribe toda la configuración (sin la contraseña del servicio) para dársela a otro usuario."""
     cfg = _cfg(args)
-    text = json.dumps(cfg.export_config(), ensure_ascii=False, indent=2)
+    try:
+        text = json.dumps(cfg.export_config(args.ruta), ensure_ascii=False, indent=2)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 2
     if args.salida == "-":
         print(text)
     else:
@@ -205,6 +209,8 @@ def cmd_import_config(args) -> int:
     for o in rep["omitidos"]:
         print("Omitido %s: %s" % (o["name"], o["motivo"]))
     print("Ajustes aplicados: %s" % (", ".join(rep["opciones"]) or "ninguno"))
+    if rep.get("servicio"):
+        print("Ruta del servicio indicada en el fichero: %s (se usa en la app TeleHome, campo «Servicio TeleHome»)" % rep["servicio"]["ruta"])
     print("Total: %d/%d (la contraseña del servicio no se ha tocado)" % (rep["total"], MAX_DEVICES))
     return 0
 
@@ -342,6 +348,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("export-config", help="exporta dispositivos, credenciales de Tuya y ajustes (sin la contraseña del servicio)")
     s.add_argument("-o", "--salida", metavar="FICHERO", help="fichero de salida (por defecto telehome-config-AAAAMMDD.json; «-» = pantalla)")
+    s.add_argument("--ruta", metavar="RUTA", help="ruta por la que se llega al servicio (p. ej. /rafa/telehome/) para que vaya en el fichero")
     s.set_defaults(fn=cmd_export_config)
 
     s = sub.add_parser("import-config", help="aplica un fichero creado con export-config")
