@@ -66,7 +66,7 @@ def _host_only(header: str) -> str:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TeleHomeEnchufes/" + __version__
+    server_version = "TeleHome/" + __version__
     ctx: AppContext  # lo fija make_server
 
     # ---- modo Administrador ---------------------------------------------------
@@ -194,6 +194,19 @@ class Handler(BaseHTTPRequestHandler):
                     return "Origen no permitido"
         return None
 
+    def _reto(self) -> Dict[str, str]:
+        """Cabecera que hace que el navegador abra su diálogo de contraseña.
+
+        Solo se envía cuando es una navegación (la página, que no sabe pedirla ella misma). Las
+        peticiones de las apps (fetch/XHR, ``Sec-Fetch-Dest: empty``) reciben 401 a secas: así el
+        navegador no lanza su diálogo y la app usa su propio campo de contraseña. Sin la cabecera
+        ``Sec-Fetch-Dest`` (navegadores antiguos, curl) se mantiene el comportamiento de siempre.
+        """
+        destino = (self.headers.get("Sec-Fetch-Dest") or "").strip().lower()
+        if destino in ("", "document", "iframe", "frame", "embed", "object"):
+            return {"WWW-Authenticate": 'Basic realm="TeleHome", charset="UTF-8"'}
+        return {}
+
     # ---- despacho -----------------------------------------------------------
     def _dispatch(self, method: str) -> None:
         try:
@@ -206,8 +219,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.ctx.monitor.sync()
             if not self._authorized():
                 body = json.dumps({"error": "Se requiere contraseña"}).encode("utf-8")
-                return self._send(401, body, "application/json; charset=utf-8",
-                                  {"WWW-Authenticate": 'Basic realm="TeleHome", charset="UTF-8"'})
+                return self._send(401, body, "application/json; charset=utf-8", self._reto())
             url = urlsplit(self.path)
             query = {k: v[0] for k, v in parse_qs(url.query).items()}
             for m, rx, fn in ROUTES:

@@ -214,6 +214,26 @@ def test_password_and_live_reload_from_cli(cloud_app):
         cfg.set_password("corta")
 
 
+def test_reto_de_contrasena_solo_en_navegacion(cloud_app):
+    """El diálogo nativo solo se provoca al navegar; las apps (fetch) reciben 401 a secas."""
+    base, cfg, fake, tmp = cloud_app
+    cfg.set_password("secreto-largo")
+
+    def reto(destino):
+        h = {"X-TeleHome": "1"}
+        if destino:
+            h["Sec-Fetch-Dest"] = destino
+        try:
+            urllib.request.urlopen(urllib.request.Request(base + "/api/state", headers=h), timeout=5)
+        except urllib.error.HTTPError as e:
+            return e.code, e.headers.get("WWW-Authenticate")
+        raise AssertionError("debería pedir contraseña")
+
+    assert reto(None)[0] == 401 and reto(None)[1].startswith("Basic")        # sin cabecera: como siempre
+    assert reto("document")[1].startswith("Basic")                           # navegación: diálogo
+    assert reto("empty") == (401, None)                                      # fetch de una app: sin diálogo
+
+
 def test_virtual_device_error_says_so():
     fake = FakeCloud(cmd_ok=())
     fake.state["vdevo123"] = {"switch_1": False}

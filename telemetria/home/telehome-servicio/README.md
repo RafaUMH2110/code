@@ -1,6 +1,6 @@
 # TeleHome
 
-> TeleHome (0.9.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
+> TeleHome (0.9.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -197,6 +197,11 @@ crudos con `python -m telehome probe <nombre>` y ajústalos en *Ajustes → Avan
   en «Ajustes → Opciones → Contraseña del servicio», estando en modo Administrador. **La actual no se puede mostrar**:
   se guarda con PBKDF2 y no hay forma de recuperarla; solo se puede sustituir por otra. Por HTTP sin cifrar solo tiene
   sentido tras un túnel SSH o un proxy con HTTPS. No uses `--host 0.0.0.0` sin contraseña.
+  Desde 0.9.1 el servicio solo envía el reto `WWW-Authenticate` (el diálogo nativo del navegador) a las *navegaciones*
+  (`Sec-Fetch-Dest: document`, `iframe`…); a las peticiones `fetch` de las apps responde 401 sin reto, de modo que el
+  navegador no abre su ventana por sorpresa. La interfaz del propio servicio, si recibe un 401, recarga la página una vez
+  para que el navegador pida la contraseña. Los navegadores que no envían `Sec-Fetch-Dest` (Safari anterior a 16.4)
+  conservan el comportamiento anterior.
 
 ## API (JSON)
 
