@@ -229,6 +229,25 @@ form.f[data-mode="local"] .only-nube, form.f[data-mode="nube"] .only-local { dis
 html.sin-graficas .p-spark { display:none; }
 html.sin-historico #chartPanel > :not(.panel-h) { display:none; }
 html.sin-historico #chartPanel .panel-h { margin-bottom:0; }
+/* Ficha del histórico: herramientas a la derecha de la cabecera, escala a la derecha de la barra */
+.panel-tools { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.btn.ghost { background:transparent; }
+.btn .chev { transition:transform .15s; }
+.btn[aria-expanded="false"] .chev { transform:rotate(180deg); }
+.menu-wrap { position:relative; display:inline-block; }
+.menu { position:absolute; right:0; top:calc(100% + 6px); z-index:30; min-width:210px; max-width:min(320px,86vw); background:var(--surface); border:1px solid var(--border-strong,var(--border)); border-radius:12px; padding:6px; box-shadow:0 10px 30px rgba(0,0,0,.28); }
+.menu[hidden] { display:none; }
+.menu .m-h { font-size:12px; color:var(--ink2); padding:4px 10px 6px; }
+.menu button { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:none; background:transparent; color:var(--ink); padding:0 10px; min-height:34px; border-radius:8px; cursor:pointer; font-size:14px; }
+.menu button:hover, .menu button:focus-visible { background:var(--sunk); }
+.menu .key { width:14px; height:0; border-top:3px solid; border-radius:2px; flex:none; }
+.tb-scale { display:inline-flex; align-items:center; gap:8px; margin-left:auto; }
+.tb-scale[hidden], .tb-l[hidden] { display:none; }
+.tb-l { font-size:12.5px; color:var(--ink2); font-weight:600; }
+.legend .reset { background:transparent; border-style:dashed; color:var(--ink2); }
+details.hint > summary { cursor:pointer; width:max-content; }
+details.hint > p { margin:6px 0 0; }
+@media (max-width:560px) { .panel-tools .lbl { display:none; } .panel-tools .btn { padding:0 11px; } .tb-scale { margin-left:0; } }
 @media (min-width:761px) {
   html.sin-graficas .plug { grid-template-columns:minmax(0,1.25fr) minmax(130px,.85fr) minmax(0,1.35fr) auto; grid-template-areas:"id pow meta sw"; }
 }
@@ -301,14 +320,20 @@ html.sin-historico #chartPanel .panel-h { margin-bottom:0; }
   <section class="panel" id="chartPanel">
     <div class="panel-h">
       <h2 id="chartTitle">Potencia</h2>
-      <button class="btn" id="btnHist" type="button" aria-pressed="false" title="Oculta o muestra la gráfica del histórico (la ficha queda plegada)">Ocultar gráfica</button>
-      <button class="btn" id="btnCsv" type="button" title="Descargar las lecturas del enchufe seleccionado">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar CSV</button>
+      <div class="panel-tools">
+        <span class="menu-wrap">
+          <button class="btn" id="btnCsv" type="button" aria-haspopup="menu" aria-expanded="false" title="Descargar las lecturas del enchufe seleccionado">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">Exportar CSV</span></button>
+          <div class="menu" id="csvMenu" role="menu" aria-label="Elige qué exportar" hidden></div>
+        </span>
+        <button class="btn ghost" id="btnHist" type="button" aria-expanded="true" title="Oculta o muestra la gráfica del histórico (la ficha queda plegada)">
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg><span class="lbl">Ocultar gráfica</span></button>
+      </div>
     </div>
     <div class="toolbar">
       <div class="seg" id="rangeGrp" role="group" aria-label="Intervalo de tiempo"></div>
       <div class="seg" id="metricGrp" role="group" aria-label="Magnitud"></div>
-      <div class="seg" id="scaleGrp" role="group" aria-label="Escala vertical"></div>
+      <span class="tb-scale"><span class="tb-l" id="scaleLbl">Escala</span><div class="seg" id="scaleGrp" role="group" aria-labelledby="scaleLbl"></div></span>
     </div>
     <div class="legend" id="legend" role="group" aria-label="Series visibles"></div>
     <p class="note" id="chartNote"></p>
@@ -317,7 +342,7 @@ html.sin-historico #chartPanel .panel-h { margin-bottom:0; }
       <div class="tip" id="tip" hidden></div>
     </div>
     <div class="chart-empty" id="chartEmpty" hidden>Aún no hay datos en este intervalo. Las lecturas aparecerán aquí en cuanto lleguen.</div>
-    <p class="hint">Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa un enchufe de la lista para ver solo ese.<span id="scaleHint"></span></p>
+    <details class="hint" id="chartHelp"><summary>Cómo leer la gráfica</summary><p>Pasa el ratón o el dedo por la gráfica para ver los valores; con el teclado, usa las flechas. Pulsa un enchufe de la lista para ver solo ese.<span id="scaleHint"></span></p></details>
   </section>
 
   <section class="panel">
@@ -337,7 +362,7 @@ html.sin-historico #chartPanel .panel-h { margin-bottom:0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 02:07</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 02:16</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -503,7 +528,7 @@ const HIST_KEY = "telehome_sin_historico";
 function setHistHidden(hide, save) {
   document.documentElement.classList.toggle("sin-historico", hide);
   const b = document.getElementById("btnHist");
-  if (b) { b.textContent = hide ? "Mostrar gráfica" : "Ocultar gráfica"; b.setAttribute("aria-pressed", hide ? "true" : "false"); }
+  if (b) { b.querySelector(".lbl").textContent = hide ? "Mostrar gráfica" : "Ocultar gráfica"; b.setAttribute("aria-expanded", hide ? "false" : "true"); }
   if (save) { try { localStorage.setItem(HIST_KEY, hide ? "1" : "0"); } catch (e) { /* sin almacenamiento */ } }
 }
 const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", sel: "all", hidden: new Set(), hist: null, sum: null, hover: null, editing: null, busy: new Set(), lastOk: 0 };
@@ -841,6 +866,11 @@ function renderLegend() {
     b.addEventListener("click", () => { S.hidden.has(d.id) ? S.hidden.delete(d.id) : S.hidden.add(d.id); renderLegend(); drawChart(); });
     lg.append(b);
   }
+  if (S.hidden.size) {
+    const r = el("button", { type: "button", class: "reset", text: "Mostrar todos", title: "Vuelve a dibujar todas las series" });
+    r.addEventListener("click", () => { S.hidden.clear(); renderLegend(); drawChart(); });
+    lg.append(r);
+  }
 }
 
 function renderFilters() {
@@ -855,13 +885,14 @@ function renderFilters() {
     b.addEventListener("click", () => { S.metric = k; renderFilters(); renderLegend(); drawChart(); }); mg.append(b);
   }
   const unico = S.sel !== "all" || S.state.devices.length === 1;
-  const sg = $("#scaleGrp"); sg.replaceChildren(); sg.hidden = unico;
+  const sg = $("#scaleGrp"); sg.replaceChildren(); sg.hidden = unico; $("#scaleLbl").hidden = sg.hidden;
   for (const [k, lab, tit] of SCALES) {
     const b = el("button", { type: "button", text: lab, title: tit, "aria-pressed": String(S.scale === k) });
     b.addEventListener("click", () => { S.scale = k; try { localStorage.setItem(SCALE_KEY, k); } catch (e) { /* ignorar */ } renderFilters(); drawChart(); }); sg.append(b);
   }
-  $("#btnCsv").disabled = !unico;
-  $("#btnCsv").title = unico ? "Descargar las lecturas del enchufe seleccionado" : "Pulsa un enchufe de la lista para elegir el que quieres exportar";
+  $("#btnCsv").title = unico ? "Descargar las lecturas del enchufe seleccionado" : "Elige de qué enchufe quieres descargar las lecturas";
+  $("#btnCsv").setAttribute("aria-haspopup", unico ? "false" : "menu");
+  if (unico) cerrarMenuCsv();
 }
 
 function renderSummary() {
@@ -967,6 +998,21 @@ async function delDev(d) {
   try { await api("api/devices/" + d.id, { method: "DELETE" }); if (S.sel === d.id) S.sel = "all"; resetForm(); await refresh(); renderDevList(); toast("«" + d.name + "» eliminado."); }
   catch (e) { setMsg("#formMsg", e.message, false); }
 }
+/* Menú de «Exportar CSV»: con varios a la vista, deja elegir de cuál se descargan las lecturas */
+function cerrarMenuCsv() {
+  const m = document.getElementById("csvMenu"); if (!m || m.hidden) return;
+  m.hidden = true; $("#btnCsv").setAttribute("aria-expanded", "false");
+}
+function abrirMenuCsv() {
+  const m = $("#csvMenu"); m.replaceChildren(el("div", { class: "m-h", text: "Descargar las lecturas de…" }));
+  for (const d of S.state.devices) {
+    const b = el("button", { type: "button", role: "menuitem" }, el("span", { class: "key", style: "border-color:" + color(d) }), d.name);
+    b.addEventListener("click", () => { cerrarMenuCsv(); downloadCsv(d.id); });
+    m.append(b);
+  }
+  m.hidden = false; $("#btnCsv").setAttribute("aria-expanded", "true");
+  const first = m.querySelector("button"); if (first) first.focus();
+}
 function downloadCsv(id) {
   if (BACKEND && BACKEND.csv) return BACKEND.csv(id, S.range);
   location.href = "api/export.csv?plug=" + encodeURIComponent(id) + "&range=" + S.range;
@@ -1055,8 +1101,13 @@ function bindDialog() {
     e.target.value = "";
   });
   $("#btnCsv").addEventListener("click", () => {
-    const id = S.sel !== "all" ? S.sel : (S.state.devices[0] && S.state.devices[0].id); if (id) downloadCsv(id);
+    if (!S.state) return;
+    const unico = S.sel !== "all" || S.state.devices.length === 1;
+    if (unico) { const id = S.sel !== "all" ? S.sel : (S.state.devices[0] && S.state.devices[0].id); if (id) downloadCsv(id); return; }
+    $("#csvMenu").hidden ? abrirMenuCsv() : cerrarMenuCsv();
   });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".menu-wrap")) cerrarMenuCsv(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#csvMenu").hidden) { cerrarMenuCsv(); $("#btnCsv").focus(); } });
   $("#toastX").addEventListener("click", () => { $("#toast").hidden = true; });
 }
 
