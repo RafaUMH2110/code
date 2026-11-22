@@ -9,6 +9,7 @@ import os
 import logging
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -173,6 +174,41 @@ def cmd_import(args) -> int:
     return 0
 
 
+def cmd_export_config(args) -> int:
+    """Escribe toda la configuración (sin la contraseña del servicio) para dársela a otro usuario."""
+    cfg = _cfg(args)
+    text = json.dumps(cfg.export_config(), ensure_ascii=False, indent=2)
+    if args.salida == "-":
+        print(text)
+    else:
+        out = Path(args.salida or "telehome-config-%s.json" % time.strftime("%Y%m%d"))
+        fd = os.open(str(out), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
+        os.chmod(str(out), 0o600)
+        print("Configuración guardada en %s (%d enchufes)." % (out, len(cfg.devices)))
+    print("AVISO: el fichero lleva las credenciales de Tuya y las Local Key. Compártelo solo con quien debas.", file=sys.stderr)
+    return 0
+
+
+def cmd_import_config(args) -> int:
+    cfg = _cfg(args)
+    try:
+        data = json.loads(Path(args.fichero).read_text(encoding="utf-8-sig"))
+        rep = cfg.import_config(data, replace=not args.anadir)
+    except (OSError, ValueError) as exc:
+        print("No se puede leer %s: %s" % (args.fichero, exc), file=sys.stderr)
+        return 2
+    print("Añadidos: %s" % (", ".join(rep["añadidos"]) or "ninguno"))
+    if rep["actualizados"]:
+        print("Actualizados: %s" % ", ".join(rep["actualizados"]))
+    for o in rep["omitidos"]:
+        print("Omitido %s: %s" % (o["name"], o["motivo"]))
+    print("Ajustes aplicados: %s" % (", ".join(rep["opciones"]) or "ninguno"))
+    print("Total: %d/%d (la contraseña del servicio no se ha tocado)" % (rep["total"], MAX_DEVICES))
+    return 0
+
+
 def cmd_list(args) -> int:
     cfg = _cfg(args)
     for d in cfg.devices:
@@ -303,6 +339,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--quitar", action="store_true")
     s.add_argument("--password-env", metavar="VAR", help="leer la contraseña de esta variable de entorno")
     s.set_defaults(fn=cmd_password)
+
+    s = sub.add_parser("export-config", help="exporta dispositivos, credenciales de Tuya y ajustes (sin la contraseña del servicio)")
+    s.add_argument("-o", "--salida", metavar="FICHERO", help="fichero de salida (por defecto telehome-config-AAAAMMDD.json; «-» = pantalla)")
+    s.set_defaults(fn=cmd_export_config)
+
+    s = sub.add_parser("import-config", help="aplica un fichero creado con export-config")
+    s.add_argument("fichero")
+    s.add_argument("--anadir", action="store_true", help="solo añade los dispositivos que falten (por defecto reemplaza)")
+    s.set_defaults(fn=cmd_import_config)
 
     s = sub.add_parser("list", help="lista los enchufes configurados")
     s.set_defaults(fn=cmd_list)

@@ -240,3 +240,45 @@ def test_energia_de_hoy_sobrevive_al_reinicio_con_lecturas_de_nube(tmp_path):
     kwh = mon._energy[dev["id"]]["kwh"]
     esperado = 1000.0 * (int((now - t0) // 300) - 1) * 300 / 3_600_000.0
     assert kwh > 0 and abs(kwh - esperado) < 0.01
+
+
+def test_exportar_e_importar_configuracion_por_api(app):
+    base, cfg, mon = app
+    cfg.set_cloud({"region": "eu", "api_key": "abcdefghij12", "api_secret": "secretsecret1234"})
+    cfg.set_password("clave-del-servicio")
+    auth = {"Authorization": "Basic " + __import__("base64").b64encode(b":clave-del-servicio").decode()}
+    st, _ = call(base, "/api/config/export", "POST")
+    assert st == 401                                           # exige la contraseña del servicio
+    st, exp = call(base, "/api/config/export", "POST", headers=auth)
+    assert st == 200 and exp["format"] == "telehome-config" and len(exp["devices"]) == 2
+    assert exp["options"]["cloud_api_secret"] == "secretsecret1234" and "password_hash" not in json.dumps(exp)
+    req = urllib.request.Request(base + "/api/config/export", method="POST", headers={"X-TeleHome": "1", **auth})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        assert "attachment" in r.headers["Content-Disposition"]
+    cfg.delete_device(cfg.devices[0]["id"])
+    st, rep = call(base, "/api/config/import", "POST", {"config": exp, "modo": "añadir"}, headers=auth)
+    assert st == 200 and len(rep["añadidos"]) == 1 and rep["total"] == 2
+    st, rep = call(base, "/api/config/import", "POST", {"config": exp}, headers=auth)
+    assert st == 200 and rep["total"] == 2 and len(rep["actualizados"]) == 2
+    assert call(base, "/api/config/import", "POST", {"config": {"format": "x"}}, headers=auth)[0] == 400
+    assert call(base, "/api/config/import", "POST", {"config": exp, "modo": "raro"}, headers=auth)[0] == 400
+    st, _ = call(base, "/api/config/import", "POST", exp, headers={"Authorization": auth["Authorization"], "X-TeleHome": ""})
+    assert st == 403                                           # sin la cabecera X-TeleHome no se acepta
+    assert cfg.options["password_hash"]                        # la contraseña del servicio sigue puesta
+
+
+def test_cli_exportar_e_importar(tmp_path, capsys):
+    from telehome_enchufes.cli import main
+    d1, d2 = tmp_path / "a", tmp_path / "b"
+    c1 = Config(d1 / "config.json")
+    c1.set_cloud({"region": "eu", "api_key": "abcdefghij12", "api_secret": "secretsecret1234"})
+    c1.set_password("clave-del-servicio")
+    c1.add_device({"name": "Uno", "dev_id": "bf00000001", "local_key": "0123456789abcdef"})
+    fich = tmp_path / "cfg.json"
+    assert main(["--data-dir", str(d1), "export-config", "-o", str(fich)]) == 0
+    assert oct(fich.stat().st_mode & 0o777) == "0o600" and "pbkdf2" not in fich.read_text()
+    assert main(["--data-dir", str(d2), "import-config", str(fich)]) == 0
+    c2 = Config(d2 / "config.json")
+    assert c2.options["cloud_api_secret"] == "secretsecret1234" and c2.devices[0]["name"] == "Uno" and not c2.options["password_hash"]
+    (tmp_path / "mal.json").write_text('{"format": "otro"}')
+    assert main(["--data-dir", str(d2), "import-config", str(tmp_path / "mal.json")]) == 2

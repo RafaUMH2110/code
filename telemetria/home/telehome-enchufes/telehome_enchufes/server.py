@@ -348,6 +348,30 @@ def r_import(h: Handler, q):
     h._json(200, report)
 
 
+def r_config_export(h: Handler, q):
+    """Descarga toda la configuración (dispositivos, credenciales de Tuya y ajustes, sin la contraseña del servicio).
+    Va por POST para que exija la cabecera X-TeleHome y no pueda pedirla otra web."""
+    data = json.dumps(h.ctx.config.export_config(), ensure_ascii=False, indent=2).encode("utf-8")
+    fname = "telehome-config-%s.json" % time.strftime("%Y%m%d")
+    h._send(200, data, "application/json; charset=utf-8",
+            {"Content-Disposition": 'attachment; filename="%s"' % fname})
+
+
+def r_config_import(h: Handler, q):
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    data = body.get("config") if isinstance(body.get("config"), dict) else body
+    modo = str(body.get("modo") or "reemplazar").strip().lower()
+    if modo not in ("reemplazar", "añadir"):
+        raise ConfigError("Modo no válido (reemplazar o añadir)")
+    report = h.ctx.config.import_config(data, replace=(modo == "reemplazar"))
+    if report.get("cloud_cambiada") and h.ctx.hub is not None:
+        h.ctx.hub.reset()
+    _changed(h)
+    h._json(200, report)
+
+
 def r_options(h: Handler, q):
     body = h._body()
     if not isinstance(body, dict):
@@ -438,6 +462,8 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/devices/import"), r_import),
     ("PUT", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_upd),
     ("DELETE", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_del),
+    ("POST", _r(r"/api/config/export"), r_config_export),
+    ("POST", _r(r"/api/config/import"), r_config_import),
     ("PUT", _r(r"/api/options"), r_options),
     ("PUT", _r(r"/api/cloud"), r_cloud_set),
     ("POST", _r(r"/api/cloud/test"), r_cloud_test),

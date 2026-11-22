@@ -213,6 +213,9 @@ details summary { cursor:pointer; color:var(--ink2); font-size:13.5px; font-weig
 details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
 .msg { font-size:13.5px; margin-top:8px; min-height:1.2em; }
 .msg.bad { color:var(--critical); }
+.cfg-warn { color:var(--critical); }
+.cfg-radio { display:flex; align-items:flex-start; gap:8px; font-weight:400; }
+.cfg-radio input { margin-top:3px; width:auto; }
 .msg.ok { color:var(--ink2); }
 .found { display:flex; align-items:center; gap:10px; padding:8px 10px; font-size:13.5px; border:1px solid var(--border); border-radius:10px; margin-top:6px; }
 .found code { flex:1; font-family:var(--mono); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; }
@@ -362,7 +365,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome Enchufes <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 02:16</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 14:19</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -374,6 +377,7 @@ details.hint > p { margin:6px 0 0; }
     <button type="button" role="tab" data-tab="nube" aria-selected="false">Nube de Tuya</button>
     <button type="button" role="tab" data-tab="buscar" aria-selected="false">Buscar e importar</button>
     <button type="button" role="tab" data-tab="opciones" aria-selected="false">Opciones</button>
+    <button type="button" role="tab" data-tab="compartir" aria-selected="false">Compartir</button>
   </div>
   <div class="dlg-b">
     <div data-panel="enchufes" role="tabpanel">
@@ -477,6 +481,26 @@ details.hint > p { margin:6px 0 0; }
         <p class="desc">Cuántas llamadas ha hecho el servicio a la nube de Tuya (lectura de estado, órdenes y renovación del token). El uso oficial lo muestra iot.tuya.com en Cloud → Usage (API Statistics); compáralo con estas cifras. Los créditos de Cobuilder (IA) no cuentan estas llamadas.</p>
         <div id="callsBox"></div>
       </section>
+    </div>
+
+    <div data-panel="compartir" role="tabpanel" hidden>
+      <section>
+        <h3>Exportar la configuración</h3>
+        <p class="desc">Guarda en un fichero los enchufes (con su Local Key), el Access ID y el Access Secret de tuya.com y el resto de ajustes, para que otra persona los cargue y no tenga que configurar nada. <strong>No incluye la contraseña de este servicio.</strong></p>
+        <p class="desc cfg-warn">El fichero contiene credenciales y claves de tus dispositivos: compártelo solo con quien debas y bórralo cuando ya no haga falta.</p>
+        <button class="btn" id="btnCfgExport" type="button">Exportar configuración</button>
+      </section>
+      <section>
+        <h3>Importar una configuración</h3>
+        <p class="desc">Carga un fichero creado con «Exportar configuración». La contraseña de este servicio no se modifica.</p>
+        <div class="f">
+          <label class="full">Fichero<input type="file" id="cfgFile" accept=".json,application/json"></label>
+          <label class="full cfg-radio"><input type="radio" name="cfgModo" value="reemplazar" checked> Reemplazar: los enchufes pasan a ser los del fichero (los que ya existían conservan su histórico)</label>
+          <label class="full cfg-radio"><input type="radio" name="cfgModo" value="añadir"> Añadir solo los que falten, sin borrar nada</label>
+          <div class="full"><button class="btn primary" id="btnCfgImport" type="button" disabled>Importar configuración</button></div>
+        </div>
+      </section>
+      <div class="msg" id="cfgMsg" role="alert"></div>
     </div>
   </div>
 </dialog>
@@ -1055,6 +1079,34 @@ function bindDialog() {
             (/^vdevo/i.test(f.dev_id) ? " · virtual (solo pruebas)" : "") }), add));
       }
     } catch (err) { setMsg("#cloudMsg", err.message, false); }
+  });
+  /* ---- Compartir: exportar / importar toda la configuración ---- */
+  const exportarConfig = (BACKEND && BACKEND.exportConfig) ? () => BACKEND.exportConfig() : async () => {
+    const r = await fetch("api/config/export", { method: "POST", headers: { "X-TeleHome": "1" } });
+    if (!r.ok) { let m = "Error " + r.status; try { m = (await r.json()).error || m; } catch (e) { /* no es JSON */ } throw new Error(m); }
+    return { blob: await r.blob(), name: (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] };
+  };
+  $("#btnCfgExport").addEventListener("click", async () => {
+    try {
+      const r = await exportarConfig(), name = r.name || "telehome-config.json";
+      const a = el("a", { href: URL.createObjectURL(r.blob), download: name }); document.body.append(a); a.click(); a.remove();
+      setMsg("#cfgMsg", "Configuración exportada en «" + name + "». Contiene credenciales: compártela solo con quien debas.", true);
+    } catch (err) { setMsg("#cfgMsg", err.message, false); }
+  });
+  $("#cfgFile").addEventListener("change", (e) => { $("#btnCfgImport").disabled = !e.target.files[0]; });
+  $("#btnCfgImport").addEventListener("click", async () => {
+    const file = $("#cfgFile").files[0]; if (!file) return;
+    const modo = document.querySelector('input[name="cfgModo"]:checked').value;
+    let data; try { data = JSON.parse(await file.text()); } catch (e) { return setMsg("#cfgMsg", "El fichero no es un JSON válido.", false); }
+    if (modo === "reemplazar" && !confirm("Los enchufes actuales se sustituirán por los del fichero. ¿Continuar?")) return;
+    try {
+      const r = await api("api/config/import", { method: "POST", body: { config: data, modo } });
+      const partes = [r["añadidos"].length + " añadidos", r["actualizados"].length + " actualizados"];
+      if (r["omitidos"].length) partes.push(r["omitidos"].length + " omitidos (" + r["omitidos"].map((o) => o.name + ": " + o.motivo).join("; ") + ")");
+      await refresh(); fillOptions(); renderDevList();
+      setMsg("#cfgMsg", "Configuración importada: " + partes.join(", ") + (r.opciones.length ? ". Ajustes aplicados: " + r.opciones.length + "." : "."), !r["omitidos"].length);
+      $("#cfgFile").value = ""; $("#btnCfgImport").disabled = true;
+    } catch (err) { setMsg("#cfgMsg", err.message, false); }
   });
   $("#btnSettings").addEventListener("click", () => openDialog());
   $("#btnClose").addEventListener("click", () => $("#dlg").close());

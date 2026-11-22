@@ -13,6 +13,7 @@ import secrets
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -37,6 +38,13 @@ OPTION_DEFAULTS: Dict[str, Any] = {
     "password_hash": "",
 }
 SECRET_OPTIONS = ("cloud_api_secret", "password_hash")
+
+# Exportación de la configuración para compartirla con otro usuario. Lleva las credenciales
+# de la nube de Tuya y la Local Key de cada enchufe; NUNCA la contraseña del servicio.
+EXPORT_FORMAT = "telehome-config"
+EXPORT_VERSION = 1
+EXPORT_OPTIONS = ("poll_interval", "cloud_poll_interval", "retention_days", "cloud_region", "cloud_api_key", "cloud_api_secret")
+_ID_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 
 # Valores típicos de un enchufe Tuya con medidor. En modo local se usan los
 # números de DPS; en modo nube, los códigos estándar de Tuya.
@@ -345,6 +353,108 @@ class Config:
             except ConfigError as exc:
                 skipped.append({"name": str(name), "motivo": str(exc)})
         return {"añadidos": added, "omitidos": skipped}
+
+    # ---- Exportar / importar toda la configuración ---------------------
+    def export_config(self) -> Dict[str, Any]:
+        """Configuración completa y portable: dispositivos (con su Local Key), credenciales de Tuya y ajustes.
+        Excluye la contraseña del servicio (password_hash)."""
+        with self.lock:
+            return {
+                "format": EXPORT_FORMAT,
+                "version": EXPORT_VERSION,
+                "exported_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "aviso": "Este fichero contiene credenciales de Tuya y las Local Key de tus dispositivos: compártelo solo con quien debas.",
+                "options": {k: self.options.get(k, OPTION_DEFAULTS[k]) for k in EXPORT_OPTIONS},
+                "devices": [dict(d) for d in self.devices],
+            }
+
+    def _clean_export_options(self, raw: Any) -> Dict[str, Any]:
+        """Valida las opciones de un fichero exportado sin tocar nada (lanza ConfigError si algo no vale)."""
+        if raw is None:
+            return {}
+        if not isinstance(raw, dict):
+            raise ConfigError("«options» debe ser un objeto")
+        out: Dict[str, Any] = {}
+        if "poll_interval" in raw:
+            out["poll_interval"] = self._int_opt(raw, "poll_interval", MIN_POLL, MAX_POLL, "Intervalo local (s)")
+        if "cloud_poll_interval" in raw:
+            out["cloud_poll_interval"] = self._int_opt(raw, "cloud_poll_interval", MIN_CLOUD_POLL, MAX_POLL, "Intervalo de la nube (s)")
+        if "retention_days" in raw:
+            out["retention_days"] = self._int_opt(raw, "retention_days", 1, 3650, "Retención (días)")
+        if "cloud_region" in raw:
+            region = str(raw["cloud_region"] or "").strip()
+            if region not in CLOUD_REGIONS:
+                raise ConfigError("Región de la nube no válida (%s)" % ", ".join(CLOUD_REGIONS))
+            out["cloud_region"] = region
+        key = str(raw.get("cloud_api_key") or "").strip()
+        secret = str(raw.get("cloud_api_secret") or "").strip()
+        for label, v in (("Access ID", key), ("Access Secret", secret)):
+            if v and not re.match(r"^[A-Za-z0-9]{8,64}$", v):
+                raise ConfigError("%s del fichero no es válido" % label)
+        if key and secret:                 # las credenciales vacías no borran las que ya tiene quien importa
+            out["cloud_api_key"], out["cloud_api_secret"] = key, secret
+        return out
+
+    def import_config(self, data: Any, replace: bool = True) -> Dict[str, Any]:
+        """Aplica un fichero producido por export_config.
+        replace=True: los dispositivos pasan a ser los del fichero (se conserva el id de los que ya existían);
+        replace=False: se añaden solo los que no estén. La contraseña del servicio no se toca nunca."""
+        if not isinstance(data, dict) or data.get("format") != EXPORT_FORMAT:
+            raise ConfigError("No es un fichero de configuración de TeleHome (falta «format»: «%s»)" % EXPORT_FORMAT)
+        try:
+            version = int(data.get("version", 0))
+        except (TypeError, ValueError):
+            version = 0
+        if version < 1 or version > EXPORT_VERSION:
+            raise ConfigError("Versión del fichero no admitida (%s): actualiza TeleHome" % data.get("version"))
+        raw_devs = data.get("devices", [])
+        if not isinstance(raw_devs, list):
+            raise ConfigError("«devices» debe ser una lista")
+        with self.lock:
+            opts = self._clean_export_options(data.get("options"))     # si falla, no se ha tocado nada
+            report: Dict[str, Any] = {"añadidos": [], "actualizados": [], "omitidos": [], "opciones": sorted(opts)}
+            current = list(self.devices)
+            by_devid = {d["dev_id"]: d for d in current}
+            result: List[Dict[str, Any]] = [] if replace else list(current)
+            seen = {d["dev_id"] for d in result}
+            for raw in raw_devs:
+                name = str((raw or {}).get("name") or "Enchufe")[:40] if isinstance(raw, dict) else "Enchufe"
+                try:
+                    if not isinstance(raw, dict):
+                        raise ConfigError("Entrada no válida")
+                    dev = normalize_device({k: v for k, v in raw.items() if k not in ("id", "slot", "has_key")})
+                except ConfigError as exc:
+                    report["omitidos"].append({"name": name, "motivo": str(exc)})
+                    continue
+                if dev["dev_id"] in seen:
+                    report["omitidos"].append({"name": name, "motivo": "Ese Device ID ya está configurado"})
+                    continue
+                if len(result) >= MAX_DEVICES:
+                    report["omitidos"].append({"name": name, "motivo": "Máximo %d enchufes" % MAX_DEVICES})
+                    continue
+                prev = by_devid.get(dev["dev_id"])
+                used_ids = {d["id"] for d in result}
+                wanted = (prev or {}).get("id") or (raw.get("id") if isinstance(raw.get("id"), str) else "")
+                if wanted and _ID_RE.match(wanted) and wanted not in used_ids:
+                    dev["id"] = wanted
+                else:
+                    base, n, cand = _slug(dev["name"]), 2, _slug(dev["name"])
+                    while cand in used_ids:
+                        cand, n = "%s-%d" % (base, n), n + 1
+                    dev["id"] = cand
+                taken = {d.get("slot") for d in result}
+                want_slot = (prev or {}).get("slot", raw.get("slot"))
+                dev["slot"] = want_slot if isinstance(want_slot, int) and 0 <= want_slot < MAX_DEVICES and want_slot not in taken \
+                    else next(i for i in range(MAX_DEVICES + 1) if i not in taken)
+                result.append(dev)
+                seen.add(dev["dev_id"])
+                report["actualizados" if prev else "añadidos"].append(dev["name"])
+            self.options = {**self.options, **opts}
+            self.devices = result
+            self.save()
+            report["cloud_cambiada"] = "cloud_api_key" in opts
+            report["total"] = len(self.devices)
+            return report
 
     # ---- Opciones ------------------------------------------------------
     def public_options(self) -> Dict[str, Any]:

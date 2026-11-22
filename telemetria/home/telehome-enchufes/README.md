@@ -1,6 +1,6 @@
 # TeleHome Enchufes
 
-> TeleHome Enchufes (0.5.4): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
+> TeleHome Enchufes (0.6.0): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-enchufes-vscode`](../telehome-enchufes-vscode/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -165,6 +165,12 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
   repositorio (`.gitignore`).
 - La interfaz escucha en `127.0.0.1`, rechaza `Host` ajenos (DNS rebinding) y exige la cabecera `X-TeleHome` y un
   `Origin` propio en las operaciones de escritura (CSRF).
+- **Compartir la configuración** (0.6.0): `telehome export-config -o config.json` (o «Ajustes → Compartir → Exportar
+  configuración») guarda los enchufes con su Local Key, el Access ID y el Access Secret de tuya.com y los ajustes
+  (intervalos, retención, región), **sin la contraseña del servicio**. Otra persona lo carga con
+  `telehome import-config config.json` (o «Compartir → Importar») y no tiene que configurar nada: por defecto reemplaza sus enchufes
+  (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
+  El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
 - Contraseña opcional (HTTP Basic, cualquier usuario): `telehome password`. Por HTTP sin cifrar solo tiene
   sentido tras un túnel SSH o un proxy con HTTPS. No uses `--host 0.0.0.0` sin contraseña.
 
@@ -174,7 +180,9 @@ crudos con `python -m telehome_enchufes probe <nombre>` y ajústalos en *Ajustes
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·
-`POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}`
+`POST /api/cloud/test` · `POST /api/cloud/devices` · `POST /api/cloud/import {"dev_ids":[…]}` ·
+`POST /api/config/export` (descarga la configuración completa; por POST para exigir `X-TeleHome`) ·
+`POST /api/config/import {"config":{…},"modo":"reemplazar"|"añadir"}`
 
 ### Protocolo genérico de TeleHome (0.5.0)
 
@@ -215,7 +223,7 @@ campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnit
 ## Órdenes
 
 `serve` (por defecto) · `scan` · `probe <enchufe>` · `import <devices.json> [--nube]` · `list` · `cloud-setup` ·
-`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` — ver `python -m telehome_enchufes --help`.
+`cloud-list` · `cloud-import [ids…]` · `password [--quitar]` · `export-config [-o fichero]` · `import-config <fichero> [--anadir]` — ver `python -m telehome_enchufes --help`.
 
 ## Desarrollo
 
