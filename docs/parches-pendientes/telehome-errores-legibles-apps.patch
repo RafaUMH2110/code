@@ -1,0 +1,220 @@
+diff --git a/telemetria/home/telehome/INSTALACION.md b/telemetria/home/telehome/INSTALACION.md
+index 9eb3546..31c1948 100644
+--- a/telemetria/home/telehome/INSTALACION.md
++++ b/telemetria/home/telehome/INSTALACION.md
+@@ -396,6 +396,7 @@ Modelo de lectura: `{ts, online, error, state:{…}, values:{p,v,i,t,h,br,pos}}`
+ | Lecturas absurdas (W, V, mA) | DPS distintos: usa `probe <enchufe>` y ajusta en *Avanzado* |
+ | Nube: «No permissions. This project is not authorized…» | Falta *Controllable* en *Device Permission* o la autorización de IoT Core/Authorization (ver 6.2) |
+ | Nube: sin conexión con error de API | Caducó el plan de prueba de IoT Core: renovar en iot.tuya.com |
++| Nube: «No se pudo conectar con la nube de Tuya (openapi.tuyaeu.com)…» | El servidor no llega a internet. El mensaje distingue DNS, salida bloqueada por el puerto 443, proxy, certificado y tiempo agotado; en «Detalle técnico» (y en `journalctl -u telehome`) está el error original. Comprobar desde el servidor: `curl -sS https://openapi.tuyaeu.com/v1.0/token` |
+ | Nube: error 28841105 | Dispositivo virtual `vdevo…`: no admite órdenes, quitarlo |
+ | Error 403 / «Host no permitido» tras proxy | Reinstalar o ejecutar con `--allow-host tu-dominio` |
+ | `python3 -m pytest` → `No module named pytest` | pytest solo es necesario para desarrollar; ver apartado 12 |
+@@ -409,7 +410,7 @@ Modelo de lectura: `{ts, online, error, state:{…}, values:{p,v,i,t,h,br,pos}}`
+ cd telemetria/home/telehome-servicio
+ python3 -m venv .venv
+ .venv/bin/pip install -r requirements.txt pytest
+-.venv/bin/python -m pytest -q          # 38 tests
++.venv/bin/python -m pytest -q          # 107 tests
+ ```
+ 
+ pytest **no** es necesario para ejecutar el servicio, solo para las pruebas.
+diff --git a/telemetria/home/telehome/MANUAL_TELEHOME.md b/telemetria/home/telehome/MANUAL_TELEHOME.md
+index 4103166..74fabeb 100644
+--- a/telemetria/home/telehome/MANUAL_TELEHOME.md
++++ b/telemetria/home/telehome/MANUAL_TELEHOME.md
+@@ -897,6 +897,7 @@ Al editar cualquiera de las apps hay que actualizar la fecha de **Última modifi
+ | Un dispositivo «sin conexión» | Tuya admite una sola conexión TCP | Cerrar la app del móvil |
+ | Cambios que no se aplican | Otro proceso editó `config.json` | El servicio lo recarga solo al detectar el cambio |
+ | `journalctl` vacío | El usuario no está en `adm` ni `systemd-journal` | Usarlo con `sudo` |
++| «No se pudo conectar con la nube de Tuya…» | El servidor no llega a `openapi.tuyaeu.com`: sin DNS, sin salida por el 443, proxy o certificado | El propio mensaje dice cuál de los cuatro; el texto técnico está plegado en «Detalle técnico» y entero en `journalctl -u telehome` |
+ 
+ Registros útiles: `sudo journalctl -u telehome -f`, `/var/log/apache2/access.log` (el código de respuesta de
+ cada petición) y `/var/log/apache2/error.log`.
+diff --git a/telemetria/home/telehome/index.html b/telemetria/home/telehome/index.html
+index f7a196d..52d8652 100644
+--- a/telemetria/home/telehome/index.html
++++ b/telemetria/home/telehome/index.html
+@@ -244,6 +244,11 @@ details summary { cursor:pointer; color:var(--ink2); font-size:13.5px; font-weig
+ details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+ .msg { font-size:13.5px; margin-top:8px; min-height:1.2em; }
+ .msg.bad { color:var(--critical); }
++.msg .detalle { margin-top:5px; color:var(--ink2); }
++.msg .detalle summary { cursor:pointer; font-size:12.5px; }
++.msg .detalle code { display:block; margin-top:4px; padding:7px 9px; background:var(--sunk); border:1px solid var(--border);
++  border-radius:7px; font-family:var(--mono); color:var(--ink2); font-size:12px; line-height:1.45;
++  white-space:pre-wrap; overflow-wrap:anywhere; }
+ .cfg-warn { color:var(--critical); }
+ .cfg-radio { display:flex; align-items:flex-start; gap:8px; font-weight:400; }
+ .cfg-radio input { margin-top:3px; width:auto; }
+@@ -438,7 +443,7 @@ details.hint > p { margin:6px 0 0; }
+   </div>
+   <p>TeleHome <span id="ver"></span> · <span id="footMode">conectado al servicio o en modo demostración</span></p>
+   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
+-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 21:40</span></p>
++  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 19:35</span></p>
+ </footer>
+ 
+ <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
+@@ -1112,7 +1117,11 @@ async function serverApi(path, opt) {
+     renderAdmin(); throw new Error(data.nivel_necesario === "user" ? "Hace falta la contraseña: pulsa «Entrar» en la cabecera."
+       : "Esto solo puede hacerlo un administrador.");
+   }
+-  if (!res.ok) throw new Error((data && data.error) || ("Error " + res.status));
++  if (!res.ok) {
++    const err = new Error((data && data.error) || ("Error " + res.status));
++    if (data && data.detalle) err.detalle = data.detalle;   // lo enseña setMsg bajo «Detalle técnico»
++    throw err;
++  }
+   return CONN.flavor === "enchufes" ? LEGACY.out(path, data) : data;
+ }
+ let PROBE_WHY = "";                     // por qué falló el último sondeo (se muestra junto al aviso)
+@@ -1330,7 +1339,11 @@ async function api(path, opt = {}) {
+   const r = await fetch(path, init);
+   let data = null;
+   try { data = await r.json(); } catch (e) { /* respuesta no JSON */ }
+-  if (!r.ok) throw new Error((data && data.error) || ("Error " + r.status));
++  if (!r.ok) {
++    const err = new Error((data && data.error) || ("Error " + r.status));
++    if (data && data.detalle) err.detalle = data.detalle;
++    throw err;
++  }
+   return data;
+ }
+ 
+@@ -2084,7 +2097,15 @@ function applyMode(m) {
+   });
+ }
+ function formFieldNames() { return ((TYPES[S.pick] || {}).fields || []).map((f) => f.n); }
+-function setMsg(sel, text, ok) { const m = $(sel); m.textContent = text; m.className = "msg " + (ok ? "ok" : "bad"); }
++/* El texto puede ser una cadena o un Error; si el Error trae detalle técnico, se
++   esconde tras un desplegable para no llenar la pantalla de jerga. */
++function setMsg(sel, text, ok) {
++  const m = $(sel), err = text && typeof text === "object" ? text : null;
++  m.className = "msg " + (ok ? "ok" : "bad");
++  m.replaceChildren(err ? err.message : text);
++  if (err && err.detalle)
++    m.append(el("details", { class: "detalle" }, el("summary", { text: "Detalle técnico" }), el("code", { text: err.detalle })));
++}
+ function renderDevList() {
+   const box = $("#devList"); box.replaceChildren();
+   const list = devs();
+@@ -2359,7 +2380,7 @@ function bindDialog() {
+       const r = await exportarConfig(), name = r.name || "telehome-config.json";
+       const a = el("a", { href: URL.createObjectURL(r.blob), download: name }); document.body.append(a); a.click(); a.remove();
+       setMsg("#cfgMsg", "Configuración exportada en «" + name + "». Contiene credenciales: compártela solo con quien debas.", true);
+-    } catch (err) { setMsg("#cfgMsg", err.message, false); }
++    } catch (err) { setMsg("#cfgMsg", err, false); }
+   });
+   $("#cfgFile").addEventListener("change", (e) => { $("#btnCfgImport").disabled = !e.target.files[0]; });
+   $("#btnCfgImport").addEventListener("click", async () => {
+@@ -2383,7 +2404,7 @@ function bindDialog() {
+       setMsg("#cfgMsg", "Configuración importada: " + partes.join(", ") + (r.opciones.length ? ". Ajustes aplicados: " + r.opciones.length + "." : ".") +
+         (ruta && BACKEND.rutaActual && BACKEND.rutaActual() !== ruta ? " Nota: el fichero indicaba el servicio «" + ruta + "»; esta app está conectada a «" + BACKEND.rutaActual() + "»." : ""), !r["omitidos"].length);
+       $("#cfgFile").value = ""; $("#btnCfgImport").disabled = true;
+-    } catch (err) { setMsg("#cfgMsg", err.message, false); }
++    } catch (err) { setMsg("#cfgMsg", err, false); }
+   });
+   $("#btnAdmin").addEventListener("click", async () => {
+     if (ADMIN.can()) {                                   // salir del modo administrador
+@@ -2420,7 +2441,7 @@ function bindDialog() {
+       $("#schFormBox").hidden = true;
+       await refresh(); renderSchedules();
+       setMsg("#schMsg", schEditando ? "Programación guardada." : "Programación creada.", true);
+-    } catch (err) { setMsg("#schFormMsg", err.message, false); }
++    } catch (err) { setMsg("#schFormMsg", err, false); }
+   });
+   $("#placeForm").addEventListener("submit", async (e) => {
+     e.preventDefault();
+@@ -2428,7 +2449,7 @@ function bindDialog() {
+       await api("api/place", { method: "PUT", body: { lat: +e.target.lat.value, lon: +e.target.lon.value } });
+       await refresh(); await pintarSol();
+       setMsg("#placeMsg", "Lugar guardado.", true);
+-    } catch (err) { setMsg("#placeMsg", err.message, false); }
++    } catch (err) { setMsg("#placeMsg", err, false); }
+   });
+   /* ---- contraseña del usuario de confianza (solo administradores) ---- */
+   $("#userForm").addEventListener("submit", async (e) => {
+@@ -2442,7 +2463,7 @@ function bindDialog() {
+       f.u1.value = f.u2.value = "";
+       setMsg("#userMsg", "Contraseña de usuario guardada. Las sesiones abiertas con la anterior se han cerrado.", true);
+       await refresh(); fillOptions();
+-    } catch (err) { setMsg("#userMsg", err.message, false); }
++    } catch (err) { setMsg("#userMsg", err, false); }
+   });
+   $("#btnUserDel").addEventListener("click", async () => {
+     if (!confirm("Sin contraseña de usuario, quien no sea administrador solo podrá mirar. ¿Quitarla?")) return;
+@@ -2451,7 +2472,7 @@ function bindDialog() {
+       if (r.token) ADMIN.set(r.token);
+       setMsg("#userMsg", "Contraseña de usuario quitada.", true);
+       await refresh(); fillOptions();
+-    } catch (err) { setMsg("#userMsg", err.message, false); }
++    } catch (err) { setMsg("#userMsg", err, false); }
+   });
+   /* ---- contraseña del servicio (solo en modo Administrador; la actual no se puede mostrar) ---- */
+   $("#pwForm").addEventListener("submit", async (e) => {
+@@ -2465,7 +2486,7 @@ function bindDialog() {
+       if (BACKEND && BACKEND.setPassword) BACKEND.setPassword(pw);   // la app sigue conectada con la nueva
+       setMsg("#pwMsg", "Contraseña guardada: la app ya la usa.", true);
+       await refresh(); fillOptions();
+-    } catch (err) { setMsg("#pwMsg", err.message, false); }
++    } catch (err) { setMsg("#pwMsg", err, false); }
+   });
+   $("#btnPwDel").addEventListener("click", async () => {
+     if (!confirm("Sin contraseña, cualquiera que llegue al servicio verá la interfaz. ¿Quitarla?")) return;
+@@ -2474,7 +2495,7 @@ function bindDialog() {
+       if (BACKEND && BACKEND.setPassword) BACKEND.setPassword("");
+       setMsg("#pwMsg", "Contraseña quitada: el servicio queda sin protección.", true);
+       await refresh(); fillOptions();
+-    } catch (err) { setMsg("#pwMsg", err.message, false); }
++    } catch (err) { setMsg("#pwMsg", err, false); }
+   });
+   $("#btnSettings").addEventListener("click", () => openDialog());
+   $("#btnClose").addEventListener("click", () => $("#dlg").close());
+@@ -2491,26 +2512,26 @@ function bindDialog() {
+       if (S.editing) await api("api/devices/" + S.editing, { method: "PUT", body: body });
+       else await api("api/devices", { method: "POST", body: body });
+       resetForm(); await refresh(); await loadChart(); renderDevList(); renderCatalogue(); setMsg("#formMsg", "Guardado.", true);
+-    } catch (err) { setMsg("#formMsg", err.message, false); }
++    } catch (err) { setMsg("#formMsg", err, false); }
+   });
+   $("#optForm").addEventListener("submit", async (e) => {
+     e.preventDefault(); const f = e.target;
+     try {
+       await api("api/options", { method: "PUT", body: { poll_interval: +f.elements.poll_interval.value, cloud_poll_interval: +f.elements.cloud_poll_interval.value, retention_days: +f.elements.retention_days.value } });
+       setMsg("#optMsg", "Opciones guardadas.", true); await refresh(); updateEstimate();
+-    } catch (err) { setMsg("#optMsg", err.message, false); }
++    } catch (err) { setMsg("#optMsg", err, false); }
+   });
+   $("#cloudForm").addEventListener("submit", async (e) => {
+     e.preventDefault(); const f = e.target;
+     try {
+       await api("api/cloud", { method: "PUT", body: { region: f.elements.region.value, api_key: f.elements.api_key.value.trim(), api_secret: f.elements.api_secret.value.trim() } });
+       await refresh(); fillOptions(); setMsg("#cloudMsg", "Credenciales guardadas.", true);
+-    } catch (err) { setMsg("#cloudMsg", err.message, false); }
++    } catch (err) { setMsg("#cloudMsg", err, false); }
+   });
+   $("#btnCloudTest").addEventListener("click", async () => {
+     setMsg("#cloudMsg", "Conectando con la nube de Tuya…", true);
+     try { const r = await api("api/cloud/test", { method: "POST", body: {} }); setMsg("#cloudMsg", "Conexión correcta: " + r.devices + " dispositivos en la cuenta enlazada.", true); }
+-    catch (err) { setMsg("#cloudMsg", err.message, false); }
++    catch (err) { setMsg("#cloudMsg", err, false); }
+   });
+   $("#btnCloudList").addEventListener("click", async () => {
+     const out = $("#cloudOut"); out.replaceChildren(); setMsg("#cloudMsg", "Consultando la nube…", true);
+@@ -2526,13 +2547,13 @@ function bindDialog() {
+             const rep = await api("api/cloud/import", { method: "POST", body: { dev_ids: [f.dev_id], type: f.type || "enchufe" } });
+             if (rep["omitidos"] && rep["omitidos"].length) throw new Error(rep["omitidos"][0].motivo);
+             add.textContent = "Añadido"; await refresh(); renderDevList();
+-          } catch (err) { setMsg("#cloudMsg", err.message, false); add.disabled = false; }
++          } catch (err) { setMsg("#cloudMsg", err, false); add.disabled = false; }
+         });
+         out.append(el("div", { class: "found" },
+           el("code", { text: f.name + " · " + f.dev_id + (f.category ? " · " + f.category : "") + (f.online === false ? " · desconectado" : "") +
+             (/^vdevo/i.test(f.dev_id) ? " · virtual (solo pruebas)" : "") }), add));
+       }
+-    } catch (err) { setMsg("#cloudMsg", err.message, false); }
++    } catch (err) { setMsg("#cloudMsg", err, false); }
+   });
+   $("#btnScan").addEventListener("click", async () => {
+     const out = $("#scanOut"); out.className = "msg ok"; out.textContent = "Buscando… (unos 12 s)"; $("#btnScan").disabled = true;

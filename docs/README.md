@@ -21,6 +21,7 @@ Reglas: nombres de fichero en minúsculas y con guiones, en Markdown, con la fec
 | [`guia-parches-git.md`](guia-parches-git.md) | Cómo funcionan los parches en git y GitHub: crearlos, aplicarlos (`git apply` / `git am`), errores típicos y flujo seguro |
 | [`scripts-traspaso.md`](scripts-traspaso.md) | Traspaso del trabajo sobre `scripts/` (instaladores, informe del colector por SSH, convenciones). Foto del 2026-11-08 |
 | [`publicar-apps-rpuertoumh.md`](publicar-apps-rpuertoumh.md) | Publicar apps en `RafaUMH2110/apps` desde tu terminal cuando una sesión de Claude no tiene push, y crear repos nuevos. Redactado el 2026-10-16 |
+| [`parches-pendientes/`](parches-pendientes/) | Parches generados y **aún sin aplicar**, con sus instrucciones. Carpeta temporal: se borra al aplicarlos |
 
 ## Copias fuera del repo
 
