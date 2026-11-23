@@ -1,0 +1,87 @@
+{
+  // Terminal → Run Task...  Estas tareas preguntan con desplegables nativos de VS Code.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Nueva app",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": [
+        "${workspaceFolder}/generar_app.py",
+        "${input:descripcion}",
+        "-o", "${input:fichero}",
+        "--provider", "${input:plataforma}",
+        "--serve", "--chat"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Modificar la app abierta en el editor",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": [
+        "${workspaceFolder}/generar_app.py",
+        "${input:cambio}",
+        "--base", "${file}",
+        "-o", "${file}",
+        "--serve", "--chat"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Generar 3 variantes de diseño",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": [
+        "${workspaceFolder}/generar_app.py",
+        "${input:descripcion}",
+        "-o", "${input:fichero}",
+        "--variantes", "3"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Listar modelos disponibles",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["${workspaceFolder}/generar_app.py", "--list-models", "--remote"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "Instalar dependencias",
+      "type": "shell",
+      "command": "${command:python.interpreterPath}",
+      "args": ["-m", "pip", "install", "-r", "${workspaceFolder}/requirements.txt"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "descripcion",
+      "type": "promptString",
+      "description": "Describe la app que quieres generar"
+    },
+    {
+      "id": "cambio",
+      "type": "promptString",
+      "description": "Qué cambio quieres aplicar al fichero abierto"
+    },
+    {
+      "id": "fichero",
+      "type": "promptString",
+      "description": "Nombre del fichero HTML de salida",
+      "default": "mi_app.html"
+    },
+    {
+      "id": "plataforma",
+      "type": "pickString",
+      "description": "Plataforma de IA",
+      "options": ["anthropic", "openai"],
+      "default": "anthropic"
+    }
+  ]
+}

@@ -67,7 +67,7 @@ Abre `code.code-workspace` (menú *Archivo → Abrir workspace desde archivo*): 
 | App | Descripción | macOS | Windows | Linux |
 |---|---|---|---|---|
 | **notas-rapidas** | Bloc de notas de escritorio. Se ejecuta con doble clic. Versiones por toolkit en macOS, Windows y Linux: Tkinter (`app_tk/`), pywebview con interfaz HTML (`app_web/`), PySide6 (`app_pyside6/`), wxPython (`app_wx/`) y Toga (`app_toga/`); solo en macOS, además, PyObjC (`app_pyobjc/`) | [manual](macos/notas-rapidas/MANUAL_VSCODE.md) | [manual](windows/notas-rapidas/MANUAL_VSCODE_WINDOWS.md) | [manual](linux/notas-rapidas/MANUAL_VSCODE_LINUX.md) |
-| **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Dos versiones: `python-app-api-anthropic/` y `mejora-de-codigo/` | [README](generador-apps/README.md) (igual en los tres sistemas) | ← | ← |
+| **generador-apps** | Script en Python que genera o modifica apps web de un solo HTML con la API de Anthropic u OpenAI. Tres versiones: `python-app-api-anthropic/`, `mejora-de-codigo/` y `optimizada-vscode/` (la recomendada) | [README](generador-apps/README.md) (igual en los tres sistemas) | ← | ← |
 
 ## Otras carpetas
 
