@@ -24,10 +24,10 @@ Ahora se lee así, con el texto técnico plegado debajo bajo «Detalle técnico�
 > No se pudo conectar con la nube de Tuya (openapi.tuyaeu.com): no se pudo averiguar su dirección. Comprueba que el
 > servidor tiene salida a internet y un DNS que funcione.
 
-| Parche | Repo | Qué toca |
-|---|---|---|
-| `telehome-errores-legibles-code.patch` | `code` (este mismo) | Servicio **0.9.2**: traducción de los fallos de red (nube y red local), ayuda para el inicio de sesión fallido, detalle técnico aparte en la API y en el registro, interfaz del servicio, README y 13 pruebas nuevas (107 en total) |
-| `telehome-errores-legibles-apps.patch` | `apps` | App genérica (`telemetria/home/telehome`): el detalle técnico se pliega bajo el mensaje; manual e instalación al día |
+| Parche | Repo | Estado | Qué toca |
+|---|---|---|---|
+| (ya aplicado: commit `ecc764e`) | `code` (este mismo) | **Hecho** | Servicio **0.9.2**: traducción de los fallos de red (nube y red local), ayuda para el inicio de sesión fallido, detalle técnico aparte en la API y en el registro, interfaz del servicio, README y 13 pruebas nuevas (107 en total) |
+| `telehome-errores-legibles-apps.patch` | `apps` | **Pendiente** | App genérica (`telemetria/home/telehome`): el detalle técnico se pliega bajo el mensaje; manual e instalación al día |
 
 Detalle de lo que cambia:
 
@@ -45,39 +45,29 @@ y en la interfaz del servicio. No se ha probado en un iPhone o iPad reales.
 
 ---
 
-## Cómo aplicarlos
+## Cómo aplicar lo que queda
 
-### 1. Repo `code`
-
-```bash
-cd ~/ruta/a/code
-git pull
-git apply --check docs/parches-pendientes/telehome-errores-legibles-code.patch   # no cambia nada: solo comprueba
-git apply docs/parches-pendientes/telehome-errores-legibles-code.patch
-git add -A
-git commit -m "TeleHome 0.9.2: errores de red en lenguaje claro, con detalle técnico aparte"
-git push
-```
-
-### 2. Repo `apps`
+### 1. Repo `apps`
 
 ```bash
 cd ~/ruta/a/apps
 git pull
-git apply --check ~/ruta/a/code/docs/parches-pendientes/telehome-errores-legibles-apps.patch
+git apply --check ~/ruta/a/code/docs/parches-pendientes/telehome-errores-legibles-apps.patch   # no cambia nada: solo comprueba
 git apply ~/ruta/a/code/docs/parches-pendientes/telehome-errores-legibles-apps.patch
 git add -A
 git commit -m "TeleHome: el detalle técnico de los errores se pliega bajo el mensaje"
 git push
 ```
 
-### 3. Desplegar en lorca
+El parche del repo `code` ya está aplicado y subido (commit `ecc764e`, servicio 0.9.2): no hay que hacer nada con él.
+
+### 2. Desplegar en lorca
 
 ```bash
 sudo ./scripts/instalar-todo/instalar-todo-lorca.sh --telehome
 ```
 
-### 4. Borrar esta carpeta
+### 3. Borrar esta carpeta
 
 Una vez aplicados y subidos, los parches ya no sirven para nada (el cambio está en el historial):
 
@@ -95,10 +85,10 @@ Y quitar la fila de `docs/README.md` que apunta a esta carpeta.
 Lo normal es que el parche **ya esté aplicado** (por ejemplo, porque se aplicó desde el chat). Para comprobarlo:
 
 ```bash
-grep -n "No se pudo conectar con" telemetria/home/telehome-servicio/telehome/cloud.py
+grep -c "Detalle técnico" telemetria/home/telehome/index.html
 ```
 
-Si aparece, no hay nada que hacer: pasa al paso 4. Si no, mira
+Si devuelve algo distinto de `0`, no hay nada que hacer: pasa al paso 3. Si no, mira
 [`../guia-parches-git.md`](../guia-parches-git.md), apartado de errores típicos.
 
 ---
