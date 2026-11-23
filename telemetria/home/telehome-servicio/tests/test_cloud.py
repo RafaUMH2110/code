@@ -316,3 +316,70 @@ def test_el_login_fallido_dice_que_revisar(monkeypatch, msg_tuya, espera):
     with pytest.raises(CloudError) as e:
         default_client_factory("eu", "abcdefgh12", "s" * 32)
     assert espera in str(e.value) and e.value.detalle == msg_tuya["msg"]
+
+
+def _con_dispositivo_en_la_nube(base):
+    call(base, "/api/cloud/devices", "POST", {})
+    call(base, "/api/cloud/import", "POST", {"dev_ids": [IDS[0]]})
+    time.sleep(0.5)                       # primera lectura del hilo de sondeo
+    return call(base, "/api/state")[1]["devices"][0]
+
+
+def test_refrescar_ve_ya_lo_que_otra_app_cambio(cloud_app):
+    """Sin refrescar, el cambio hecho con otra app no se ve hasta el siguiente ciclo (300 s por la nube)."""
+    base, cfg, fake, _ = cloud_app
+    d = _con_dispositivo_en_la_nube(base)
+    assert d["reading"]["on"] is True
+    fake.state[IDS[0]]["switch_1"] = False            # alguien lo apaga con la app de Tuya
+    assert call(base, "/api/state")[1]["devices"][0]["reading"]["on"] is True      # la caché aún no lo sabe
+    st, r = call(base, "/api/refresh", "POST", {})
+    assert st == 200 and r["refrescado"] is True and r["dispositivos"] == 1 and r["pendientes"] == 0
+    assert call(base, "/api/state")[1]["devices"][0]["reading"]["on"] is False
+
+
+def test_refrescar_cuesta_una_sola_llamada_a_la_nube(cloud_app):
+    base, cfg, fake, _ = cloud_app
+    _con_dispositivo_en_la_nube(base)
+    antes = len(fake.requests)
+    assert call(base, "/api/refresh", "POST", {})[1]["refrescado"] is True
+    lecturas = [u for u in fake.requests[antes:] if "status" in u or u == "/v1.0/devices"]
+    assert len(lecturas) == 1
+
+
+def test_refrescar_respeta_el_minimo_entre_pulsaciones(cloud_app):
+    base, cfg, fake, _ = cloud_app
+    _con_dispositivo_en_la_nube(base)
+    assert call(base, "/api/refresh", "POST", {})[1]["refrescado"] is True
+    antes = len(fake.requests)
+    st, r = call(base, "/api/refresh", "POST", {})
+    assert st == 200 and r["refrescado"] is False and 0 < r["espera"] <= 5
+    assert len(fake.requests) == antes                # la segunda pulsación no llama a Tuya
+
+
+def test_refrescar_reintenta_tras_un_error_cacheado(cloud_app):
+    base, cfg, fake, _ = cloud_app
+    _con_dispositivo_en_la_nube(base)
+    fake.v1_ok = False
+    fake.online = {i: False for i in IDS}
+    assert call(base, "/api/refresh", "POST", {})[0] == 200        # no revienta aunque el dispositivo esté caído
+    d = call(base, "/api/state")[1]["devices"][0]
+    assert d["reading"]["online"] is False
+
+
+def test_refrescar_sin_dispositivos_y_exige_la_cabecera(cloud_app):
+    base, cfg, fake, _ = cloud_app
+    st, r = call(base, "/api/refresh", "POST", {})
+    assert st == 200 and r == {"refrescado": True, "dispositivos": 0, "pendientes": 0}
+    req = urllib.request.Request(base + "/api/refresh", data=b"{}", method="POST")      # sin X-TeleHome
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req, timeout=5)
+    assert e.value.code == 403
+
+
+def test_refrescar_lo_puede_pedir_quien_solo_ve_el_estado(cloud_app):
+    """Solo lee: no hace falta ser usuario ni administrador (el resto de POST sí lo exige)."""
+    base, cfg, fake, _ = cloud_app
+    cfg.set_admin_password("clave-de-admin-1")
+    st, r = call(base, "/api/refresh", "POST", {})
+    assert st == 200 and r["refrescado"] is True
+    assert call(base, "/api/devices", "POST", {"name": "x"})[0] == 403         # lo demás sigue protegido

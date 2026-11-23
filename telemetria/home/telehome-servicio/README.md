@@ -1,6 +1,6 @@
 # TeleHome
 
-> TeleHome (0.9.3): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
+> TeleHome (0.9.4): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -127,6 +127,14 @@ Notas:
   leer y para conmutar el programa prueba varias formas de llamar a la API (tres para cada cosa) y se queda con la que
   el proyecto tenga autorizada. Si Tuya rechaza la orden, el mensaje incluye el código de error y, en los errores de
   permisos (28841105, 28841106, 1106), qué cambiar en iot.tuya.com.
+- **Actualizar ahora** (0.9.4): el servicio lee la nube cada `cloud_poll_interval` (300 s por defecto), así que un
+  cambio hecho con otra app (la de Tuya, por ejemplo) no aparece hasta el siguiente ciclo. El botón **Actualizar** de
+  *Dispositivos* llama a `POST /api/refresh`, que descarta la caché de la nube y lee **todos** los dispositivos a la vez
+  (una sola llamada a Tuya para todos los de la nube; los locales se leen en paralelo). Lo puede pulsar cualquiera que
+  pueda ver el estado (no hace falta ser usuario ni administrador, porque solo lee). Se admite como mucho una vez cada
+  5 s: si se repite antes, responde `{"refrescado": false, "espera": n}` sin llamar a Tuya, de modo que no gasta cuota
+  por pulsar de más. Cada actualización cuenta como una llamada más en el recuento de la cuota de Tuya. Los servicios
+  anteriores a la 0.9.4 no tienen esta ruta: la app lo detecta (404) y solo vuelve a pedir el estado.
 - **Mensajes de error** (0.9.2): los fallos de red ya no se enseñan tal como los suelta la librería
   (`HTTPSConnectionPool… NameResolutionError…`). Se traducen a una frase que explica qué pasó y qué mirar
   (sin DNS, sin salida por el puerto 443, proxy, certificado, tiempo agotado, conexión cortada), nombrando el
@@ -213,7 +221,7 @@ crudos con `python -m telehome probe <nombre>` y ajústalos en *Ajustes → Avan
 
 ## API (JSON)
 
-`GET /api/state` · `POST /api/devices/<id>/command {"action":"switch","value":true}` ·
+`GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` ·
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·

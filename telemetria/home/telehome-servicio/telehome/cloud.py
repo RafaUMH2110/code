@@ -236,6 +236,12 @@ class CloudHub:
         o = self._opts()
         return bool(o.get("cloud_api_key") and o.get("cloud_api_secret"))
 
+    def invalidate(self) -> None:
+        """Fuerza que la próxima lectura vaya a la nube (conserva la sesión y el método que funciona)."""
+        with self._lock:
+            self._cache_ts = 0.0
+            self._err = None
+
     def reset(self) -> None:
         with self._lock:
             self._client = None

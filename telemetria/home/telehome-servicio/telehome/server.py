@@ -225,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
             for m, rx, fn in ROUTES:
                 match = rx.match(url.path)
                 if m == method and match:
-                    if method != "GET" and fn not in SIN_SESION:
+                    if method != "GET" and fn not in SIN_SESION and fn not in SOLO_LEE:
                         if fn in SOLO_MANDO:
                             if not self._puede_mandar():
                                 return self._json(403, {"error": "Hace falta la contraseña de usuario o de administrador",
@@ -368,6 +368,11 @@ def r_command(h: Handler, q, dev_id):
         raise ConfigError(str(exc))
     h._json(200, {"id": dev_id, "online": r.online, "error": r.error,
                   "state": {"on": r.on}, "on": r.on})
+
+
+def r_refresh(h: Handler, q):
+    """Lee ya los dispositivos (no espera al ciclo de sondeo). Lo puede pedir quien pueda ver el estado."""
+    h._json(200, h.ctx.monitor.refresh())
 
 
 def r_history(h: Handler, q):
@@ -691,6 +696,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("GET", _r(r"/"), r_index),
     ("GET", _r(r"/api/health"), r_health),
     ("GET", _r(r"/api/state"), r_state),
+    ("POST", _r(r"/api/refresh"), r_refresh),
     ("GET", _r(r"/api/history"), r_history),
     ("GET", _r(r"/api/summary"), r_summary),
     ("GET", _r(r"/api/export\.csv"), r_csv),
@@ -726,6 +732,8 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
 
 # Abrir y cerrar sesión no exige sesión; mandar órdenes basta con la de usuario; todo lo demás, administrador.
 SIN_SESION = {r_login, r_logout, r_admin_login}
+# Solo lee: no cambia nada, así que no exige ni usuario ni administrador (basta con poder ver el estado).
+SOLO_LEE = {r_refresh}
 SOLO_MANDO = {r_power, r_command}
 
 

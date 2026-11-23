@@ -354,7 +354,7 @@ details.hint > p { margin:6px 0 0; }
     </div>
   </section>
 
-  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
+  <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnRefresh" type="button" title="Pide ahora al servicio que lea de nuevo todos los enchufes (útil si has cambiado alguno con otra app)">Actualizar</button> <button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
   <section class="plugs" id="cards" aria-label="Enchufes"></section>
 
   <section class="panel" id="chartPanel">
@@ -402,7 +402,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 19:51</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 22:44</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -744,6 +744,7 @@ async function api(path, opt = {}) {
   }
   if (!r.ok) {
     const err = new Error((data && data.error) || ("Error " + r.status));
+    err.status = r.status;
     if (data && data.detalle) err.detalle = data.detalle;   // lo enseña setMsg bajo «Detalle técnico»
     throw err;
   }
@@ -1661,6 +1662,30 @@ function bindDialog() {
   $("#toastX").addEventListener("click", () => { $("#toast").hidden = true; });
 }
 
+/* ---------- actualizar ahora ----------
+   El servicio solo lee la nube cada «cloud_poll_interval» (300 s por defecto) para no gastar cuota de Tuya.
+   Si se cambia un enchufe con otra app, este botón le pide una lectura inmediata de todos. */
+let actualizando = false;
+async function actualizarAhora() {
+  if (actualizando) return;
+  actualizando = true;
+  const b = $("#btnRefresh"), txt = b.textContent;
+  b.disabled = true; b.textContent = "Actualizando…"; b.setAttribute("aria-busy", "true");
+  try {
+    let r = null;
+    if (!BACKEND) {
+      try { r = await api("api/refresh", { method: "POST", body: {} }); }
+      catch (e) { if (e.status !== 404 && e.status !== 405) throw e; }     // servicio anterior a la 0.9.4: solo se recarga el estado
+    }
+    await refresh();
+    if (r && r.refrescado === false) toast("Se actualizó hace un momento; vuelve a probar en " + Math.ceil(r.espera || 1) + " s.");
+    else if (r && r.pendientes) toast("Actualizado, pero " + r.pendientes + " enchufe(s) no respondieron a tiempo.", true);
+    else if (!r) toast("Datos recargados.");
+    else toast("Enchufes actualizados.");
+  } catch (e) { toast("No se pudo actualizar: " + e.message, true); }
+  finally { actualizando = false; b.disabled = false; b.textContent = txt; b.removeAttribute("aria-busy"); }
+}
+
 /* ---------- ciclo ---------- */
 async function refresh() {
   try { S.state = await api("api/state"); }
@@ -1684,6 +1709,7 @@ async function init() {
   let oculto = false;
   try { oculto = localStorage.getItem(GRAPHS_KEY) === "1"; } catch (e) { /* sin almacenamiento */ }
   setGraphsHidden(oculto, false);
+  document.getElementById("btnRefresh").addEventListener("click", actualizarAhora);
   document.getElementById("btnGraphs").addEventListener("click", () => {
     const hide = !document.documentElement.classList.contains("sin-graficas");
     setGraphsHidden(hide, true);

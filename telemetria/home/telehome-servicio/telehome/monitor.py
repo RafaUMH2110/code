@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Any, Dict, List, Optional
 
 from .config import MIN_CLOUD_POLL, MIN_POLL, Config
@@ -12,6 +13,9 @@ from .devices import PlugError, Reading, make_plug
 from .store import Store
 
 log = logging.getLogger("telehome")
+
+MIN_REFRESH = 5.0       # s entre dos refrescos forzados (cada uno cuesta una llamada a la nube de Tuya)
+REFRESH_TIMEOUT = 20.0  # s que se espera a que contesten los dispositivos antes de devolver lo que haya
 
 
 def local_midnight(now: Optional[float] = None) -> float:
@@ -35,6 +39,8 @@ class Monitor:
         self._energy: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._closing = threading.Event()
+        self._refresh_lock = threading.Lock()
+        self._refresh_ts = 0.0
 
     # ---- Ciclo de vida -------------------------------------------------
     def start(self) -> None:
@@ -143,6 +149,34 @@ class Monitor:
                     log.info("Poda: %d lecturas antiguas eliminadas", n)
             except Exception:
                 log.exception("Error podando la base de datos")
+
+    def refresh(self) -> Dict[str, Any]:
+        """Lee ya todos los dispositivos, sin esperar al siguiente ciclo de sondeo.
+
+        Sirve cuando alguien los ha cambiado con otra app: por la nube la lectura es cada
+        300 s por omisión y hasta entonces no se vería. Se deja pasar un mínimo entre dos
+        refrescos para no gastar el cupo de llamadas de Tuya si se pulsa varias veces.
+        """
+        with self._refresh_lock:
+            espera = MIN_REFRESH - (time.time() - self._refresh_ts)
+            if espera > 0:
+                return {"refrescado": False, "espera": round(espera, 1)}
+            self._refresh_ts = time.time()
+        if self.hub is not None:
+            self.hub.invalidate()      # la primera lectura por nube la rellena y las demás la aprovechan
+        with self._lock:
+            tareas = [(d, p, self._stops.get(d)) for d, p in self.plugs.items()]
+        if not tareas:
+            return {"refrescado": True, "dispositivos": 0, "pendientes": 0}
+        ex = ThreadPoolExecutor(max_workers=min(8, len(tareas)), thread_name_prefix="refresco")
+        try:
+            futuros = [ex.submit(lambda d=d, p=p, st=st: self._record(d, self._read(d, p), st)) for d, p, st in tareas]
+            _, pendientes = wait(futuros, timeout=REFRESH_TIMEOUT)
+        finally:
+            ex.shutdown(wait=False)
+        if pendientes:
+            log.warning("Refresco: %d dispositivo(s) no contestaron en %.0f s", len(pendientes), REFRESH_TIMEOUT)
+        return {"refrescado": True, "dispositivos": len(tareas), "pendientes": len(pendientes)}
 
     # ---- Órdenes -----------------------------------------------------------
     def set_power(self, dev_id: str, on: bool, manual: bool = True) -> Reading:
