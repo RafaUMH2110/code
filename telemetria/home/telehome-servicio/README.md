@@ -1,6 +1,6 @@
 # TeleHome
 
-> TeleHome (0.9.2): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
+> TeleHome (0.9.3): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -179,7 +179,8 @@ crudos con `python -m telehome probe <nombre>` y ajústalos en *Ajustes → Avan
   (los que ya existían conservan id e histórico); con `--anadir` solo añade los que falten. Su contraseña del servicio no se toca.
   El fichero lleva credenciales y claves: compártelo solo con quien debas (se crea con permisos 600).
 - **Programaciones** (0.9.0): encienden, apagan o regulan un dispositivo **a una hora fija, al amanecer o al
-  anochecer** (con desplazamiento en minutos), los días de la semana que elijas; **sin ningún día marcado se
+  anochecer** (con desplazamiento en minutos), los días de la semana que elijas (la casilla «Todos los días» y los
+  atajos «Lunes a viernes» y «Fin de semana» los marcan de golpe, desde 0.9.3); **sin ningún día marcado se
   ejecutan una sola vez** y quedan desactivadas. Las evalúa el servicio cada 20 s,
   así que funcionan sin tener ninguna app abierta. Dos refinamientos: una **condición** sobre una magnitud
   («solo si la potencia lleva 10 min por debajo de 5 W», para apagar la lavadora al acabar) y

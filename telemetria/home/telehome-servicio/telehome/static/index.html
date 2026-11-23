@@ -235,6 +235,12 @@ details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margi
 .sch-days { border:1px solid var(--border); border-radius:10px; padding:4px 10px 10px; }
 .sch-days legend { font-size:12.5px; color:var(--ink2); padding:0 4px; font-weight:600; }
 .sch-days .dias { display:flex; flex-wrap:wrap; gap:4px; }
+.sch-days .atajos { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:2px 0 8px; }
+form.f .sch-days .atajos label { min-width:0; background:var(--sunk); }
+form.f .sch-days .atajos label:has(input:checked) { background:color-mix(in srgb,var(--accent) 14%,transparent); }
+.sch-days .atajos button { border:1px solid var(--border); background:transparent; color:var(--ink2); border-radius:8px;
+  padding:6px 10px; font-size:13px; font-weight:600; cursor:pointer; }
+.sch-days .atajos button:hover { color:var(--ink); border-color:var(--border-strong); }
 form.f .sch-days label { flex-direction:row; align-items:center; gap:6px; font-weight:600; font-size:14px;
   color:var(--ink); border:1px solid var(--border); border-radius:8px; padding:6px 10px; cursor:pointer; min-width:54px; }
 form.f .sch-days label:has(input:checked) { background:color-mix(in srgb,var(--accent) 14%,transparent); border-color:var(--accent); }
@@ -396,7 +402,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 19:33</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 19:51</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -588,7 +594,7 @@ details.hint > p { margin:6px 0 0; }
           </select></label>
           <label id="schTimeBox">Hora<input name="time" type="time" value="07:00"></label>
           <label id="schOffsetBox" hidden>Minutos antes (−) o después (+)<input name="offset" type="number" min="-720" max="720" value="0"></label>
-          <fieldset class="full sch-days"><legend>Días que se repite</legend><div class="dias" id="schDays"></div></fieldset>
+          <fieldset class="full sch-days"><legend>Días que se repite</legend><div class="atajos" id="schDaysQuick"></div><div class="dias" id="schDays"></div></fieldset>
           <p class="sch-once" id="schOnce" hidden>Sin ningún día marcado, la programación se ejecuta <b>una sola vez</b>: la próxima vez que llegue ese momento, y después queda desactivada.</p>
           <label class="full sch-chk"><input type="checkbox" name="hascond"> Solo si se cumple una condición</label>
           <div class="full sch-cond" id="schCondBox" hidden>
@@ -1253,12 +1259,23 @@ function schPintarDias(sel) {
     c.checked = sel.includes(n);
     box.append(el("label", {}, c, lab));
   }
+  /* Atajos: «Todos los días» (casilla que refleja el estado) y los dos grupos más habituales */
+  const todos = el("input", { type: "checkbox", id: "schAll", onchange: () => schMarcarDias(todos.checked ? [1, 2, 3, 4, 5, 6, 7] : []) });
+  const atajo = (txt, dias) => el("button", { type: "button", text: txt, onclick: () => schMarcarDias(dias) });
+  $("#schDaysQuick").replaceChildren(el("label", {}, todos, "Todos los días"),
+    atajo("Lunes a viernes", [1, 2, 3, 4, 5]), atajo("Fin de semana", [6, 7]));
+  schAvisoUnaVez();
+}
+function schMarcarDias(dias) {
+  for (const c of $("#schDays").querySelectorAll("input")) c.checked = dias.includes(+c.value);
   schAvisoUnaVez();
 }
 /* Sin días marcados la programación es de un solo uso: conviene decirlo antes de guardar */
 function schAvisoUnaVez() {
   const n = $("#schDays").querySelectorAll("input:checked").length;
   $("#schOnce").hidden = n > 0;
+  const todos = $("#schAll");                       // refleja el estado de los siete días
+  if (todos) { todos.checked = n === 7; todos.indeterminate = n > 0 && n < 7; }
 }
 function schModo() {
   const f = $("#schForm"), a = f.action.value, k = f.kind.value;
