@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -27,7 +28,16 @@ REGIONS = {
 
 
 class CloudError(Exception):
-    """Fallo de la nube de Tuya (mensaje apto para el usuario)."""
+    """Fallo de la nube de Tuya.
+
+    El mensaje está escrito para quien usa la app; «detalle» guarda el texto
+    técnico original (excepción de red, traza de la librería…) para quien tenga
+    que diagnosticar. La interfaz lo esconde tras «Detalle técnico».
+    """
+
+    def __init__(self, mensaje: str, detalle: str = ""):
+        super().__init__(mensaje)
+        self.detalle = detalle
 
 
 def _msg(resp: Any) -> str:
@@ -40,9 +50,9 @@ def _msg(resp: Any) -> str:
     return "respuesta no válida"
 
 
-# Ayuda para los errores de permisos más frecuentes de Tuya (lo que hay que
-# cambiar en iot.tuya.com). Se busca por código y por texto del mensaje.
-_AYUDA_PERMISOS = (
+# Ayuda para los errores más frecuentes de Tuya (lo que hay que cambiar en
+# iot.tuya.com). Se busca por código y por texto del mensaje.
+_AYUDAS = (
     (("28841105", "not authorized to call this api"),
      "El proyecto de Tuya no tiene permiso para esta llamada. En iot.tuya.com → Cloud → Cloud Services, si en la "
      "fila de «IoT Core» la columna «Authorized Projects» está vacía, pulsa «View Details» → «Authorized Projects» → "
@@ -55,15 +65,77 @@ _AYUDA_PERMISOS = (
     (("1106", "permission deny"),
      "Sin permiso sobre el dispositivo: en iot.tuya.com → tu proyecto → «Devices», pulsa «Change» en la columna "
      "«Device Permission» del enchufe y elige «Controllable» (con «Read» solo se puede leer)."),
+    (("cross-region access is not allowed", "cross region"),
+     "El proyecto está en otro centro de datos: elige arriba el mismo que aparece en iot.tuya.com → tu proyecto "
+     "(«Data Center»)."),
+    (("sign invalid", "invalid client_id", "clientid is invalid", "secret invalid", "invalid signature"),
+     "Revisa el Access ID y el Access Secret copiados de iot.tuya.com: suele ser un espacio de más al pegarlos o "
+     "credenciales de otro proyecto."),
 )
 
 
 def _ayuda(texto: str) -> str:
     t = texto.lower()
-    for claves, ayuda in _AYUDA_PERMISOS:
+    for claves, ayuda in _AYUDAS:
         if any(k in t for k in claves):
             return ayuda
     return ""
+
+
+# Fallos de red al hablar con la nube, traducidos a algo que se entienda. Se
+# busca en el texto de la excepción porque requests y urllib3 anidan la causa
+# real dentro de un mensaje larguísimo que no dice nada a quien usa la app.
+_FALLOS_RED = (
+    (("name or service not known", "failed to resolve", "nameresolutionerror", "nodename nor servname",
+      "temporary failure in name resolution", "getaddrinfo"),
+     "no se pudo averiguar su dirección",
+     "Comprueba que el servidor tiene salida a internet y un DNS que funcione."),
+    (("cannot connect to proxy", "proxyerror", "tunnel connection failed"),
+     "el proxy del servidor no deja llegar hasta ella",
+     "Revisa el proxy de salida del servidor (variables «https_proxy» y «no_proxy»)."),
+    (("certificate", "sslerror", "ssl error", "wrong version number", "handshake"),
+     "no se pudo establecer la conexión segura",
+     "Suele ser la fecha y hora del servidor o un proxy que inspecciona el tráfico."),
+    (("connection refused", "network is unreachable", "no route to host"),
+     "la red del servidor no dejó salir la conexión",
+     "Es probable que un cortafuegos esté bloqueando la salida por HTTPS (puerto 443)."),
+    (("timed out", "timeout"),
+     "no respondió a tiempo",
+     "Puede ser un corte pasajero: inténtalo de nuevo dentro de unos minutos."),
+    (("connection aborted", "connection reset", "remotedisconnected", "broken pipe"),
+     "la conexión se cortó antes de recibir la respuesta",
+     "Puede ser un corte pasajero: inténtalo de nuevo."),
+)
+
+
+def _host(texto: str) -> str:
+    """El servidor de Tuya al que no se ha podido llegar, si el error lo dice."""
+    for patron in (r"host='([^']+)'", r"resolve '([^']+)'", r"https?://([A-Za-z0-9.\-]+)"):
+        m = re.search(patron, texto)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def _mensaje_red(exc: BaseException) -> Tuple[str, str]:
+    """De una excepción de red a (mensaje para quien usa la app, detalle técnico)."""
+    detalle = "%s: %s" % (type(exc).__name__, exc)
+    if len(detalle) > 600:
+        detalle = detalle[:600] + "…"
+    texto = detalle.lower()
+    host = _host(detalle)
+    donde = "la nube de Tuya (%s)" % host if host else "la nube de Tuya"
+    for claves, que, pista in _FALLOS_RED:
+        if any(k in texto for k in claves):
+            return "No se pudo conectar con %s: %s. %s" % (donde, que, pista), detalle
+    return ("No se pudo hablar con %s. Comprueba la conexión a internet del servidor e inténtalo de nuevo; "
+            "el detalle técnico dice qué ha fallado." % donde, detalle)
+
+
+def _error_red(exc: BaseException) -> CloudError:
+    msg, detalle = _mensaje_red(exc)
+    log.debug("Fallo de red con la nube de Tuya: %s", detalle)
+    return CloudError(msg, detalle)
 
 
 def _msg_codigo(resp: Any) -> str:
@@ -124,7 +196,9 @@ def default_client_factory(region: str, key: str, secret: str):
     except TypeError as exc:
         raise CloudError("Credenciales de la nube incompletas: %s" % exc)
     if not getattr(c, "token", None):
-        raise CloudError("No se pudo iniciar sesión en la nube de Tuya: %s" % _msg(getattr(c, "error", None)))
+        detalle = _msg(getattr(c, "error", None))
+        ayuda = _ayuda(detalle) or "Comprueba las credenciales y el centro de datos en «Ajustes → Nube de Tuya»."
+        raise CloudError("No se pudo iniciar sesión en la nube de Tuya. " + ayuda, detalle)
     return c
 
 
@@ -141,6 +215,7 @@ class CloudHub:
         self._cache: Dict[str, Tuple[Optional[bool], Dict[str, Any]]] = {}
         self._cache_ts = 0.0
         self._err: Optional[str] = None
+        self._err_detalle = ""
         self._err_ts = 0.0
         self._strategy: Optional[str] = None
         self._cmd_strategy: Optional[str] = None
@@ -165,7 +240,7 @@ class CloudHub:
         with self._lock:
             self._client = None
             self._cache, self._cache_ts = {}, 0.0
-            self._err, self._err_ts = None, 0.0
+            self._err, self._err_ts, self._err_detalle = None, 0.0, ""
             self._strategy = None
             self._cmd_strategy = None
 
@@ -175,7 +250,12 @@ class CloudHub:
                 raise CloudError("Configura primero las credenciales de la nube de Tuya (Ajustes → Nube)")
             o = self._opts()
             self._count(1)  # obtención del token
-            self._client = self._factory(o.get("cloud_region", "eu"), o["cloud_api_key"], o["cloud_api_secret"])
+            try:
+                self._client = self._factory(o.get("cloud_region", "eu"), o["cloud_api_key"], o["cloud_api_secret"])
+            except CloudError:
+                raise
+            except Exception as exc:   # la librería sale por red ya al pedir el token
+                raise _error_red(exc)
         return self._client
 
     def _req(self, url: str, query: Optional[Dict[str, Any]] = None, post: Any = None, action: Optional[str] = None):
@@ -260,18 +340,19 @@ class CloudHub:
             if dev_id in self._cache and now - self._cache_ts < max_age:
                 return self._cache[dev_id]
             if self._err and now - self._err_ts < max_age:
-                raise CloudError(self._err)
+                raise CloudError(self._err, self._err_detalle)
             ids = list(dict.fromkeys(self._ids() + [dev_id]))
             try:
                 self._cache = self._fetch(ids)
                 self._cache_ts, self._err = now, None
             except CloudError as exc:
-                self._err, self._err_ts = str(exc), now
+                self._err, self._err_ts, self._err_detalle = str(exc), now, exc.detalle
                 raise
             except Exception as exc:  # red, JSON...
                 self._client = None
-                self._err, self._err_ts = "Error de comunicación con la nube: %s" % exc, now
-                raise CloudError(self._err)
+                err = _error_red(exc)
+                self._err, self._err_ts, self._err_detalle = str(err), now, err.detalle
+                raise err
             if dev_id not in self._cache:
                 raise CloudError("La nube no devuelve datos de este Device ID (¿cuenta enlazada correcta?)")
             return self._cache[dev_id]
@@ -299,7 +380,7 @@ class CloudHub:
                     raise
                 except Exception as exc:
                     self._client = None
-                    raise CloudError("Error de comunicación con la nube: %s" % exc)
+                    raise _error_red(exc)
                 if _ok(r):
                     if self._cmd_strategy != nombre:
                         log.info("Nube de Tuya: órdenes por el método «%s»", nombre)
@@ -329,7 +410,7 @@ class CloudHub:
                 devs = c.getdevices()
             except Exception as exc:
                 self._client = None
-                raise CloudError("Error de comunicación con la nube: %s" % exc)
+                raise _error_red(exc)
             if isinstance(devs, dict):
                 raise CloudError("No se pudo obtener la lista de dispositivos: %s" % _msg(devs))
             out = []

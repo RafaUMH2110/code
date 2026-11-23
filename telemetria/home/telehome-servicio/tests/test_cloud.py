@@ -1,13 +1,15 @@
 import base64
 import json
+import sys
 import threading
 import time
+import types
 import urllib.error
 import urllib.request
 
 import pytest
 
-from telehome.cloud import CloudError, CloudHub
+from telehome.cloud import CloudError, CloudHub, default_client_factory
 from telehome.config import Config, ConfigError, normalize_device
 from telehome.devices import CloudPlug, PlugError
 from telehome.monitor import Monitor
@@ -254,3 +256,63 @@ def test_hub_avisa_de_cada_llamada(tmp_path):
     assert hoy == hub.calls and hoy >= 2  # token + lectura por lotes
     hub.on_calls = lambda n: 1 / 0  # un fallo al guardar no rompe la lectura
     hub.status(IDS[0], 0)
+
+
+DNS_ROTO = ("HTTPSConnectionPool(host='openapi.tuyaeu.com', port=443): Max retries exceeded with url: "
+            "/v1.0/devices/factory-infos?device_ids=bf61e01e2d160be426xyar (Caused by NameResolutionError("
+            "\"<urllib3.connection.HTTPSConnection object at 0x7f>: Failed to resolve 'openapi.tuyaeu.com' "
+            "([Errno -2] Name or service not known)\"))")
+
+
+def test_fallo_de_red_se_explica_en_castellano():
+    class SinRed(FakeCloud):
+        def getdevices(self):
+            raise ConnectionError(DNS_ROTO)
+
+    hub = make_hub(SinRed())
+    with pytest.raises(CloudError) as e:
+        hub.list_devices()
+    msg = str(e.value)
+    assert "HTTPSConnectionPool" not in msg and "urllib3" not in msg and "Errno" not in msg
+    assert "openapi.tuyaeu.com" in msg and "DNS" in msg
+    assert "NameResolutionError" in e.value.detalle          # lo técnico se conserva aparte
+
+
+@pytest.mark.parametrize("texto, espera", [
+    ("HTTPSConnectionPool(host='openapi.tuyaeu.com', port=443): Read timed out. (read timeout=10)", "a tiempo"),
+    ("HTTPSConnectionPool(host='openapi.tuyaus.com', port=443): [Errno 111] Connection refused", "cortafuegos"),
+    ("HTTPSConnectionPool(host='openapi.tuyaeu.com', port=443): certificate verify failed", "segura"),
+    ("Cannot connect to proxy. Tunnel connection failed: 403 Forbidden", "proxy"),
+    ("('Connection aborted.', RemoteDisconnected('Remote end closed connection'))", "se cortó"),
+])
+def test_cada_fallo_de_red_tiene_su_explicacion(texto, espera):
+    class SinRed(FakeCloud):
+        def getdevices(self):
+            raise ConnectionError(texto)
+
+    with pytest.raises(CloudError) as e:
+        make_hub(SinRed()).list_devices()
+    assert espera in str(e.value) and "HTTPSConnectionPool" not in str(e.value)
+
+
+def test_el_detalle_tecnico_viaja_aparte_en_la_api(cloud_app):
+    base, cfg, fake, _ = cloud_app
+    fake.getdevices = lambda: (_ for _ in ()).throw(ConnectionError(DNS_ROTO))
+    st, r = call(base, "/api/cloud/test", "POST", {})
+    assert st == 502
+    assert "DNS" in r["error"] and "HTTPSConnectionPool" not in r["error"]
+    assert "NameResolutionError" in r["detalle"]
+
+
+@pytest.mark.parametrize("msg_tuya, espera", [
+    ({"msg": "sign invalid", "code": 1004}, "Access ID"),
+    ({"msg": "cross-region access is not allowed", "code": 2017}, "centro de datos"),
+])
+def test_el_login_fallido_dice_que_revisar(monkeypatch, msg_tuya, espera):
+    """Sin token, el servicio explica qué mirar en iot.tuya.com en vez del código a secas."""
+    falso = types.ModuleType("tinytuya")
+    falso.Cloud = lambda **kw: type("C", (), {"token": None, "error": msg_tuya})()
+    monkeypatch.setitem(sys.modules, "tinytuya", falso)
+    with pytest.raises(CloudError) as e:
+        default_client_factory("eu", "abcdefgh12", "s" * 32)
+    assert espera in str(e.value) and e.value.detalle == msg_tuya["msg"]

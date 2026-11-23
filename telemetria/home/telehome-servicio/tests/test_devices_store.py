@@ -1,7 +1,9 @@
 import time
 
 from telehome.config import normalize_device
-from telehome.devices import SimPlug, parse_dps, _error_text
+import pytest
+
+from telehome.devices import SimPlug, parse_dps, _error_lan, _error_text
 from telehome.store import Store
 
 DEV = normalize_device({"name": "t", "dev_id": "bf00000001", "local_key": "0123456789abcdef"})
@@ -19,6 +21,19 @@ def test_parse_dps_missing_values():
 
 def test_error_text():
     assert "914" in _error_text({"Error": "x", "Err": "914"})
+
+
+@pytest.mark.parametrize("texto, espera", [
+    ("[Errno 113] No route to host", "misma red"),
+    ("timed out", "a tiempo"),
+    ("[Errno 111] Connection refused", "ocupado"),
+    ("Something nobody has ever seen", "detalle técnico"),
+])
+def test_los_fallos_de_red_local_se_explican(texto, espera):
+    """La jerga de la librería (Errno…) no llega a la pantalla, pero se guarda aparte."""
+    err = _error_lan(OSError(texto))
+    assert espera in str(err) and "Errno" not in str(err)
+    assert texto in err.detalle
 
 
 def test_sim_plug_toggle():

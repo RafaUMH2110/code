@@ -217,6 +217,11 @@ details summary { cursor:pointer; color:var(--ink2); font-size:13.5px; font-weig
 details .adv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
 .msg { font-size:13.5px; margin-top:8px; min-height:1.2em; }
 .msg.bad { color:var(--critical); }
+.msg .detalle { margin-top:5px; color:var(--ink2); }
+.msg .detalle summary { cursor:pointer; font-size:12.5px; }
+.msg .detalle code { display:block; margin-top:4px; padding:7px 9px; background:var(--sunk); border:1px solid var(--border); border-radius:7px;
+  font-family:var(--mono); color:var(--ink2);
+  font-size:12px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
 .cfg-warn { color:var(--critical); }
 .cfg-radio { display:flex; align-items:flex-start; gap:8px; font-weight:400; }
 .cfg-radio input { margin-top:3px; width:auto; }
@@ -391,7 +396,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-22 22:02</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 19:33</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -731,7 +736,11 @@ async function api(path, opt = {}) {
     if (!ya) location.reload();
     throw new Error("El servicio pide contraseña: recarga la página para introducirla.");
   }
-  if (!r.ok) throw new Error((data && data.error) || ("Error " + r.status));
+  if (!r.ok) {
+    const err = new Error((data && data.error) || ("Error " + r.status));
+    if (data && data.detalle) err.detalle = data.detalle;   // lo enseña setMsg bajo «Detalle técnico»
+    throw err;
+  }
   try { sessionStorage.removeItem("telehome_401"); } catch (e) { /* sin almacenamiento */ }
   return data;
 }
@@ -1380,7 +1389,15 @@ function renderDevList() {
   $("#btnSave").disabled = full;
   if (full) setMsg("#formMsg", "Has alcanzado el máximo de " + S.state.max_devices + " enchufes.", false);
 }
-function setMsg(sel, text, ok) { const m = $(sel); m.textContent = text; m.className = "msg " + (ok ? "ok" : "bad"); }
+/* El texto puede ser una cadena o un Error; si el Error trae detalle técnico, se
+   esconde tras un desplegable para no llenar la pantalla de jerga. */
+function setMsg(sel, text, ok) {
+  const m = $(sel), err = text && typeof text === "object" ? text : null;
+  m.className = "msg " + (ok ? "ok" : "bad");
+  m.replaceChildren(err ? err.message : text);
+  if (err && err.detalle)
+    m.append(el("details", { class: "detalle" }, el("summary", { text: "Detalle técnico" }), el("code", { text: err.detalle })));
+}
 function editDev(d) {
   S.editing = d.id; const f = $("#devForm");
   for (const k of DEV_FIELDS) f[k].value = d[k];
@@ -1427,12 +1444,12 @@ function bindDialog() {
     try {
       await api("api/cloud", { method: "PUT", body: { region: f.region.value, api_key: f.api_key.value.trim(), api_secret: f.api_secret.value.trim() } });
       await refresh(); fillOptions(); setMsg("#cloudMsg", "Credenciales guardadas.", true);
-    } catch (err) { setMsg("#cloudMsg", err.message, false); }
+    } catch (err) { setMsg("#cloudMsg", err, false); }
   });
   $("#btnCloudTest").addEventListener("click", async () => {
     setMsg("#cloudMsg", "Conectando con la nube de Tuya…", true);
     try { const r = await api("api/cloud/test", { method: "POST", body: {} }); setMsg("#cloudMsg", "Conexión correcta: " + r.devices + " dispositivos en la cuenta enlazada.", true); }
-    catch (err) { setMsg("#cloudMsg", err.message, false); }
+    catch (err) { setMsg("#cloudMsg", err, false); }
   });
   $("#btnCloudList").addEventListener("click", async () => {
     const out = $("#cloudOut"); out.replaceChildren(); setMsg("#cloudMsg", "Consultando la nube…", true);
@@ -1448,13 +1465,13 @@ function bindDialog() {
             const rep = await api("api/cloud/import", { method: "POST", body: { dev_ids: [f.dev_id] } });
             if (rep["omitidos"].length) throw new Error(rep["omitidos"][0].motivo);
             add.textContent = "Añadido"; await refresh(); renderDevList();
-          } catch (err) { setMsg("#cloudMsg", err.message, false); add.disabled = false; }
+          } catch (err) { setMsg("#cloudMsg", err, false); add.disabled = false; }
         });
         out.append(el("div", { class: "found" },
           el("code", { text: f.name + " · " + f.dev_id + (f.category ? " · " + f.category : "") + (f.online === false ? " · desconectado" : "") +
             (/^vdevo/i.test(f.dev_id) ? " · virtual (solo pruebas)" : "") }), add));
       }
-    } catch (err) { setMsg("#cloudMsg", err.message, false); }
+    } catch (err) { setMsg("#cloudMsg", err, false); }
   });
   /* ---- Compartir: exportar / importar toda la configuración ---- */
   const exportarConfig = (BACKEND && BACKEND.exportConfig) ? () => BACKEND.exportConfig() : async () => {
@@ -1469,7 +1486,7 @@ function bindDialog() {
       const r = await exportarConfig(), name = r.name || "telehome-config.json";
       const a = el("a", { href: URL.createObjectURL(r.blob), download: name }); document.body.append(a); a.click(); a.remove();
       setMsg("#cfgMsg", "Configuración exportada en «" + name + "»" + (location.pathname.replace(/[^/]*$/, "") !== "/" ? " (con la ruta del servicio: " + location.pathname.replace(/[^/]*$/, "") + ")" : "") + ". Contiene credenciales: compártela solo con quien debas.", true);
-    } catch (err) { setMsg("#cfgMsg", err.message, false); }
+    } catch (err) { setMsg("#cfgMsg", err, false); }
   });
   $("#cfgFile").addEventListener("change", (e) => { $("#btnCfgImport").disabled = !e.target.files[0]; });
   $("#btnCfgImport").addEventListener("click", async () => {
@@ -1484,7 +1501,7 @@ function bindDialog() {
       await refresh(); fillOptions(); renderDevList();
       setMsg("#cfgMsg", "Configuración importada: " + partes.join(", ") + (r.opciones.length ? ". Ajustes aplicados: " + r.opciones.length + "." : ".") + (r.servicio ? " Ruta del servicio indicada en el fichero: " + r.servicio.ruta + "." : ""), !r["omitidos"].length);
       $("#cfgFile").value = ""; $("#btnCfgImport").disabled = true;
-    } catch (err) { setMsg("#cfgMsg", err.message, false); }
+    } catch (err) { setMsg("#cfgMsg", err, false); }
   });
   $("#btnAdmin").addEventListener("click", async () => {
     if (ADMIN.can()) {
@@ -1518,7 +1535,7 @@ function bindDialog() {
       $("#schFormBox").hidden = true;
       await refresh(); renderSchedules();
       setMsg("#schMsg", schEditando ? "Programación guardada." : "Programación creada.", true);
-    } catch (err) { setMsg("#schFormMsg", err.message, false); }
+    } catch (err) { setMsg("#schFormMsg", err, false); }
   });
   $("#placeForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1526,7 +1543,7 @@ function bindDialog() {
       await api("api/place", { method: "PUT", body: { lat: +e.target.lat.value, lon: +e.target.lon.value } });
       await refresh(); await pintarSol();
       setMsg("#placeMsg", "Lugar guardado.", true);
-    } catch (err) { setMsg("#placeMsg", err.message, false); }
+    } catch (err) { setMsg("#placeMsg", err, false); }
   });
   /* ---- contraseña del usuario de confianza (solo administradores) ---- */
   $("#userForm").addEventListener("submit", async (e) => {
@@ -1540,7 +1557,7 @@ function bindDialog() {
       f.u1.value = f.u2.value = "";
       setMsg("#userMsg", "Contraseña de usuario guardada. Las sesiones abiertas con la anterior se han cerrado.", true);
       await refresh(); fillOptions();
-    } catch (err) { setMsg("#userMsg", err.message, false); }
+    } catch (err) { setMsg("#userMsg", err, false); }
   });
   $("#btnUserDel").addEventListener("click", async () => {
     if (!confirm("Sin contraseña de usuario, quien no sea administrador solo podrá mirar. ¿Quitarla?")) return;
@@ -1549,7 +1566,7 @@ function bindDialog() {
       if (r.token) ADMIN.set(r.token);
       setMsg("#userMsg", "Contraseña de usuario quitada.", true);
       await refresh(); fillOptions();
-    } catch (err) { setMsg("#userMsg", err.message, false); }
+    } catch (err) { setMsg("#userMsg", err, false); }
   });
   /* ---- contraseña del servicio (solo en modo Administrador; la actual no se puede mostrar) ---- */
   $("#pwForm").addEventListener("submit", async (e) => {
@@ -1562,7 +1579,7 @@ function bindDialog() {
       f.pw1.value = f.pw2.value = "";
       setMsg("#pwMsg", "Contraseña guardada. El navegador seguirá usando la anterior: cierra la pestaña y vuelve a abrir el servicio para que te la pida de nuevo.", true);
       await refresh(); fillOptions();
-    } catch (err) { setMsg("#pwMsg", err.message, false); }
+    } catch (err) { setMsg("#pwMsg", err, false); }
   });
   $("#btnPwDel").addEventListener("click", async () => {
     if (!confirm("Sin contraseña, cualquiera que llegue al servicio verá la interfaz. ¿Quitarla?")) return;
@@ -1570,7 +1587,7 @@ function bindDialog() {
       await api("api/password", { method: "PUT", body: { quitar: true } });
       setMsg("#pwMsg", "Contraseña quitada: el servicio queda sin protección.", true);
       await refresh(); fillOptions();
-    } catch (err) { setMsg("#pwMsg", err.message, false); }
+    } catch (err) { setMsg("#pwMsg", err, false); }
   });
   $("#btnSettings").addEventListener("click", () => openDialog());
   $("#btnClose").addEventListener("click", () => $("#dlg").close());
@@ -1582,12 +1599,12 @@ function bindDialog() {
     try {
       if (S.editing) await api("api/devices/" + S.editing, { method: "PUT", body }); else await api("api/devices", { method: "POST", body });
       resetForm(); await refresh(); renderDevList(); setMsg("#formMsg", "Guardado.", true);
-    } catch (err) { setMsg("#formMsg", err.message, false); }
+    } catch (err) { setMsg("#formMsg", err, false); }
   });
   $("#optForm").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target;
     try { await api("api/options", { method: "PUT", body: { poll_interval: +f.poll_interval.value, cloud_poll_interval: +f.cloud_poll_interval.value, retention_days: +f.retention_days.value } }); setMsg("#optMsg", "Opciones guardadas.", true); await refresh(); updateEstimate(); }
-    catch (err) { setMsg("#optMsg", err.message, false); }
+    catch (err) { setMsg("#optMsg", err, false); }
   });
   $("#btnScan").addEventListener("click", async () => {
     const out = $("#scanOut"); out.className = "msg ok"; out.textContent = "Buscando… (unos 12 s)"; $("#btnScan").disabled = true;

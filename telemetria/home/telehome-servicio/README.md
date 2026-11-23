@@ -1,6 +1,6 @@
 # TeleHome
 
-> TeleHome (0.9.1): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
+> TeleHome (0.9.2): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -127,6 +127,13 @@ Notas:
   leer y para conmutar el programa prueba varias formas de llamar a la API (tres para cada cosa) y se queda con la que
   el proyecto tenga autorizada. Si Tuya rechaza la orden, el mensaje incluye el código de error y, en los errores de
   permisos (28841105, 28841106, 1106), qué cambiar en iot.tuya.com.
+- **Mensajes de error** (0.9.2): los fallos de red ya no se enseñan tal como los suelta la librería
+  (`HTTPSConnectionPool… NameResolutionError…`). Se traducen a una frase que explica qué pasó y qué mirar
+  (sin DNS, sin salida por el puerto 443, proxy, certificado, tiempo agotado, conexión cortada), nombrando el
+  servidor de Tuya al que no se llegó. El texto técnico sigue estando: en la interfaz, plegado bajo
+  «Detalle técnico», y entero en el registro del servicio (`journalctl -u telehome`). Lo mismo se aplica a los
+  enchufes en **modo local** y al inicio de sesión fallido, que ahora dice si lo que hay que revisar son las
+  credenciales o el centro de datos.
 
 ## Dar de alta los enchufes (modo local)
 

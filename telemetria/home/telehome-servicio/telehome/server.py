@@ -240,7 +240,11 @@ class Handler(BaseHTTPRequestHandler):
         except KeyError:
             self._json(404, {"error": "Enchufe no encontrado"})
         except (PlugError, CloudError) as exc:
-            self._json(502, {"error": str(exc)})
+            # El detalle técnico va aparte: la interfaz lo enseña solo si se pide.
+            detalle = getattr(exc, "detalle", "")
+            if detalle:
+                log.warning("%s | %s", exc, detalle)
+            self._json(502, {"error": str(exc), "detalle": detalle} if detalle else {"error": str(exc)})
         except (BrokenPipeError, ConnectionResetError):
             pass
         except Exception:

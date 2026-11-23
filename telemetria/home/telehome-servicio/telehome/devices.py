@@ -12,7 +12,15 @@ from typing import Any, Dict, Optional
 
 
 class PlugError(Exception):
-    """Fallo de comunicación con un enchufe (mensaje apto para el usuario)."""
+    """Fallo de comunicación con un enchufe.
+
+    El mensaje está escrito para quien usa la app; «detalle» guarda el texto
+    técnico (excepción de red, respuesta cruda) para quien tenga que diagnosticar.
+    """
+
+    def __init__(self, mensaje: str, detalle: str = ""):
+        super().__init__(mensaje)
+        self.detalle = detalle
 
 
 @dataclass
@@ -74,6 +82,31 @@ def parse_cloud_status(status: Dict[str, Any], dev: Dict[str, Any], online: Opti
     )
 
 
+# Fallos de red hablando con un enchufe de la red local: el texto de la
+# librería («[Errno 113] No route to host») no le dice nada a quien usa la app.
+_FALLOS_LAN = (
+    (("timed out", "timeout"), "El enchufe no contestó a tiempo: comprueba que está enchufado y con cobertura Wi-Fi."),
+    (("no route to host", "network is unreachable", "host is unreachable", "unreachable"),
+     "No se llega al enchufe: ¿está encendido y en la misma red que el servidor?"),
+    (("connection refused",), "El enchufe rechazó la conexión: suele pasar si otra app lo tiene ocupado."),
+    (("connection reset", "broken pipe", "connection aborted"), "El enchufe cortó la conexión antes de responder."),
+    (("name or service not known", "getaddrinfo", "failed to resolve"),
+     "No se pudo averiguar la dirección del enchufe: revisa su IP en los ajustes del enchufe."),
+    (("invalid key", "decrypt", "payload"), "La Local Key no parece correcta: vuelve a copiarla desde la nube de Tuya."),
+)
+
+
+def _error_lan(exc: BaseException) -> PlugError:
+    detalle = "%s: %s" % (type(exc).__name__, exc)
+    if len(detalle) > 400:
+        detalle = detalle[:400] + "…"
+    texto = detalle.lower()
+    for claves, msg in _FALLOS_LAN:
+        if any(k in texto for k in claves):
+            return PlugError(msg, detalle)
+    return PlugError("No se pudo hablar con el enchufe en la red local; el detalle técnico dice qué ha fallado.", detalle)
+
+
 def _error_text(resp: Dict[str, Any]) -> str:
     code = str(resp.get("Err", ""))
     base = _ERR_HINTS.get(code) or str(resp.get("Error") or "Error desconocido")
@@ -122,7 +155,7 @@ class TuyaPlug:
             except PlugError:
                 raise
             except Exception as exc:  # errores de red/biblioteca
-                raise PlugError("Error de comunicación: %s" % exc)
+                raise _error_lan(exc)
             if not isinstance(resp, dict) or "dps" not in resp:
                 raise self._fail(resp if isinstance(resp, dict) else {})
             return parse_dps(resp["dps"], self.dev)
@@ -134,7 +167,7 @@ class TuyaPlug:
             except PlugError:
                 raise
             except Exception as exc:
-                raise PlugError("Error de comunicación: %s" % exc)
+                raise _error_lan(exc)
             if isinstance(resp, dict) and (resp.get("Error") or resp.get("Err")):
                 raise self._fail(resp)
 
@@ -161,7 +194,7 @@ class CloudPlug:
         try:
             online, status = self.hub.status(self.dev["dev_id"], self._max_age())
         except CloudError as exc:
-            raise PlugError(str(exc))
+            raise PlugError(str(exc), exc.detalle)
         if online is False:
             raise PlugError("El enchufe aparece desconectado en la nube de Tuya")
         return parse_cloud_status(status, self.dev, online)
@@ -172,7 +205,7 @@ class CloudPlug:
         try:
             self.hub.command(self.dev["dev_id"], self.dev["code_switch"], bool(on))
         except CloudError as exc:
-            raise PlugError(str(exc))
+            raise PlugError(str(exc), exc.detalle)
 
     def probe(self) -> Dict[str, Any]:
         from .cloud import CloudError
@@ -180,7 +213,7 @@ class CloudPlug:
         try:
             return self.hub.status(self.dev["dev_id"], 0)[1]
         except CloudError as exc:
-            raise PlugError(str(exc))
+            raise PlugError(str(exc), exc.detalle)
 
 
 class SimPlug:
