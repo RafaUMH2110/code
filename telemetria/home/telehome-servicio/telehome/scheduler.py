@@ -170,19 +170,35 @@ class Scheduler:
         ahora = time.time() if ahora is None else ahora
         return self._ejecutar(sch, ahora, ahora)
 
+    def _miembros(self, sch: Dict[str, Any]) -> List[str]:
+        """Dispositivos a los que afecta una programación (uno, un grupo o los de una escena)."""
+        if sch["action"] == "scene":
+            sc = self.config.get_scene(sch["value"])
+            return [i["device"] for i in sc["items"]] if sc else []
+        if sch["device"].startswith("grupo:"):
+            g = self.config.get_group(sch["device"][6:])
+            return list(g["devices"]) if g else []
+        return [sch["device"]]
+
     def _ejecutar(self, sch: Dict[str, Any], momento: float, ahora: float) -> str:
         dev_id = sch["device"]
-        if self.config.get(dev_id) is None:
+        if sch["action"] == "scene":
+            if self.config.get_scene(sch["value"]) is None:
+                return "saltada: la escena ya no existe"
+        elif dev_id.startswith("grupo:"):
+            if self.config.get_group(dev_id[6:]) is None:
+                return "saltada: el grupo ya no existe"
+        elif self.config.get(dev_id) is None:
             return "saltada: el dispositivo ya no existe"
 
         if sch.get("skip_if_manual"):
-            manual = self.monitor.last_manual.get(dev_id, 0)
+            manual = max([self.monitor.last_manual.get(d, 0) for d in self._miembros(sch)] or [0])
             desde = float(sch.get("last_fire") or 0) or (ahora - SIN_DISPARO)
             if manual > desde:
                 return "saltada: lo manejaste a mano después de la vez anterior"
 
         cond = sch.get("condition")
-        if cond:
+        if cond and not dev_id.startswith("grupo:") and sch["action"] != "scene":
             ok, por_que = _cumple_ahora(cond, self.monitor.latest.get(dev_id))
             if not ok:
                 return "saltada: " + por_que
@@ -191,7 +207,19 @@ class Scheduler:
                 return "saltada: " + por_que
 
         try:
-            self.monitor.command(dev_id, sch["action"], sch["value"], manual=False)
+            if sch["action"] == "scene":
+                res = self.monitor.apply_scene(self.config.get_scene(sch["value"]), manual=False)
+                fallos = [r for r in res if not r["ok"]]
+                if fallos:
+                    return "error: %s: %s" % (fallos[0]["device"], fallos[0].get("error", "no se pudo"))
+            elif dev_id.startswith("grupo:"):
+                res = self.monitor.group_command(self.config.get_group(dev_id[6:]), sch["action"], sch["value"],
+                                                 manual=False, fade=int(sch.get("fade") or 0))
+                fallos = [r for r in res if not r["ok"] and not r.get("skipped")]
+                if fallos:
+                    return "error: %s: %s" % (fallos[0]["device"], fallos[0].get("error", "no se pudo"))
+            else:
+                self.monitor.command(dev_id, sch["action"], sch["value"], manual=False, fade=int(sch.get("fade") or 0))
         except KeyError:
             return "error: el dispositivo no está disponible"
         except ValueError as exc:

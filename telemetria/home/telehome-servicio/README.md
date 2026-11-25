@@ -205,8 +205,45 @@ cambiar a mano: *Editar* → tipo. El tope de 7 dispositivos cuenta enchufes y l
 
 **Límites.** El modo local de las luces solo está probado con simulaciones de la bombilla (las bombillas del autor
 funcionan por la nube); si algún DPS no coincide, se ajustan en *Avanzado* igual que los del enchufe
-(`dp_switch`, `dp_mode`, `dp_level`, `dp_temp`, `dp_color`). Los colores de las escenas y la música de Tuya no se
-manejan, solo `white` y `colour`.
+(`dp_switch`, `dp_mode`, `dp_level`, `dp_temp`, `dp_color`). Los colores de las escenas y de la música de Tuya no se
+manejan: TeleHome puede poner esos modos (0.11.0) pero no editarlos.
+
+## TeleHome Pro: escenas, grupos, transiciones y temporizadores (0.11.0)
+
+La versión 0.11.0 añade, sin tocar lo anterior, lo que usa la app **TeleHome Pro** (`telemetria/home/telehome-pro`
+del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se activan según `features`
+(`["luces","escenas","grupos","transiciones","temporizadores","parametros-luz"]`) en `GET /api/health` y `GET /api/state`.
+
+- **Escenas** (máx. 24). Una escena es una lista de `items` `{device, on, mode, level, temp, color}`; aplicarla manda a
+  cada dispositivo su orden **en paralelo** (en la nube, una sola llamada a Tuya por dispositivo). Si uno falla, los
+  demás se aplican y la respuesta dice cuál (`resultados`).
+  `POST /api/scenes` · `PUT|DELETE /api/scenes/<id>` · `POST /api/scenes/<id>/apply`. Aplicar es de usuario de
+  confianza; crear, editar y borrar, de administrador.
+- **Grupos** (máx. 8). Una lista de dispositivos que se manejan juntos: `POST /api/groups/<id>/command
+  {"action","value","fade"?}`. Los miembros que no admiten la orden (un enchufe no tiene brillo) se saltan; solo si
+  ninguno la admite es un error. `POST /api/groups` · `PUT|DELETE /api/groups/<id>`.
+- **Transiciones.** `level`, `temp` y `color` aceptan `"fade": segundos` (0-3600): la luz va poco a poco al nuevo valor.
+  Se hace por pasos: como mínimo **4 s entre pasos por la nube** y **1,5 s en local**, y nunca más de 20 pasos. Cada paso es
+  una orden y, por la nube, **una llamada a Tuya**: una transición de un minuto cuesta unas 15 llamadas, no 60. Una
+  orden manual sobre esa luz cancela la transición. `GET /api/state` lista las que están en curso en `fades`.
+- **Temporizadores.** `POST /api/devices/<id>/timer {"minutes":1-1440,"action":"off"|"on","fade"?}` apaga o enciende
+  la luz dentro de N minutos (uno por dispositivo; poner otro sustituye al anterior); `DELETE` lo cancela. Los
+  pendientes salen en `timers`. **Están en memoria: si el servicio se reinicia, se pierden.** Para algo a una hora fija
+  están las programaciones, que sí se guardan.
+- **Programaciones.** Admiten la acción `scene` (`value` = id de la escena, sin dispositivo), el destino `grupo:<id>` y
+  el campo `fade`. Con escenas y grupos no hay condiciones.
+- **Parámetros de la bombilla** (`PUT /api/devices/<id>`, administrador): `level_min` y `level_max` (1-100; TeleHome
+  recorta el brillo antes de mandarlo, p. ej. un máximo del 60 % convierte «100» en 60), y `kelvin_min` y `kelvin_max`
+  (solo para que las apps muestren «2 700 K» en vez de un porcentaje; no se mandan a la bombilla). Los códigos y escalas
+  de Tuya (`code_*`, `dp_*`, `scale_*`) siguen siendo ajustables como antes.
+- **Modos de Tuya.** `mode` admite también `scene` y `music` (la bombilla pone la escena o el modo música que tenga
+  guardados en la app de Tuya; TeleHome no cambia esos colores). No están verificados con bombillas reales.
+- **Datos crudos.** `GET /api/devices/<id>/raw` (administrador) pregunta a la bombilla qué códigos (nube) o DPS (local)
+  devuelve, para ajustar los parámetros avanzados. Por la nube cuesta una llamada a Tuya.
+- **Ligereza.** Todo lo que ocurre «con el tiempo» (transiciones y temporizadores) vive en **un solo hilo** que duerme
+  mientras no haya nada pendiente. Sin uso, no gasta CPU ni hace llamadas.
+- La exportación e importación de la configuración incluyen escenas y grupos; al borrar un dispositivo se quita de
+  las escenas y los grupos (y desaparecen los que se quedan vacíos).
 
 ## Límites y buenas prácticas
 
@@ -266,7 +303,8 @@ manejan, solo `white` y `colour`.
 
 ## API (JSON)
 
-`GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` (las luces admiten además `level`, `temp`, `color` y `mode`, 0.10.0) ·
+`GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` (las luces admiten además `level`, `temp`, `color` y `mode`, 0.10.0, y `fade`, 0.11.0) ·
+`POST|PUT|DELETE /api/scenes` · `POST /api/scenes/<id>/apply` · `POST|PUT|DELETE /api/groups` · `POST /api/groups/<id>/command` · `POST|DELETE /api/devices/<id>/timer` · `GET /api/devices/<id>/raw` (0.11.0, ver [Pro](#telehome-pro-escenas-grupos-transiciones-y-temporizadores-0110)) ·
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·
@@ -328,7 +366,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
 .venv/bin/python -m pytest -q
 ```
 
-Estructura: `telehome/` (config, devices, cloud, store, monitor, server, cli, `static/index.html`), `macos/`
+Estructura: `telehome/` (config, devices, cloud, luces, pro, store, monitor, scheduler, server, cli, `static/index.html`), `macos/`
 (instalador y lanzador), `linux/` (instalador con systemd), `tests/`. Convenciones: scripts y guías con guiones; los `.py` del programa conservan `_`.
 
 ---

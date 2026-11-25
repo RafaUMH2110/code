@@ -64,7 +64,7 @@ def test_plan_orders():
     assert luces.plan("temp", 80, cur) == [("switch", True), ("mode", "white"), ("temp", 80)]
     assert luces.plan("color", "#ff0000", cur) == [("switch", True), ("mode", "colour"), ("color", (0, 100, 100))]
     assert luces.plan("mode", "white", cur) == [("mode", "white")]
-    for accion, valor in (("switch", 1), ("level", 101), ("level", True), ("temp", "x"), ("mode", "scene"), ("color", None), ("x", 1)):
+    for accion, valor in (("switch", 1), ("level", 101), ("level", True), ("temp", "x"), ("mode", "disco"), ("color", None), ("x", 1)):
         with pytest.raises(ValueError):
             luces.plan(accion, valor, cur)
 
@@ -129,7 +129,7 @@ def test_schedule_values_for_light_actions(tmp_path):
     assert cfg.add_schedule({**base, "action": "color", "value": {"h": 0, "s": 100, "v": 100}})["value"] == "#ff0000"
     assert cfg.add_schedule({**base, "name": "t", "action": "temp", "value": 20})["value"] == 20
     assert cfg.add_schedule({**base, "name": "m", "action": "mode", "value": "white"})["value"] == "white"
-    for accion, valor in (("color", "rojo"), ("temp", 101), ("mode", "scene")):
+    for accion, valor in (("color", "rojo"), ("temp", 101), ("mode", "disco")):
         with pytest.raises(ConfigError):
             cfg.add_schedule({**base, "name": "x", "action": accion, "value": valor})
 

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from .config import MIN_CLOUD_POLL, MIN_POLL, Config
 from . import luces
+from .pro import Automatismos
 from .devices import PlugError, Reading, TipoIncorrecto, make_plug
 from .store import Store
 
@@ -42,6 +43,7 @@ class Monitor:
         self._closing = threading.Event()
         self._refresh_lock = threading.Lock()
         self._refresh_ts = 0.0
+        self.auto = Automatismos(self)      # transiciones y temporizadores (el hilo nace con la primera tarea)
 
     # ---- Ciclo de vida -------------------------------------------------
     def start(self) -> None:
@@ -50,6 +52,7 @@ class Monitor:
 
     def stop(self) -> None:
         self._closing.set()
+        self.auto.stop()
         with self._lock:
             for ev in self._stops.values():
                 ev.set()
@@ -212,10 +215,28 @@ class Monitor:
             raise KeyError(dev_id)
         return self.ACTIONS.get(dev.get("type", "enchufe"), ())
 
-    def command(self, dev_id: str, action: str, value: Any, manual: bool = True) -> Reading:
-        """Orden genérica. Un enchufe solo admite «switch»; una luz, también brillo, temperatura, color y modo."""
+    def light_state(self, dev_id: str) -> Dict[str, Any]:
+        """Último estado conocido de una luz: {on, level, temp, mode, color}."""
+        r = self.latest.get(dev_id)
+        e = dict(r.extra or {}) if r is not None else {}
+        e["on"] = None if r is None else r.on
+        return e
+
+    def command(self, dev_id: str, action: str, value: Any, manual: bool = True, fade: int = 0) -> Reading:
+        """Orden genérica. Un enchufe solo admite «switch»; una luz, también brillo, temperatura, color y modo.
+        Con `fade` (segundos) el brillo, el blanco o el color cambian poco a poco (solo en luces)."""
         if action not in self.actions_for(dev_id):
             raise ValueError("Orden «%s» no admitida por este dispositivo" % action)
+        if manual:
+            self.auto.cancelar(dev_id)      # una orden a mano manda sobre una transición en curso
+        if fade:
+            if self.config.get(dev_id).get("type") != "luz" or action not in ("level", "temp", "color"):
+                raise ValueError("Solo se puede hacer una transición con el brillo, el blanco o el color de una luz")
+            luces.plan(action, value)        # valida el valor antes de empezar
+            self.auto.fade(dev_id, action, value, fade)
+            if manual:
+                self.last_manual[dev_id] = time.time()
+            return self.latest.get(dev_id) or self._read(dev_id, self.plugs[dev_id])
         if action == "switch" or self.config.get(dev_id).get("type") != "luz":
             if not isinstance(value, bool):
                 raise ValueError("«value» debe ser true o false")
@@ -230,6 +251,76 @@ class Monitor:
         r = self._read(dev_id, plug)
         self._record(dev_id, r, self._stops.get(dev_id))
         return r
+
+    def apply_scene(self, scene: Dict[str, Any], manual: bool = True) -> List[Dict[str, Any]]:
+        """Deja cada dispositivo de la escena como dice. Una orden por dispositivo, en paralelo."""
+        def uno(item: Dict[str, Any]) -> Dict[str, Any]:
+            dev_id = item["device"]
+            res = {"device": dev_id, "ok": False}
+            dev = self.config.get(dev_id)
+            plug = self.plugs.get(dev_id)
+            if dev is None or plug is None:
+                res["error"] = "el dispositivo ya no existe"
+                return res
+            try:
+                self.auto.cancelar(dev_id)
+                if dev.get("type") != "luz":
+                    plug.set_power(bool(item.get("on", True)))
+                else:
+                    plug.apply_steps(luces.plan_estado(item, dev))
+                if manual:
+                    self.last_manual[dev_id] = time.time()
+                self._record(dev_id, self._read(dev_id, plug), self._stops.get(dev_id))
+                res["ok"] = True
+            except (PlugError, ValueError) as exc:
+                res["error"] = str(exc)
+            except Exception as exc:
+                log.exception("Error aplicando la escena a %s", dev_id)
+                res["error"] = "Error interno: %s" % exc
+            return res
+        items = list(scene.get("items", []))
+        if len(items) <= 1:
+            return [uno(i) for i in items]
+        with ThreadPoolExecutor(max_workers=min(4, len(items)), thread_name_prefix="escena") as ex:
+            return list(ex.map(uno, items))
+
+    def group_command(self, group: Dict[str, Any], action: str, value: Any, manual: bool = True, fade: int = 0) -> List[Dict[str, Any]]:
+        """Una orden a todos los miembros de un grupo. Los que no la admiten (un enchufe con «level») se saltan."""
+        def uno(dev_id: str) -> Dict[str, Any]:
+            res = {"device": dev_id, "ok": False}
+            try:
+                if action not in self.actions_for(dev_id):
+                    res["skipped"] = True
+                    return res
+                self.command(dev_id, action, value, manual=manual, fade=fade if self._admite_fade(dev_id, action) else 0)
+                res["ok"] = True
+            except KeyError:
+                res["error"] = "el dispositivo ya no existe"
+            except (PlugError, ValueError) as exc:
+                res["error"] = str(exc)
+            except Exception as exc:
+                log.exception("Error en la orden de grupo a %s", dev_id)
+                res["error"] = "Error interno: %s" % exc
+            return res
+        ids = list(group.get("devices", []))
+        if len(ids) <= 1:
+            return [uno(i) for i in ids]
+        with ThreadPoolExecutor(max_workers=min(4, len(ids)), thread_name_prefix="grupo") as ex:
+            return list(ex.map(uno, ids))
+
+    def _admite_fade(self, dev_id: str, action: str) -> bool:
+        dev = self.config.get(dev_id) or {}
+        return dev.get("type") == "luz" and action in ("level", "temp", "color")
+
+    def raw(self, dev_id: str) -> Dict[str, Any]:
+        """Lo que devuelve el dispositivo sin interpretar (códigos de la nube o DPS locales). En la nube cuesta una llamada."""
+        plug = self.plugs.get(dev_id)
+        if plug is None:
+            raise KeyError(dev_id)
+        dev = self.config.get(dev_id) or {}
+        datos = plug.probe()
+        return {"id": dev_id, "mode": dev.get("mode"), "type": dev.get("type"),
+                "claves": "códigos de Tuya" if dev.get("mode") == "nube" else "DPS", "datos": datos}
 
     @staticmethod
     def _public_reading(r: Reading, luz: bool) -> Dict[str, Any]:

@@ -33,7 +33,11 @@ CLOUD_REGIONS = ("eu", "eu-w", "us", "us-e", "in", "sg", "cn")
 
 # ---- Programaciones -------------------------------------------------------
 MAX_SCHEDULES = 32
-SCHEDULE_ACTIONS = ("switch", "level", "temp", "color", "mode", "position", "stop")
+MAX_SCENES = 24
+MAX_GROUPS = 8
+MAX_FADE = 3600                                   # s; transición más larga que se admite
+SCHEDULE_ACTIONS = ("switch", "level", "temp", "color", "mode", "position", "stop", "scene")
+FADE_ACTIONS = ("level", "temp", "color")         # las órdenes que admiten transición
 WHEN_KINDS = ("clock", "sunrise", "sunset")      # hora fija, amanecer o anochecer
 CONDITION_OPS = ("<", "<=", ">", ">=")
 MAX_OFFSET = 720                                  # min; desplazamiento sobre el amanecer o el anochecer
@@ -225,8 +229,17 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
             out[campo] = _num(merged, campo, 1, 255, True)
         elif campo.startswith("code_"):
             out[campo] = _code(merged, campo)
+        elif campo in ("level_min", "level_max"):
+            out[campo] = _num(merged, campo, 1, 100, True)
+        elif campo in ("kelvin_min", "kelvin_max"):
+            out[campo] = _num(merged, campo, 1000, 12000, True)
         else:
             out[campo] = _num(merged, campo, 0.001, 1e6)
+    if dtype == "luz":
+        if out["level_min"] > out["level_max"]:
+            raise ConfigError("El brillo mínimo no puede ser mayor que el máximo")
+        if out["kelvin_min"] >= out["kelvin_max"]:
+            raise ConfigError("El blanco cálido (K) debe ser menor que el frío")
     return out
 
 
@@ -241,16 +254,23 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
     if len(nombre) > 40:
         raise ConfigError("El nombre no puede superar 40 caracteres")
 
-    device = str(m.get("device", "")).strip()
-    if not device:
-        raise ConfigError("Falta el dispositivo de la programación")
-
+    device = str(m.get("device", "") or "").strip()
     action = str(m.get("action", "")).strip().lower()
     if action not in SCHEDULE_ACTIONS:
         raise ConfigError("Orden no válida (%s)" % ", ".join(SCHEDULE_ACTIONS))
+    if action == "scene":
+        device = ""                                   # una escena lleva sus propios dispositivos
+    elif not device:
+        raise ConfigError("Falta el dispositivo de la programación")
+    elif device.startswith("grupo:") and not _ID_RE.match(device[6:]):
+        raise ConfigError("Grupo no válido")
 
     value = m.get("value")
-    if action == "switch":
+    if action == "scene":
+        value = str(value or "").strip()
+        if not _ID_RE.match(value):
+            raise ConfigError("«scene» necesita el identificador de una escena")
+    elif action == "switch":
         if not isinstance(value, bool):
             raise ConfigError("«switch» necesita un valor true o false")
     elif action in ("level", "position", "temp"):
@@ -327,6 +347,18 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
             raise ConfigError("«for» debe estar entre 0 y %d segundos" % MAX_CONDITION_FOR)
         condition = {"metric": metric, "op": op, "value": umbral, "for": durante}
 
+    if (action == "scene" or device.startswith("grupo:")) and condition:
+        raise ConfigError("Las escenas y los grupos no admiten condición")
+
+    try:
+        fade = int(m.get("fade", 0) or 0)
+    except (TypeError, ValueError):
+        raise ConfigError("«fade» debe ser un número de segundos")
+    if not 0 <= fade <= MAX_FADE:
+        raise ConfigError("«fade» debe estar entre 0 y %d segundos" % MAX_FADE)
+    if fade and action not in FADE_ACTIONS:
+        raise ConfigError("Solo se puede hacer una transición con brillo, blanco o color")
+
     creado = base.get("created", raw.get("created"))
     return {
         "id": base.get("id") or raw.get("id") or "",
@@ -339,6 +371,7 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
         "days": dias,
         "condition": condition,
         "skip_if_manual": bool(m.get("skip_if_manual", False)),
+        **({"fade": fade} if fade else {}),
         "last_fire": float(base.get("last_fire") or 0),
         "last_result": base.get("last_result") or "",
         # Cuándo se creó. Nunca se dispara un momento anterior a esto, para que crear a las 07:30
@@ -346,6 +379,82 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
         "created": float(creado) if creado is not None else time.time(),
         "once": not dias,
     }
+
+
+def _clean_ids(raw: Any, que: str, maximo: int = MAX_DEVICES) -> List[str]:
+    if not isinstance(raw, list):
+        raise ConfigError("«%s» debe ser una lista" % que)
+    out: List[str] = []
+    for x in raw:
+        x = str(x or "").strip()
+        if not _ID_RE.match(x):
+            raise ConfigError("Identificador de dispositivo no válido en «%s»" % que)
+        if x not in out:
+            out.append(x)
+    if len(out) > maximo:
+        raise ConfigError("Demasiados dispositivos (máximo %d)" % maximo)
+    return out
+
+
+def normalize_group(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Grupo: un nombre y una lista de dispositivos que se manejan juntos."""
+    m = {**(existing or {}), **{k: v for k, v in raw.items() if v is not None}}
+    nombre = re.sub(r"\s+", " ", str(m.get("name", ""))).strip()
+    if not nombre:
+        raise ConfigError("El nombre del grupo es obligatorio")
+    if len(nombre) > 40:
+        raise ConfigError("El nombre no puede superar 40 caracteres")
+    devices = _clean_ids(m.get("devices", []), "devices")
+    if len(devices) < 1:
+        raise ConfigError("Un grupo necesita al menos un dispositivo")
+    return {"id": (existing or {}).get("id") or raw.get("id") or "", "name": nombre, "devices": devices}
+
+
+def normalize_scene(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Escena: para cada dispositivo, cómo debe quedar. Un elemento es
+    {"device", "on", "mode", "level", "temp", "color"}; en un enchufe solo cuenta «on»."""
+    m = {**(existing or {}), **{k: v for k, v in raw.items() if v is not None}}
+    nombre = re.sub(r"\s+", " ", str(m.get("name", ""))).strip()
+    if not nombre:
+        raise ConfigError("El nombre de la escena es obligatorio")
+    if len(nombre) > 40:
+        raise ConfigError("El nombre no puede superar 40 caracteres")
+    items = m.get("items", [])
+    if not isinstance(items, list) or not items:
+        raise ConfigError("Una escena necesita al menos un dispositivo")
+    if len(items) > MAX_DEVICES:
+        raise ConfigError("Demasiados dispositivos (máximo %d)" % MAX_DEVICES)
+    out, vistos = [], set()
+    for it in items:
+        if not isinstance(it, dict):
+            raise ConfigError("Cada elemento de la escena debe ser un objeto")
+        dev = str(it.get("device", "")).strip()
+        if not _ID_RE.match(dev):
+            raise ConfigError("Falta el dispositivo de un elemento de la escena")
+        if dev in vistos:
+            raise ConfigError("Un dispositivo aparece dos veces en la escena")
+        vistos.add(dev)
+        on = it.get("on", True)
+        if not isinstance(on, bool):
+            raise ConfigError("«on» debe ser true o false")
+        el: Dict[str, Any] = {"device": dev, "on": on}
+        if on:
+            try:
+                pasos = luces.plan_estado({k: it.get(k) for k in ("mode", "level", "temp", "color") if it.get(k) is not None})
+            except ValueError as exc:
+                raise ConfigError(str(exc))
+            for k, v in pasos:
+                if k == "mode":
+                    el["mode"] = v
+                elif k == "level":
+                    el["level"] = v
+                elif k == "temp":
+                    el["temp"] = v
+                elif k == "color":
+                    el["color"] = luces.hsv_to_hex(v[0], v[1], 100)
+                    el["level"] = v[2]            # en modo color el brillo es el valor del color
+        out.append(el)
+    return {"id": (existing or {}).get("id") or raw.get("id") or "", "name": nombre, "items": out}
 
 
 def public_device(dev: Dict[str, Any]) -> Dict[str, Any]:
@@ -379,6 +488,8 @@ class Config:
         self.options: Dict[str, Any] = dict(OPTION_DEFAULTS)
         self.devices: List[Dict[str, Any]] = []
         self.schedules: List[Dict[str, Any]] = []
+        self.scenes: List[Dict[str, Any]] = []
+        self.groups: List[Dict[str, Any]] = []
         self._mtime: Optional[float] = None
         self.load()
 
@@ -400,6 +511,8 @@ class Config:
             self.options = {**OPTION_DEFAULTS, **data.get("options", {})}
             self.devices = []
             self.schedules = []
+            self.scenes = []
+            self.groups = []
             for raw in data.get("schedules", [])[:MAX_SCHEDULES]:
                 try:
                     sch = normalize_schedule(raw)
@@ -412,6 +525,15 @@ class Config:
                 dev["id"] = raw.get("id") or self._new_id(dev["name"])
                 dev["slot"] = self._free_slot(dev.get("slot"))
                 self.devices.append(dev)
+            for clave, norm, lista, tope in (("scenes", normalize_scene, self.scenes, MAX_SCENES),
+                                             ("groups", normalize_group, self.groups, MAX_GROUPS)):
+                for raw in data.get(clave, [])[:tope]:
+                    try:
+                        el = norm(raw)
+                    except ConfigError:
+                        continue                  # una escena o un grupo roto no impide arrancar
+                    el["id"] = raw.get("id") if _ID_RE.match(str(raw.get("id") or "")) else self._new_pro_id(el["name"], lista)
+                    lista.append(el)
             self._mtime = self._stat()
 
     def maybe_reload(self) -> bool:
@@ -430,7 +552,8 @@ class Config:
     def save(self) -> None:
         with self.lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-            payload = json.dumps({"options": self.options, "devices": self.devices, "schedules": self.schedules},
+            payload = json.dumps({"options": self.options, "devices": self.devices, "schedules": self.schedules,
+                                  "scenes": self.scenes, "groups": self.groups},
                                  ensure_ascii=False, indent=2)
             fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), prefix=".cfg-")
             try:
@@ -500,6 +623,7 @@ class Config:
             if cur is None:
                 raise KeyError(dev_id)
             self.devices.remove(cur)
+            self._purge_device(dev_id)
             self.save()
 
     def retype_device(self, dev_id: str, tipo: str) -> Dict[str, Any]:
@@ -551,9 +675,114 @@ class Config:
             cand, n = "%s-%d" % (base, n), n + 1
         return cand
 
+    def _new_pro_id(self, name: str, lista: List[Dict[str, Any]]) -> str:
+        usados = {x["id"] for x in lista}
+        base = _slug(name) or "x"
+        n, cand = 2, base
+        while cand in usados:
+            cand, n = "%s-%d" % (base, n), n + 1
+        return cand
+
     def _check_device(self, dev_id: str) -> None:
+        if dev_id.startswith("grupo:"):
+            if not any(g["id"] == dev_id[6:] for g in self.groups):
+                raise ConfigError("No hay ningún grupo con el identificador «%s»" % dev_id[6:])
+            return
         if not any(d["id"] == dev_id for d in self.devices):
             raise ConfigError("No hay ningún dispositivo con el identificador «%s»" % dev_id)
+
+    def _check_members(self, ids: List[str]) -> None:
+        for dev_id in ids:
+            if not any(d["id"] == dev_id for d in self.devices):
+                raise ConfigError("No hay ningún dispositivo con el identificador «%s»" % dev_id)
+
+    def get_scene(self, scene_id: str) -> Optional[Dict[str, Any]]:
+        with self.lock:
+            return next((x for x in self.scenes if x["id"] == scene_id), None)
+
+    def get_group(self, group_id: str) -> Optional[Dict[str, Any]]:
+        with self.lock:
+            return next((x for x in self.groups if x["id"] == group_id), None)
+
+    def add_scene(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            if len(self.scenes) >= MAX_SCENES:
+                raise ConfigError("Máximo %d escenas" % MAX_SCENES)
+            sc = normalize_scene(raw)
+            self._check_members([i["device"] for i in sc["items"]])
+            sc["id"] = self._new_pro_id(sc["name"], self.scenes)
+            self.scenes.append(sc)
+            self.save()
+            return sc
+
+    def update_scene(self, scene_id: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            cur = self.get_scene(scene_id)
+            if cur is None:
+                raise KeyError(scene_id)
+            nuevo = normalize_scene({k: v for k, v in raw.items() if k != "id"}, cur)
+            self._check_members([i["device"] for i in nuevo["items"]])
+            nuevo["id"] = scene_id
+            self.scenes[self.scenes.index(cur)] = nuevo
+            self.save()
+            return nuevo
+
+    def delete_scene(self, scene_id: str) -> None:
+        with self.lock:
+            cur = self.get_scene(scene_id)
+            if cur is None:
+                raise KeyError(scene_id)
+            self.scenes.remove(cur)
+            self.save()
+
+    def add_group(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            if len(self.groups) >= MAX_GROUPS:
+                raise ConfigError("Máximo %d grupos" % MAX_GROUPS)
+            g = normalize_group(raw)
+            self._check_members(g["devices"])
+            g["id"] = self._new_pro_id(g["name"], self.groups)
+            self.groups.append(g)
+            self.save()
+            return g
+
+    def update_group(self, group_id: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+        with self.lock:
+            cur = self.get_group(group_id)
+            if cur is None:
+                raise KeyError(group_id)
+            nuevo = normalize_group({k: v for k, v in raw.items() if k != "id"}, cur)
+            self._check_members(nuevo["devices"])
+            nuevo["id"] = group_id
+            self.groups[self.groups.index(cur)] = nuevo
+            self.save()
+            return nuevo
+
+    def delete_group(self, group_id: str) -> None:
+        with self.lock:
+            cur = self.get_group(group_id)
+            if cur is None:
+                raise KeyError(group_id)
+            self.groups.remove(cur)
+            self.save()
+
+    def _purge_device(self, dev_id: str) -> None:
+        """Quita un dispositivo borrado de las escenas y los grupos (y las que se quedan vacías)."""
+        for sc in list(self.scenes):
+            sc["items"] = [i for i in sc["items"] if i["device"] != dev_id]
+            if not sc["items"]:
+                self.scenes.remove(sc)
+        for g in list(self.groups):
+            g["devices"] = [d for d in g["devices"] if d != dev_id]
+            if not g["devices"]:
+                self.groups.remove(g)
+
+    def _check_target(self, sch: Dict[str, Any]) -> None:
+        if sch["action"] == "scene":
+            if self.get_scene(sch["value"]) is None:
+                raise ConfigError("No hay ninguna escena con el identificador «%s»" % sch["value"])
+        else:
+            self._check_device(sch["device"])
 
     def get_schedule(self, sched_id: str) -> Optional[Dict[str, Any]]:
         with self.lock:
@@ -564,7 +793,7 @@ class Config:
             if len(self.schedules) >= MAX_SCHEDULES:
                 raise ConfigError("Máximo %d programaciones" % MAX_SCHEDULES)
             sch = normalize_schedule(raw)
-            self._check_device(sch["device"])
+            self._check_target(sch)
             sch["id"] = self._new_sched_id(sch["name"])
             self.schedules.append(sch)
             self.save()
@@ -576,7 +805,7 @@ class Config:
             if cur is None:
                 raise KeyError(sched_id)
             nuevo = normalize_schedule({k: v for k, v in raw.items() if k != "id"}, cur)
-            self._check_device(nuevo["device"])
+            self._check_target(nuevo)
             nuevo["id"] = sched_id
             self.schedules[self.schedules.index(cur)] = nuevo
             self.save()
@@ -633,6 +862,8 @@ class Config:
                 "devices": [dict(d) for d in self.devices],
                 "schedules": [{k: v for k, v in s.items() if k not in ("last_fire", "last_result", "created")}
                               for s in self.schedules],
+                "scenes": [dict(x) for x in self.scenes],
+                "groups": [dict(x) for x in self.groups],
             }
 
     def _clean_export_options(self, raw: Any) -> Dict[str, Any]:
@@ -691,6 +922,7 @@ class Config:
             opts = self._clean_export_options(data.get("options"))     # si falla, no se ha tocado nada
             report: Dict[str, Any] = {"añadidos": [], "actualizados": [], "omitidos": [], "opciones": sorted(opts)}
             current = list(self.devices)
+            idmap: Dict[str, str] = {}            # id que traía el fichero -> id que ha quedado
             by_devid = {d["dev_id"]: d for d in current}
             result: List[Dict[str, Any]] = [] if replace else list(current)
             seen = {d["dev_id"] for d in result}
@@ -725,6 +957,8 @@ class Config:
                     else next(i for i in range(MAX_DEVICES + 1) if i not in taken)
                 result.append(dev)
                 seen.add(dev["dev_id"])
+                if isinstance(raw.get("id"), str):
+                    idmap[raw["id"]] = dev["id"]
                 report["actualizados" if prev else "añadidos"].append(dev["name"])
             self.options = {**self.options, **opts}
             self.devices = result
@@ -739,7 +973,9 @@ class Config:
                 except ConfigError as exc:
                     report["omitidos"].append({"name": str((raw or {}).get("name", "programación"))[:40], "motivo": str(exc)})
                     continue
-                if sch["device"] not in ids:
+                if sch["device"] and not sch["device"].startswith("grupo:"):
+                    sch["device"] = idmap.get(sch["device"], sch["device"])
+                if sch["device"] and not sch["device"].startswith("grupo:") and sch["device"] not in ids:
                     report["omitidos"].append({"name": sch["name"], "motivo": "Su dispositivo no está en el fichero"})
                     continue
                 base, n, cand = _slug(sch["name"]) or "prog", 2, _slug(sch["name"]) or "prog"
@@ -750,6 +986,37 @@ class Config:
             if replace or nuevas:
                 self.schedules = nuevas if replace else self.schedules + nuevas[:MAX_SCHEDULES - len(self.schedules)]
             report["programaciones"] = len(nuevas)
+            # Escenas y grupos (TeleHome Pro): solo con los dispositivos que han quedado
+            for clave, norm, tope, lista_nombre in (("scenes", normalize_scene, MAX_SCENES, "escenas"),
+                                                    ("groups", normalize_group, MAX_GROUPS, "grupos")):
+                nuevos: List[Dict[str, Any]] = []
+                raw_lista = data.get(clave) or []
+                if not isinstance(raw_lista, list):
+                    raw_lista = []
+                for raw in raw_lista[:tope]:
+                    try:
+                        el = norm(raw if isinstance(raw, dict) else {})
+                    except ConfigError as exc:
+                        report["omitidos"].append({"name": str((raw or {}).get("name", lista_nombre))[:40], "motivo": str(exc)})
+                        continue
+                    if clave == "scenes":
+                        el["items"] = [{**i, "device": idmap.get(i["device"], i["device"])} for i in el["items"]]
+                        el["items"] = [i for i in el["items"] if i["device"] in ids]
+                        vacio = not el["items"]
+                    else:
+                        el["devices"] = [idmap.get(d, d) for d in el["devices"] if idmap.get(d, d) in ids]
+                        vacio = not el["devices"]
+                    if vacio:
+                        report["omitidos"].append({"name": el["name"], "motivo": "Sus dispositivos no están en el fichero"})
+                        continue
+                    base = self.scenes if clave == "scenes" else self.groups
+                    el["id"] = self._new_pro_id(el["name"], nuevos if replace else base + nuevos)
+                    nuevos.append(el)
+                if clave == "scenes":
+                    self.scenes = nuevos if replace else self.scenes + nuevos[:max(0, MAX_SCENES - len(self.scenes))]
+                else:
+                    self.groups = nuevos if replace else self.groups + nuevos[:max(0, MAX_GROUPS - len(self.groups))]
+                report[lista_nombre] = len(nuevos)
             self.save()
             report["cloud_cambiada"] = "cloud_api_key" in opts
             srv = data.get("servicio")

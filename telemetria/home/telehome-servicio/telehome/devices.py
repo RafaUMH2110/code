@@ -194,7 +194,9 @@ class TuyaPlug:
 
     def apply(self, action: str, value: Any) -> None:
         """Orden de una luz (brillo, temperatura, color, modo) en una sola escritura."""
-        pasos = luces.plan(action, value, self.read().extra)
+        self.apply_steps(luces.plan(action, value, self.read().extra, self.dev))
+
+    def apply_steps(self, pasos) -> None:
         dps = luces.local_dps(self.dev, pasos, self._color_len)
         with self.lock:
             try:
@@ -264,7 +266,13 @@ class CloudPlug:
         """Orden de una luz (brillo, temperatura, color, modo): todos los códigos en una sola llamada."""
         from .cloud import CloudError
 
-        pasos = luces.plan(action, value, self.read().extra)
+        self.apply_steps(luces.plan(action, value, self.read().extra, self.dev))
+
+    def apply_steps(self, pasos) -> None:
+        """Pasos ya calculados (los de una escena), en una sola llamada."""
+        from .cloud import CloudError
+
+        self.read()                    # fija la configuración efectiva (códigos v1 o v2) con la caché
         try:
             self.hub.commands(self.dev["dev_id"], luces.cloud_commands(self._eff, pasos))
         except CloudError as exc:
@@ -342,9 +350,14 @@ class SimLight:
 
     def apply(self, action: str, value: Any) -> None:
         with self.lock:
+            pasos = luces.plan(action, value, self._estado(), self.dev)
+        self.apply_steps(pasos)
+
+    def apply_steps(self, pasos) -> None:
+        with self.lock:
             if self.offline:
                 raise PlugError("La luz no está alcanzable (simulado)")
-            for clave, v in luces.plan(action, value, self._estado()):
+            for clave, v in pasos:
                 if clave == "switch":
                     self.s["on"] = bool(v)
                 elif clave == "mode":

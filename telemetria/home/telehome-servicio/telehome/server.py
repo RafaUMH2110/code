@@ -17,14 +17,17 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import APP_NAME, __version__
 from .cloud import REGIONS, CloudError
-from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_SCHEDULES, Config, ConfigError,
+from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_GROUPS, MAX_SCENES, MAX_SCHEDULES, Config, ConfigError,
                      public_device, verify_password)
 from .devices import PlugError, scan_network
 from .monitor import Monitor
+from .pro import MAX_FADE
 from .store import Store
 
 log = logging.getLogger("telehome")
 
+# Funciones que ofrece este servicio además de lo básico; las apps Pro miran esta lista.
+FEATURES = ["luces", "escenas", "grupos", "transiciones", "temporizadores", "parametros-luz"]
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -310,7 +313,7 @@ def r_health(h: Handler, q):
     # «app» no cambia, para que las apps anteriores sigan reconociendo el servicio;
     # «api» y «types» le dicen a la app genérica TeleHome que puede hablarle directamente.
     h._json(200, {"app": APP_NAME, "version": __version__, "ok": True,
-                  "api": "telehome", "types": list(DEVICE_TYPES),
+                  "api": "telehome", "types": list(DEVICE_TYPES), "features": FEATURES,
                   "admin_required": bool(h._admin_hash()), "user_required": bool(h._user_hash())})
 
 
@@ -338,12 +341,15 @@ def r_state(h: Handler, q):
         llamadas = {"configured": False, "calls": 0, "today": 0, "yesterday": 0, "month": 0, "last30": 0, "by_day": []}
     h._json(200, {"app": APP_NAME, "version": __version__, "simulate": c.simulate,
                   "max_devices": MAX_DEVICES, "server_time": time.time(),
-                  "api": "telehome", "types": list(DEVICE_TYPES),
+                  "api": "telehome", "types": list(DEVICE_TYPES), "features": FEATURES,
                   "admin": {"required": bool(h._admin_hash()), "active": admin},
                   "sesion": {"nivel": nivel, "admin_required": bool(h._admin_hash()), "user_required": bool(h._user_hash()),
                              "puede_mandar": nivel in ("user", "admin")},
                   "schedules": [dict(x) for x in c.config.schedules] if admin else [],
                   "max_schedules": MAX_SCHEDULES,
+                  "scenes": [dict(x) for x in c.config.scenes], "groups": [dict(x) for x in c.config.groups],
+                  "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS,
+                  **c.monitor.auto.listar(),
                   "options": options, "regions": REGIONS,
                   "cloud": llamadas,
                   "devices": devices})
@@ -364,12 +370,101 @@ def r_command(h: Handler, q, dev_id):
     if not isinstance(body, dict):
         raise ConfigError("Se esperaba un objeto JSON")
     try:
-        r = h.ctx.monitor.command(dev_id, str(body.get("action") or ""), body.get("value"))
+        r = h.ctx.monitor.command(dev_id, str(body.get("action") or ""), body.get("value"), fade=_fade(body))
     except ValueError as exc:
         raise ConfigError(str(exc))
     pub = h.ctx.monitor._public_reading(r, h.ctx.config.get(dev_id).get("type") == "luz")
     h._json(200, {"id": dev_id, "online": r.online, "error": r.error,
                   "state": pub["state"], "on": r.on})
+
+
+def _fade(body: Dict[str, Any]) -> int:
+    """Segundos de transición pedidos en una orden (0 = inmediata)."""
+    try:
+        f = int(body.get("fade") or 0)
+    except (TypeError, ValueError):
+        raise ConfigError("«fade» debe ser un número de segundos")
+    if not 0 <= f <= MAX_FADE:
+        raise ConfigError("«fade» debe estar entre 0 y %d segundos" % MAX_FADE)
+    return f
+
+
+def _obj(h: Handler) -> Dict[str, Any]:
+    body = h._body()
+    if not isinstance(body, dict):
+        raise ConfigError("Se esperaba un objeto JSON")
+    return body
+
+
+def r_scene_add(h: Handler, q):
+    h._json(201, h.ctx.config.add_scene(_obj(h)))
+
+
+def r_scene_upd(h: Handler, q, scene_id):
+    h._json(200, h.ctx.config.update_scene(scene_id, _obj(h)))
+
+
+def r_scene_del(h: Handler, q, scene_id):
+    h.ctx.config.delete_scene(scene_id)
+    h._json(200, {"deleted": scene_id})
+
+
+def r_scene_apply(h: Handler, q, scene_id):
+    """Aplica una escena: deja cada dispositivo como dice. Devuelve el resultado de cada uno."""
+    sc = h.ctx.config.get_scene(scene_id)
+    if sc is None:
+        raise KeyError(scene_id)
+    res = h.ctx.monitor.apply_scene(sc)
+    h._json(200, {"id": scene_id, "ok": all(r["ok"] for r in res), "resultados": res})
+
+
+def r_group_add(h: Handler, q):
+    h._json(201, h.ctx.config.add_group(_obj(h)))
+
+
+def r_group_upd(h: Handler, q, group_id):
+    h._json(200, h.ctx.config.update_group(group_id, _obj(h)))
+
+
+def r_group_del(h: Handler, q, group_id):
+    h.ctx.config.delete_group(group_id)
+    h._json(200, {"deleted": group_id})
+
+
+def r_group_command(h: Handler, q, group_id):
+    """Una orden a todo el grupo; los miembros que no la admiten se saltan."""
+    g = h.ctx.config.get_group(group_id)
+    if g is None:
+        raise KeyError(group_id)
+    body = _obj(h)
+    accion = str(body.get("action") or "")
+    if not accion:
+        raise ConfigError("Falta «action»")
+    res = h.ctx.monitor.group_command(g, accion, body.get("value"), fade=_fade(body))
+    if res and all(r.get("skipped") for r in res):
+        raise ConfigError("Ningún dispositivo del grupo admite la orden «%s»" % accion)
+    h._json(200, {"id": group_id, "ok": all(r["ok"] or r.get("skipped") for r in res), "resultados": res})
+
+
+def r_timer_set(h: Handler, q, dev_id):
+    """Temporizador de una luz: {"minutes": 30, "action": "off"|"on", "fade": 0}."""
+    body = _obj(h)
+    try:
+        t = h.ctx.monitor.auto.temporizador(dev_id, float(body.get("minutes") or 0), str(body.get("action") or "off"), _fade(body))
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(str(exc))
+    h._json(200, t)
+
+
+def r_timer_del(h: Handler, q, dev_id):
+    h._json(200, {"cancelado": h.ctx.monitor.auto.cancelar_temporizador(dev_id)})
+
+
+def r_raw(h: Handler, q, dev_id):
+    """Datos sin interpretar del dispositivo, para ajustar códigos y escalas. Solo administradores."""
+    if not h._is_admin():
+        return h._json(403, {"error": "Se requiere el modo Administrador", "admin_required": True, "nivel_necesario": "admin"})
+    h._json(200, h.ctx.monitor.raw(dev_id))
 
 
 def r_refresh(h: Handler, q):
@@ -707,6 +802,17 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("GET", _r(r"/api/export\.csv"), r_csv),
     ("POST", _r(r"/api/plugs/([a-z0-9-]+)/power"), r_power),      # compatibilidad
     ("POST", _r(r"/api/devices/([a-z0-9-]+)/command"), r_command),
+    ("POST", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_set),
+    ("DELETE", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_del),
+    ("GET", _r(r"/api/devices/([a-z0-9-]+)/raw"), r_raw),
+    ("POST", _r(r"/api/scenes"), r_scene_add),
+    ("PUT", _r(r"/api/scenes/([a-z0-9-]+)"), r_scene_upd),
+    ("DELETE", _r(r"/api/scenes/([a-z0-9-]+)"), r_scene_del),
+    ("POST", _r(r"/api/scenes/([a-z0-9-]+)/apply"), r_scene_apply),
+    ("POST", _r(r"/api/groups"), r_group_add),
+    ("PUT", _r(r"/api/groups/([a-z0-9-]+)"), r_group_upd),
+    ("DELETE", _r(r"/api/groups/([a-z0-9-]+)"), r_group_del),
+    ("POST", _r(r"/api/groups/([a-z0-9-]+)/command"), r_group_command),
     ("POST", _r(r"/api/devices"), r_dev_add),
     ("POST", _r(r"/api/devices/import"), r_import),
     ("PUT", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_upd),
@@ -739,7 +845,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
 SIN_SESION = {r_login, r_logout, r_admin_login}
 # Solo lee: no cambia nada, así que no exige ni usuario ni administrador (basta con poder ver el estado).
 SOLO_LEE = {r_refresh}
-SOLO_MANDO = {r_power, r_command}
+SOLO_MANDO = {r_power, r_command, r_scene_apply, r_group_command, r_timer_set, r_timer_del}
 
 
 def make_server(ctx: AppContext, host: str, port: int) -> ThreadingHTTPServer:

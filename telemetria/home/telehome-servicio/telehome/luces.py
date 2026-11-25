@@ -31,7 +31,8 @@ LIGHT_CODES = ("switch_led", "bright_value_v2", "bright_value", "temp_value_v2",
                "colour_data_v2", "colour_data")
 
 LIGHT_ACTIONS = ("switch", "level", "temp", "color", "mode")
-MODES = ("white", "colour")
+MODES_BASE = ("white", "colour")            # los que manejan todas las apps
+MODES = MODES_BASE + ("scene", "music")     # TeleHome Pro también puede pasar a la escena o la música que tenga la bombilla
 
 # Códigos y DPS por omisión de una bombilla Tuya con la API v2.
 LIGHT_DEFAULTS: Dict[str, Any] = {
@@ -41,6 +42,11 @@ LIGHT_DEFAULTS: Dict[str, Any] = {
     "scale_level": 10.0,   # brillo (%) = valor / 10
     "scale_temp": 10.0,    # temperatura (0-100) = valor / 10
     "scale_color": 10.0,   # saturación y valor (%) = dato / 10
+    # Parámetros de la bombilla (TeleHome Pro). No se mandan a Tuya: los aplica TeleHome.
+    "level_min": 1,        # % mínimo de brillo al que se deja bajar (algunas bombillas parpadean por debajo)
+    "level_max": 100,      # % máximo de brillo (para no deslumbrar ni gastar de más)
+    "kelvin_min": 2700,    # K del blanco más cálido (temp 0); solo para enseñar kelvin en las apps
+    "kelvin_max": 6500,    # K del blanco más frío (temp 100)
 }
 LIGHT_FIELDS = tuple(LIGHT_DEFAULTS)
 
@@ -192,7 +198,21 @@ def _entero(valor: Any, que: str, lo: int = 0, hi: int = 100) -> int:
     return int(round(valor))
 
 
-def plan(action: str, value: Any, cur: Optional[Dict[str, Any]] = None) -> List[Paso]:
+def limites(dev: Optional[Dict[str, Any]]) -> Tuple[int, int]:
+    """(mínimo, máximo) de brillo en % que admite esta bombilla."""
+    if not dev:
+        return 1, 100
+    lo = int(dev.get("level_min") or 1)
+    hi = int(dev.get("level_max") or 100)
+    return max(1, min(lo, 100)), max(1, min(hi, 100))
+
+
+def _lim(pc: int, dev: Optional[Dict[str, Any]]) -> int:
+    lo, hi = limites(dev)
+    return int(clamp(pc, lo, max(lo, hi)))
+
+
+def plan(action: str, value: Any, cur: Optional[Dict[str, Any]] = None, dev: Optional[Dict[str, Any]] = None) -> List[Paso]:
     """Pasos lógicos que hacen falta para una orden, según el estado actual de la bombilla.
 
     Pasos: ("switch", bool), ("mode", "white"|"colour"), ("level", 1-100), ("temp", 0-100), ("color", (h, s, v)).
@@ -207,6 +227,7 @@ def plan(action: str, value: Any, cur: Optional[Dict[str, Any]] = None) -> List[
         pc = _entero(value, "level")
         if pc == 0:
             return [("switch", False)]
+        pc = _lim(pc, dev)
         color = cur.get("color")
         if cur.get("mode") == "colour" and color:
             return [("switch", True), ("color", (color["h"], color["s"], pc))]
@@ -214,10 +235,11 @@ def plan(action: str, value: Any, cur: Optional[Dict[str, Any]] = None) -> List[
     if action == "temp":
         return [("switch", True), ("mode", "white"), ("temp", _entero(value, "temp"))]
     if action == "color":
-        return [("switch", True), ("mode", "colour"), ("color", parse_color_arg(value))]
+        h, s_, v_ = parse_color_arg(value)
+        return [("switch", True), ("mode", "colour"), ("color", (h, s_, _lim(v_, dev)))]
     if action == "mode":
         if value not in MODES:
-            raise ValueError("«mode» debe ser «white» (blanco) o «colour» (color)")
+            raise ValueError("«mode» debe ser «white» (blanco), «colour» (color), «scene» o «music»")
         return [("mode", value)]
     raise ValueError("Orden «%s» no admitida por una luz" % action)
 
@@ -267,3 +289,31 @@ def local_dps(dev: Dict[str, Any], pasos: List[Paso], largo_color: int = 12) -> 
         elif clave == "color":
             out[str(dev["dp_color"])] = local_color(v[0], v[1], v[2], largo_color)
     return out
+
+
+def plan_estado(item: Dict[str, Any], dev: Optional[Dict[str, Any]] = None) -> List[Paso]:
+    """Pasos para dejar una luz en el estado de una escena: {"on", "mode", "level", "temp", "color"}.
+
+    Todo va en una sola orden: encender, modo y el valor que toque. En modo color el brillo es el «valor»
+    del color. Si falta algún dato, se deja como está."""
+    if item.get("on") is False:
+        return [("switch", False)]
+    modo = item.get("mode")
+    if modo is not None and modo not in MODES:
+        raise ValueError("«mode» debe ser «white», «colour», «scene» o «music»")
+    pasos: List[Paso] = [("switch", True)]
+    nivel = item.get("level")
+    if nivel is not None:
+        nivel = _lim(_entero(nivel, "level", 1, 100), dev)
+    if modo == "colour" or (modo is None and item.get("color") is not None):
+        h, s_, v_ = parse_color_arg(item["color"]) if item.get("color") is not None else (0, 100, 100)
+        pasos += [("mode", "colour"), ("color", (h, s_, nivel if nivel is not None else _lim(v_, dev)))]
+        return pasos
+    if modo is not None:
+        pasos.append(("mode", modo))
+    if modo in (None, "white"):
+        if nivel is not None:
+            pasos.append(("level", nivel))
+        if item.get("temp") is not None:
+            pasos.append(("temp", _entero(item["temp"], "temp")))
+    return pasos
