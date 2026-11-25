@@ -255,6 +255,25 @@ del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se ac
 - La exportación e importación de la configuración incluyen escenas y grupos; al borrar un dispositivo se quita de
   las escenas y los grupos (y desaparecen los que se quedan vacíos).
 
+## Estancias (0.13.0)
+
+La estancia de un dispositivo (`room`) deja de ser un texto suelto y pasa a ser una **lista con nombre y orden** que
+se maneja desde la app (*Ajustes → Estancias*, en TeleHome Pro). Las apps la usan para agrupar («Por estancia») y para
+ofrecer un desplegable al dar de alta o editar un dispositivo, en vez de tener que escribirla bien cada vez.
+
+- Hasta 24 estancias. `GET /api/state` las trae en `rooms` (`[{"id","name","devices"}]`, con cuántos dispositivos
+  tiene cada una) y en el orden en que deben enseñarse.
+- `POST /api/rooms {"name":"Salón"}` crea · `PUT /api/rooms/<id> {"name":"…"}` renombra · `DELETE /api/rooms/<id>`
+  borra · `PUT /api/rooms {"ids":[…]}` ordena. Todo de administrador.
+- **Renombrar cambia también la estancia de sus dispositivos**, y la respuesta dice a cuántos ha afectado. El `id` no
+  cambia al renombrar. **Borrar** deja a sus dispositivos sin estancia; no borra ningún dispositivo.
+- No se admiten dos estancias con el mismo nombre (sin distinguir mayúsculas) y el nombre son como mucho 24
+  caracteres.
+- **No hay que migrar nada**: al arrancar, el servicio da de alta las estancias que ya usaran los dispositivos, y lo
+  mismo cuando se escribe una nueva al guardar un dispositivo o al importar una configuración. Un dispositivo sigue
+  guardando el **nombre** de su estancia, así que las apps anteriores siguen funcionando igual.
+- La exportación y la importación de la configuración incluyen las estancias.
+
 ## Límites y buenas prácticas
 
 - **Máximo 7 enchufes** en total, sumando ambos modos (límite aplicado en la configuración, la API y la interfaz).
@@ -314,7 +333,8 @@ del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se ac
 ## API (JSON)
 
 `GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` (las luces admiten además `level`, `temp`, `color` y `mode`, 0.10.0, y `fade`, 0.11.0) ·
-`POST|PUT|DELETE /api/scenes` · `POST /api/scenes/<id>/apply` · `POST /api/scenes/apply` (escena puntual, 0.12.0) · `POST|PUT|DELETE /api/groups` · `POST /api/groups/<id>/command` · `POST|DELETE /api/devices/<id>/timer` · `GET /api/devices/<id>/raw` (0.11.0, ver [Pro](#telehome-pro-escenas-grupos-transiciones-y-temporizadores-0110)) ·
+`POST|PUT|DELETE /api/scenes` · `POST /api/scenes/<id>/apply` · `POST /api/scenes/apply` (escena puntual, 0.12.0) ·
+`POST /api/rooms` · `PUT|DELETE /api/rooms/<id>` · `PUT /api/rooms {"ids":[…]}` (estancias, 0.13.0) · `POST|PUT|DELETE /api/groups` · `POST /api/groups/<id>/command` · `POST|DELETE /api/devices/<id>/timer` · `GET /api/devices/<id>/raw` (0.11.0, ver [Pro](#telehome-pro-escenas-grupos-transiciones-y-temporizadores-0110)) ·
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·

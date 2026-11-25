@@ -33,6 +33,7 @@ CLOUD_REGIONS = ("eu", "eu-w", "us", "us-e", "in", "sg", "cn")
 
 # ---- Programaciones -------------------------------------------------------
 MAX_SCHEDULES = 32
+MAX_ROOMS = 24                                    # estancias con nombre que se pueden definir
 MAX_SCENES = 24
 MAX_GROUPS = 8
 MAX_FADE = 3600                                   # s; transición más larga que se admite
@@ -457,6 +458,11 @@ def normalize_scene(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = No
     return {"id": (existing or {}).get("id") or raw.get("id") or "", "name": nombre, "items": out}
 
 
+def _room_name(raw: Any) -> str:
+    """Nombre de estancia limpio: sin espacios de más y como mucho 24 caracteres."""
+    return re.sub(r"\s+", " ", str(raw or "")).strip()[:24]
+
+
 def normalize_timer(raw: Any) -> Optional[Dict[str, Any]]:
     """Temporizador guardado: {"device","at","action","fade"}. Devuelve None si está roto (no impide arrancar)."""
     if not isinstance(raw, dict) or not _ID_RE.match(str(raw.get("device", ""))):
@@ -506,6 +512,7 @@ class Config:
         self.schedules: List[Dict[str, Any]] = []
         self.scenes: List[Dict[str, Any]] = []
         self.groups: List[Dict[str, Any]] = []
+        self.rooms: List[Dict[str, str]] = []    # estancias con nombre, en el orden en que se enseñan
         self.timers: List[Dict[str, Any]] = []   # temporizadores pendientes; se guardan para que un reinicio no los pierda
         self._mtime: Optional[float] = None
         self.load()
@@ -531,6 +538,14 @@ class Config:
             self.scenes = []
             self.groups = []
             self.timers = [t for t in (normalize_timer(x) for x in data.get("timers", [])[:MAX_DEVICES]) if t]
+            self.rooms = []
+            for raw in data.get("rooms", [])[:MAX_ROOMS]:
+                nombre = _room_name(raw if isinstance(raw, str) else (raw or {}).get("name"))
+                if not nombre or any(r["name"].casefold() == nombre.casefold() for r in self.rooms):
+                    continue                      # una estancia repetida o rota no impide arrancar
+                rid = (raw or {}).get("id") if isinstance(raw, dict) else None
+                self.rooms.append({"id": rid if _ID_RE.match(str(rid or "")) and not any(r["id"] == rid for r in self.rooms)
+                                   else self._new_pro_id(nombre, self.rooms), "name": nombre})
             for raw in data.get("schedules", [])[:MAX_SCHEDULES]:
                 try:
                     sch = normalize_schedule(raw)
@@ -552,6 +567,7 @@ class Config:
                         continue                  # una escena o un grupo roto no impide arrancar
                     el["id"] = raw.get("id") if _ID_RE.match(str(raw.get("id") or "")) else self._new_pro_id(el["name"], lista)
                     lista.append(el)
+            self._sync_rooms()                    # configuraciones anteriores: la estancia vivía solo en el dispositivo
             self._mtime = self._stat()
 
     def maybe_reload(self) -> bool:
@@ -571,7 +587,8 @@ class Config:
         with self.lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             payload = json.dumps({"options": self.options, "devices": self.devices, "schedules": self.schedules,
-                                  "scenes": self.scenes, "groups": self.groups, "timers": self.timers},
+                                  "scenes": self.scenes, "groups": self.groups, "timers": self.timers,
+                                  "rooms": self.rooms},
                                  ensure_ascii=False, indent=2)
             fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), prefix=".cfg-")
             try:
@@ -619,6 +636,7 @@ class Config:
             dev["id"] = self._new_id(dev["name"])
             dev["slot"] = self._free_slot()
             self.devices.append(dev)
+            self._sync_rooms()                    # una estancia escrita a mano se da de alta sola
             self.save()
             return dev
 
@@ -632,6 +650,7 @@ class Config:
                 raise ConfigError("Ese Device ID ya está configurado")
             new["id"] = dev_id
             self.devices[self.devices.index(cur)] = new
+            self._sync_rooms()
             self.save()
             return new
 
@@ -655,6 +674,7 @@ class Config:
             new = normalize_device({"type": tipo}, cur)
             new["id"] = dev_id
             self.devices[self.devices.index(cur)] = new
+            self._sync_rooms()
             self.save()
             return new
 
@@ -721,6 +741,107 @@ class Config:
     def get_group(self, group_id: str) -> Optional[Dict[str, Any]]:
         with self.lock:
             return next((x for x in self.groups if x["id"] == group_id), None)
+
+    # ---- Estancias ---------------------------------------------------
+    def _sync_rooms(self) -> None:
+        """Da de alta las estancias que use algún dispositivo y no estén en la lista. Si solo cambian las
+        mayúsculas, el dispositivo se queda con el nombre de la estancia (si no, saldrían dos grupos)."""
+        for dev in self.devices:
+            nombre = _room_name(dev.get("room"))
+            if not nombre:
+                continue
+            ya = self.get_room_by_name(nombre)
+            if ya is not None:
+                dev["room"] = ya["name"]
+            elif len(self.rooms) < MAX_ROOMS:
+                dev["room"] = nombre
+                self.rooms.append({"id": self._new_pro_id(nombre, self.rooms), "name": nombre})
+
+    def get_room(self, room_id: str) -> Optional[Dict[str, str]]:
+        with self.lock:
+            return next((r for r in self.rooms if r["id"] == room_id), None)
+
+    def get_room_by_name(self, nombre: str) -> Optional[Dict[str, str]]:
+        clave = _room_name(nombre).casefold()
+        return next((r for r in self.rooms if r["name"].casefold() == clave), None)
+
+    def rooms_public(self) -> List[Dict[str, Any]]:
+        """Las estancias con cuántos dispositivos tiene cada una (lo que enseña la app)."""
+        with self.lock:
+            cuenta: Dict[str, int] = {}
+            for dev in self.devices:
+                n = _room_name(dev.get("room")).casefold()
+                if n:
+                    cuenta[n] = cuenta.get(n, 0) + 1
+            return [{"id": r["id"], "name": r["name"], "devices": cuenta.get(r["name"].casefold(), 0)} for r in self.rooms]
+
+    def add_room(self, raw: Any) -> Dict[str, str]:
+        with self.lock:
+            nombre = _room_name(raw if isinstance(raw, str) else (raw or {}).get("name"))
+            if not nombre:
+                raise ConfigError("El nombre de la estancia es obligatorio")
+            if self.get_room_by_name(nombre):
+                raise ConfigError("Ya hay una estancia que se llama «%s»" % nombre)
+            if len(self.rooms) >= MAX_ROOMS:
+                raise ConfigError("Máximo %d estancias" % MAX_ROOMS)
+            r = {"id": self._new_pro_id(nombre, self.rooms), "name": nombre}
+            self.rooms.append(r)
+            self.save()
+            return dict(r)
+
+    def rename_room(self, room_id: str, nuevo: Any) -> Dict[str, Any]:
+        """Cambia el nombre y lo cambia también en los dispositivos que estaban en esa estancia."""
+        with self.lock:
+            cur = self.get_room(room_id)
+            if cur is None:
+                raise KeyError(room_id)
+            nombre = _room_name(nuevo if isinstance(nuevo, str) else (nuevo or {}).get("name"))
+            if not nombre:
+                raise ConfigError("El nombre de la estancia es obligatorio")
+            otra = self.get_room_by_name(nombre)
+            if otra and otra["id"] != room_id:
+                raise ConfigError("Ya hay una estancia que se llama «%s»" % nombre)
+            antes, n = cur["name"], 0
+            cur["name"] = nombre
+            for dev in self.devices:
+                if _room_name(dev.get("room")).casefold() == antes.casefold():
+                    dev["room"] = nombre
+                    n += 1
+            self.save()
+            return {"id": room_id, "name": nombre, "devices": n}
+
+    def delete_room(self, room_id: str) -> Dict[str, Any]:
+        """Borra la estancia; los dispositivos que estaban en ella se quedan sin estancia."""
+        with self.lock:
+            cur = self.get_room(room_id)
+            if cur is None:
+                raise KeyError(room_id)
+            self.rooms.remove(cur)
+            n = 0
+            for dev in self.devices:
+                if _room_name(dev.get("room")).casefold() == cur["name"].casefold():
+                    dev["room"] = ""
+                    n += 1
+            self.save()
+            return {"deleted": room_id, "devices": n}
+
+    def order_rooms(self, ids: Any) -> List[Dict[str, str]]:
+        """Reordena las estancias. Las que no se nombren quedan al final, en el orden que tenían."""
+        with self.lock:
+            if not isinstance(ids, list):
+                raise ConfigError("Se esperaba la lista de estancias en el orden deseado")
+            vistos, nuevo = set(), []
+            for rid in ids:
+                r = self.get_room(str(rid))
+                if r is None:
+                    raise ConfigError("No hay ninguna estancia con el identificador «%s»" % rid)
+                if r["id"] in vistos:
+                    raise ConfigError("Una estancia aparece dos veces")
+                vistos.add(r["id"])
+                nuevo.append(r)
+            self.rooms = nuevo + [r for r in self.rooms if r["id"] not in vistos]
+            self.save()
+            return [dict(r) for r in self.rooms]
 
     # ---- Temporizadores (se guardan en el fichero: un reinicio no los pierde) ----
     def set_timer(self, timer: Dict[str, Any]) -> None:
@@ -898,6 +1019,7 @@ class Config:
                               for s in self.schedules],
                 "scenes": [dict(x) for x in self.scenes],
                 "groups": [dict(x) for x in self.groups],
+                "rooms": [dict(x) for x in self.rooms],
             }
 
     def _clean_export_options(self, raw: Any) -> Dict[str, Any]:
@@ -1051,6 +1173,15 @@ class Config:
                 else:
                     self.groups = nuevos if replace else self.groups + nuevos[:max(0, MAX_GROUPS - len(self.groups))]
                 report[lista_nombre] = len(nuevos)
+            # Estancias: las del fichero, en su orden, más las que usen los dispositivos importados
+            if replace:
+                self.rooms = []
+            for raw in (data.get("rooms") or [])[:MAX_ROOMS]:
+                nombre = _room_name(raw if isinstance(raw, str) else (raw or {}).get("name"))
+                if nombre and not self.get_room_by_name(nombre) and len(self.rooms) < MAX_ROOMS:
+                    self.rooms.append({"id": self._new_pro_id(nombre, self.rooms), "name": nombre})
+            self._sync_rooms()
+            report["estancias"] = len(self.rooms)
             self.save()
             report["cloud_cambiada"] = "cloud_api_key" in opts
             srv = data.get("servicio")

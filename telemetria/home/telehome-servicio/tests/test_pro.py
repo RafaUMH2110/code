@@ -1,5 +1,6 @@
 """TeleHome Pro: transiciones, temporizadores, escenas, grupos, límites de brillo y programaciones nuevas."""
 
+import json
 import threading
 import time
 
@@ -508,3 +509,86 @@ def test_api_temporizador_en_enchufe(api):
     assert st == 200 and t["fade"] == 0 and t["device"] == e
     st, estado_ = call(base, "/api/state")
     assert [x["device"] for x in estado_["timers"]] == [e]
+
+
+# ---- 0.13.0: estancias con nombre ------------------------------------------------
+def test_estancias_se_dan_de_alta_solas_con_los_dispositivos(tmp_path):
+    cfg = Config(tmp_path / "config.json")
+    cfg.add_device({"name": "Nevera", "room": "Cocina", "dev_id": "bfplug00001", "local_key": "0123456789abcdef"})
+    cfg.add_device({"name": "Luz", "type": "luz", "room": " Salón ", "dev_id": "bflight0001", "local_key": "0123456789abcdef"})
+    assert [r["name"] for r in cfg.rooms] == ["Cocina", "Salón"]
+    otra = Config(tmp_path / "config.json")                      # se guardan y se releen
+    assert [r["name"] for r in otra.rooms] == ["Cocina", "Salón"]
+    assert otra.rooms_public()[0] == {"id": "cocina", "name": "Cocina", "devices": 1}
+
+
+def test_estancia_de_una_configuracion_antigua_se_recupera(tmp_path):
+    (tmp_path / "config.json").write_text(json.dumps({"devices": [
+        {"id": "nevera", "name": "Nevera", "room": "Cocina", "dev_id": "bfplug00001", "local_key": "0123456789abcdef"}]}), encoding="utf-8")
+    cfg = Config(tmp_path / "config.json")
+    assert [r["name"] for r in cfg.rooms] == ["Cocina"]           # el fichero no tenía «rooms»
+
+
+def test_renombrar_una_estancia_cambia_la_de_sus_dispositivos(tmp_path):
+    cfg, mon, _ = hacer(tmp_path, 1, 1)
+    for d in cfg.devices:
+        cfg.update_device(d["id"], {"room": "Salon"})
+    assert [r["name"] for r in cfg.rooms] == ["Salon"]
+    r = cfg.rename_room("salon", {"name": "Salón grande"})
+    assert r["devices"] == 2 and r["id"] == "salon"                # el identificador no cambia al renombrar
+    assert all(d["room"] == "Salón grande" for d in cfg.devices)
+
+
+def test_borrar_una_estancia_deja_sus_dispositivos_sin_estancia(tmp_path):
+    cfg, mon, _ = hacer(tmp_path, 1, 0)
+    cfg.update_device(cfg.devices[0]["id"], {"room": "Cocina"})
+    assert cfg.delete_room("cocina") == {"deleted": "cocina", "devices": 1}
+    assert cfg.devices[0]["room"] == "" and cfg.rooms == []
+
+
+def test_estancias_repetidas_y_limites(tmp_path):
+    cfg = Config(tmp_path / "config.json")
+    cfg.add_room({"name": "Cocina"})
+    with pytest.raises(ConfigError):
+        cfg.add_room({"name": " cocina "})                        # mismo nombre, mayúsculas aparte
+    with pytest.raises(ConfigError):
+        cfg.add_room({"name": "   "})
+    cfg.add_room("Salón")
+    assert cfg.order_rooms(["salon"])[0]["name"] == "Salón"       # las no nombradas quedan detrás
+    assert [r["name"] for r in cfg.rooms] == ["Salón", "Cocina"]
+    with pytest.raises(ConfigError):
+        cfg.order_rooms(["no-existe"])
+
+
+def test_api_estancias(api):
+    base, cfg, mon = api
+    a = cfg.devices[0]["id"]
+    st, estado_ = call(base, "/api/state")
+    assert estado_["rooms"] == [] and "estancias" in estado_["features"] and estado_["limits"]["max_rooms"] == 24
+    st, r = call(base, "/api/rooms", "POST", {"name": "Dormitorio"})
+    assert st == 201 and r == {"id": "dormitorio", "name": "Dormitorio"}
+    st, r = call(base, "/api/rooms", "POST", {"name": "dormitorio"})
+    assert st == 400
+    call(base, "/api/devices/" + a, "PUT", {"room": "Dormitorio"})
+    st, estado_ = call(base, "/api/state")
+    assert estado_["rooms"] == [{"id": "dormitorio", "name": "Dormitorio", "devices": 1}]
+    st, r = call(base, "/api/rooms/dormitorio", "PUT", {"name": "Cuarto"})
+    assert st == 200 and r["devices"] == 1
+    st, estado_ = call(base, "/api/state")
+    assert next(d for d in estado_["devices"] if d["id"] == a)["room"] == "Cuarto"
+    st, r = call(base, "/api/rooms", "POST", {"name": "Baño"})
+    st, r = call(base, "/api/rooms", "PUT", {"ids": ["bano", "dormitorio"]})
+    assert st == 200 and [x["name"] for x in r["rooms"]] == ["Baño", "Cuarto"]
+    st, r = call(base, "/api/rooms/dormitorio", "DELETE")
+    assert st == 200 and r["devices"] == 1
+    st, estado_ = call(base, "/api/state")
+    assert next(d for d in estado_["devices"] if d["id"] == a)["room"] == ""
+    st, r = call(base, "/api/rooms/no-existe", "DELETE")
+    assert st == 404
+
+
+def test_la_estancia_del_dispositivo_toma_el_nombre_de_la_estancia(tmp_path):
+    cfg = Config(tmp_path / "config.json")
+    cfg.add_room({"name": "Salón"})
+    d = cfg.add_device({"name": "Luz", "type": "luz", "room": " SALÓN ", "dev_id": "bflight0001", "local_key": "0123456789abcdef"})
+    assert d["room"] == "Salón" and len(cfg.rooms) == 1        # no salen dos grupos por las mayúsculas

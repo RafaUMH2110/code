@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from . import APP_NAME, __version__
 from .cloud import REGIONS, CloudError
-from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_GROUPS, MAX_SCENES, MAX_SCHEDULES, Config, ConfigError,
+from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_GROUPS, MAX_ROOMS, MAX_SCENES, MAX_SCHEDULES, Config, ConfigError,
                      normalize_scene, public_device, verify_password)
 from .devices import PlugError, scan_network
 from .monitor import Monitor
@@ -30,12 +30,15 @@ log = logging.getLogger("telehome")
 FEATURES = ["luces", "escenas", "grupos", "transiciones", "temporizadores", "parametros-luz",
             # 0.12.0: escena puntual (sin guardar), transición al aplicar una escena, temporizador en
             # cualquier dispositivo y temporizadores que sobreviven a un reinicio
-            "escena-puntual", "escena-transicion", "temporizador-persistente"]
+            "escena-puntual", "escena-transicion", "temporizador-persistente",
+            # 0.13.0: estancias con nombre, que se definen, se renombran y se borran desde la app
+            "estancias"]
 # Lo que la app necesita saber para avisar antes de pedir algo caro (cada paso de una transición por la
 # nube es una llamada a Tuya) y para no llevar los topes a mano.
 LIMITS = {"max_devices": MAX_DEVICES, "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS,
           "max_schedules": MAX_SCHEDULES, "max_fade": MAX_FADE, "max_timer": MAX_TEMPORIZADOR,
-          "fade_max_steps": MAX_PASOS, "fade_step_cloud": PASO_NUBE, "fade_step_local": PASO_LOCAL}
+          "fade_max_steps": MAX_PASOS, "fade_step_cloud": PASO_NUBE, "fade_step_local": PASO_LOCAL,
+          "max_rooms": MAX_ROOMS}
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -357,6 +360,7 @@ def r_state(h: Handler, q):
                   "max_schedules": MAX_SCHEDULES,
                   "scenes": [dict(x) for x in c.config.scenes], "groups": [dict(x) for x in c.config.groups],
                   "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS, "limits": LIMITS,
+                  "rooms": c.config.rooms_public(),
                   **c.monitor.auto.listar(),
                   "options": options, "regions": REGIONS,
                   "cloud": llamadas,
@@ -402,6 +406,26 @@ def _obj(h: Handler) -> Dict[str, Any]:
     if not isinstance(body, dict):
         raise ConfigError("Se esperaba un objeto JSON")
     return body
+
+
+def r_room_add(h: Handler, q):
+    """Nueva estancia: {"name": "Salón"}."""
+    h._json(201, h.ctx.config.add_room(_obj(h)))
+
+
+def r_room_upd(h: Handler, q, room_id):
+    """Renombra la estancia y cambia el nombre en los dispositivos que estaban en ella."""
+    h._json(200, h.ctx.config.rename_room(room_id, _obj(h)))
+
+
+def r_room_del(h: Handler, q, room_id):
+    """Borra la estancia; sus dispositivos se quedan sin estancia (no se borra ninguno)."""
+    h._json(200, h.ctx.config.delete_room(room_id))
+
+
+def r_rooms_order(h: Handler, q):
+    """Orden en que se enseñan las estancias: PUT /api/rooms {"ids": ["salon", "cocina"]}."""
+    h._json(200, {"rooms": h.ctx.config.order_rooms(_obj(h).get("ids"))})
 
 
 def r_scene_add(h: Handler, q):
@@ -826,6 +850,10 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_set),
     ("DELETE", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_del),
     ("GET", _r(r"/api/devices/([a-z0-9-]+)/raw"), r_raw),
+    ("POST", _r(r"/api/rooms"), r_room_add),
+    ("PUT", _r(r"/api/rooms"), r_rooms_order),
+    ("PUT", _r(r"/api/rooms/([a-z0-9-]+)"), r_room_upd),
+    ("DELETE", _r(r"/api/rooms/([a-z0-9-]+)"), r_room_del),
     ("POST", _r(r"/api/scenes/apply"), r_scene_apply_adhoc),
     ("POST", _r(r"/api/scenes"), r_scene_add),
     ("PUT", _r(r"/api/scenes/([a-z0-9-]+)"), r_scene_upd),
