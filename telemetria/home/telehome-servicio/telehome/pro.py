@@ -7,9 +7,10 @@ suceso y no hace nada mientras no haya ninguno: sin transiciones ni temporizador
   Se hace en pasos. Cada paso es una orden a la bombilla y, por la nube, una llamada a Tuya, así que hay un
   mínimo entre pasos (`PASO_NUBE` / `PASO_LOCAL`) y un máximo de pasos (`MAX_PASOS`): una transición de un
   minuto cuesta unas 15 llamadas, no 60. Una orden manual sobre esa luz cancela la transición.
-* **Temporizador**: apagar (o encender) una luz dentro de N minutos, opcionalmente con una transición.
-  Está en memoria: si el servicio se reinicia, se pierde (para algo que ocurra a una hora, están las
-  programaciones, que sí se guardan).
+* **Temporizador**: apagar (o encender) un dispositivo dentro de N minutos, opcionalmente con una transición
+  (solo en luces). Se guarda en el fichero de configuración, así que **un reinicio no lo pierde**: al arrancar,
+  los que vencieron mientras el servicio estaba parado se ejecutan si hace poco (`GRACIA_ARRANQUE`) y se
+  descartan si hace mucho.
 
 El cálculo de los pasos (`pasos_*`) es puro y se prueba sin hilo ni red.
 """
@@ -31,6 +32,7 @@ PASO_NUBE = 4.0          # s mínimos entre dos pasos de una luz por la nube (ca
 PASO_LOCAL = 1.5         # s mínimos entre dos pasos de una luz en la red local
 MAX_TEMPORIZADOR = 1440  # min (24 h)
 ESPERA_MAX = 30.0        # s; cuánto duerme el hilo como máximo si no hay nada pendiente
+GRACIA_ARRANQUE = 900.0  # s; un temporizador que venció mientras el servicio estaba parado se ejecuta si fue hace menos
 
 Paso = Tuple[float, str, Any]      # (segundos desde el inicio, orden, valor)
 
@@ -165,7 +167,13 @@ class Automatismos:
 
     def cancelar_temporizador(self, dev_id: str) -> bool:
         with self._cv:
-            return self._timers.pop(dev_id, None) is not None
+            habia = self._timers.pop(dev_id, None) is not None
+        try:
+            quitado = self.monitor.config.clear_timer(dev_id)
+        except Exception:
+            log.exception("No se pudo borrar el temporizador de %s", dev_id)
+            quitado = False
+        return habia or quitado
 
     def fade(self, dev_id: str, action: str, value: Any, segundos: float) -> None:
         """Programa una transición y ejecuta ya su primer paso si lo tiene a tiempo 0."""
@@ -205,20 +213,66 @@ class Automatismos:
         return cur.get("level")
 
     def temporizador(self, dev_id: str, minutos: float, accion: str = "off", fade: int = 0) -> Dict[str, Any]:
+        """Apaga o enciende un dispositivo dentro de N minutos. La transición solo se aplica a las luces."""
         if accion not in ("off", "on"):
             raise ValueError("La acción del temporizador debe ser «off» o «on»")
         if not 0 < minutos <= MAX_TEMPORIZADOR:
             raise ValueError("El temporizador debe estar entre 1 y %d minutos" % MAX_TEMPORIZADOR)
         if not 0 <= fade <= MAX_FADE:
             raise ValueError("La transición debe estar entre 0 y %d segundos" % MAX_FADE)
-        if self.monitor.config.get(dev_id) is None:
+        dev = self.monitor.config.get(dev_id)
+        if dev is None:
             raise KeyError(dev_id)
+        if dev.get("type") != "luz":
+            fade = 0                               # un enchufe solo se enciende y se apaga
         t = {"device": dev_id, "at": self.reloj() + minutos * 60, "action": accion, "fade": int(fade)}
-        with self._cv:
-            self._timers[dev_id] = t
-            self._cv.notify_all()
+        self._guardar(dev_id, t)
         self._asegurar_hilo()
         return dict(t)
+
+    def _guardar(self, dev_id: str, t: Optional[Dict[str, Any]]) -> None:
+        """Apunta (o quita) el temporizador en memoria y en el fichero, para que sobreviva a un reinicio."""
+        with self._cv:
+            if t is None:
+                self._timers.pop(dev_id, None)
+            else:
+                self._timers[dev_id] = t
+            self._cv.notify_all()
+        try:
+            if t is None:
+                self.monitor.config.clear_timer(dev_id)
+            else:
+                self.monitor.config.set_timer(t)
+        except Exception:                          # no guardar no debe tumbar el temporizador
+            log.exception("No se pudo guardar el temporizador de %s", dev_id)
+
+    def restaurar(self) -> int:
+        """Vuelve a poner en marcha los temporizadores guardados. Devuelve cuántos quedan pendientes."""
+        ahora = self.reloj()
+        pendientes, vencidos = [], []
+        for t in list(getattr(self.monitor.config, "timers", [])):
+            if self.monitor.config.get(t["device"]) is None:
+                continue                           # el dispositivo ya no existe
+            (pendientes if t["at"] > ahora else vencidos).append(dict(t))
+        with self._cv:
+            self._timers = {t["device"]: t for t in pendientes}
+        for t in vencidos:
+            if ahora - t["at"] <= GRACIA_ARRANQUE:
+                log.info("Temporizador de «%s» vencido durante la parada: se ejecuta ahora", t["device"])
+                with self._cv:
+                    self._timers[t["device"]] = {**t, "at": ahora}
+            else:
+                log.info("Temporizador de «%s» caducado hace mucho: se descarta", t["device"])
+                try:
+                    self.monitor.config.clear_timer(t["device"])
+                except Exception:
+                    log.exception("No se pudo borrar el temporizador caducado de %s", t["device"])
+        with self._cv:
+            n = len(self._timers)
+        if n:
+            self._asegurar_hilo()
+            self.tick()
+        return n
 
     # ---- ejecución ----
     def tick(self, ahora: Optional[float] = None) -> int:
@@ -247,8 +301,12 @@ class Automatismos:
                     self._fades.pop(dev, None)
         for t in vencidos:
             try:
+                self.monitor.config.clear_timer(t["device"])
+            except Exception:
+                log.exception("No se pudo borrar el temporizador cumplido de %s", t["device"])
+            try:
                 if t["action"] == "off":
-                    if t["fade"] > 0:
+                    if t["fade"] > 0 and (self.monitor.config.get(t["device"]) or {}).get("type") == "luz":
                         self.monitor.command(t["device"], "level", 0, manual=False, fade=t["fade"])
                     else:
                         self.monitor.command(t["device"], "switch", False, manual=False)

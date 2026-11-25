@@ -356,8 +356,8 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
         raise ConfigError("«fade» debe ser un número de segundos")
     if not 0 <= fade <= MAX_FADE:
         raise ConfigError("«fade» debe estar entre 0 y %d segundos" % MAX_FADE)
-    if fade and action not in FADE_ACTIONS:
-        raise ConfigError("Solo se puede hacer una transición con brillo, blanco o color")
+    if fade and action not in FADE_ACTIONS and action != "scene":
+        raise ConfigError("Solo se puede hacer una transición con brillo, blanco, color o una escena")
 
     creado = base.get("created", raw.get("created"))
     return {
@@ -457,6 +457,22 @@ def normalize_scene(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = No
     return {"id": (existing or {}).get("id") or raw.get("id") or "", "name": nombre, "items": out}
 
 
+def normalize_timer(raw: Any) -> Optional[Dict[str, Any]]:
+    """Temporizador guardado: {"device","at","action","fade"}. Devuelve None si está roto (no impide arrancar)."""
+    if not isinstance(raw, dict) or not _ID_RE.match(str(raw.get("device", ""))):
+        return None
+    try:
+        at = float(raw.get("at"))
+    except (TypeError, ValueError):
+        return None
+    accion = "on" if raw.get("action") == "on" else "off"
+    try:
+        fade = max(0, min(MAX_FADE, int(raw.get("fade") or 0)))
+    except (TypeError, ValueError):
+        fade = 0
+    return {"device": str(raw["device"]), "at": at, "action": accion, "fade": fade}
+
+
 def public_device(dev: Dict[str, Any]) -> Dict[str, Any]:
     """Vista del enchufe sin la Local Key (nunca sale por la API)."""
     out = {k: v for k, v in dev.items() if k != "local_key"}
@@ -490,6 +506,7 @@ class Config:
         self.schedules: List[Dict[str, Any]] = []
         self.scenes: List[Dict[str, Any]] = []
         self.groups: List[Dict[str, Any]] = []
+        self.timers: List[Dict[str, Any]] = []   # temporizadores pendientes; se guardan para que un reinicio no los pierda
         self._mtime: Optional[float] = None
         self.load()
 
@@ -513,6 +530,7 @@ class Config:
             self.schedules = []
             self.scenes = []
             self.groups = []
+            self.timers = [t for t in (normalize_timer(x) for x in data.get("timers", [])[:MAX_DEVICES]) if t]
             for raw in data.get("schedules", [])[:MAX_SCHEDULES]:
                 try:
                     sch = normalize_schedule(raw)
@@ -553,7 +571,7 @@ class Config:
         with self.lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             payload = json.dumps({"options": self.options, "devices": self.devices, "schedules": self.schedules,
-                                  "scenes": self.scenes, "groups": self.groups},
+                                  "scenes": self.scenes, "groups": self.groups, "timers": self.timers},
                                  ensure_ascii=False, indent=2)
             fd, tmp = tempfile.mkstemp(dir=str(self.path.parent), prefix=".cfg-")
             try:
@@ -704,6 +722,21 @@ class Config:
         with self.lock:
             return next((x for x in self.groups if x["id"] == group_id), None)
 
+    # ---- Temporizadores (se guardan en el fichero: un reinicio no los pierde) ----
+    def set_timer(self, timer: Dict[str, Any]) -> None:
+        with self.lock:
+            self.timers = [t for t in self.timers if t["device"] != timer["device"]] + [dict(timer)]
+            self.save()
+
+    def clear_timer(self, dev_id: str) -> bool:
+        with self.lock:
+            resto = [t for t in self.timers if t["device"] != dev_id]
+            if len(resto) == len(self.timers):
+                return False
+            self.timers = resto
+            self.save()
+            return True
+
     def add_scene(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         with self.lock:
             if len(self.scenes) >= MAX_SCENES:
@@ -776,6 +809,7 @@ class Config:
             g["devices"] = [d for d in g["devices"] if d != dev_id]
             if not g["devices"]:
                 self.groups.remove(g)
+        self.timers = [t for t in self.timers if t["device"] != dev_id]
 
     def _check_target(self, sch: Dict[str, Any]) -> None:
         if sch["action"] == "scene":

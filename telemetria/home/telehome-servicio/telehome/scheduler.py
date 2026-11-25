@@ -208,7 +208,8 @@ class Scheduler:
 
         try:
             if sch["action"] == "scene":
-                res = self.monitor.apply_scene(self.config.get_scene(sch["value"]), manual=False)
+                res = self.monitor.apply_scene(self.config.get_scene(sch["value"]), manual=False,
+                                               fade=int(sch.get("fade") or 0))
                 fallos = [r for r in res if not r["ok"]]
                 if fallos:
                     return "error: %s: %s" % (fallos[0]["device"], fallos[0].get("error", "no se pudo"))

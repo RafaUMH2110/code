@@ -377,3 +377,134 @@ def test_api_permisos_de_escenas_y_grupos(tmp_path):
         mon.stop()
         srv.shutdown()
         srv.server_close()
+
+
+# ---- 0.12.0: temporizadores que sobreviven al reinicio, escena puntual y escena con transición ----
+def test_temporizador_se_guarda_y_se_recupera_al_arrancar(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.auto.temporizador(a, 30)
+    assert cfg.timers and cfg.timers[0]["device"] == a            # queda apuntado en el fichero
+    otra = Config(tmp_path / "config.json")
+    assert otra.timers[0]["action"] == "off" and otra.timers[0]["at"] == cfg.timers[0]["at"]
+    mon.auto.cancelar_temporizador(a)
+    assert cfg.timers == [] and Config(tmp_path / "config.json").timers == []
+
+
+def test_al_arrancar_se_recuperan_los_pendientes_y_se_descartan_los_viejos(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 2, 0)
+    a, b = [d["id"] for d in cfg.devices]
+    mon.auto.temporizador(a, 30)                                   # vence dentro de media hora
+    mon.auto.temporizador(b, 10)
+    cfg.set_timer({**cfg.timers[1], "at": clock.t - 10 * 3600})    # como si el servicio hubiera estado parado un día
+    otro = Automatismos(mon, clock)
+    otro._asegurar_hilo = lambda: None
+    assert otro.restaurar() == 1                                   # solo queda el que aún no vencía
+    assert [t["device"] for t in otro.listar()["timers"]] == [a]
+    assert [t["device"] for t in cfg.timers] == [a]                # el caducado se borra del fichero
+
+
+def test_un_temporizador_vencido_hace_poco_se_ejecuta_al_arrancar(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.command(a, "level", 70)
+    mon.auto.temporizador(a, 10)
+    cfg.set_timer({**cfg.timers[0], "at": clock.t - 60})           # venció hace un minuto
+    otro = Automatismos(mon, clock)
+    otro._asegurar_hilo = lambda: None
+    otro.restaurar()
+    assert estado(mon, a)["on"] is False and cfg.timers == []
+
+
+def test_temporizador_en_un_enchufe_ignora_la_transicion(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 0, 1)
+    e = cfg.devices[0]["id"]
+    t = mon.auto.temporizador(e, 5, "off", fade=60)
+    assert t["fade"] == 0
+    clock.t += 5 * 60
+    mon.auto.tick()
+    assert mon.latest[e].on is False
+
+
+def test_borrar_el_dispositivo_quita_su_temporizador(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.auto.temporizador(a, 20)
+    cfg.delete_device(a)
+    assert cfg.timers == []
+
+
+def test_escena_con_transicion_pone_el_color_ya_y_el_brillo_poco_a_poco(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.command(a, "level", 20)
+    mon.apply_scene({"items": [{"device": a, "on": True, "mode": "white", "level": 80, "temp": 90}]}, fade=30)
+    s = estado(mon, a)
+    assert s["mode"] == "white" and s["temp"] == 90                # el blanco se pone de golpe
+    assert s["level"] == 20                                        # el brillo todavía no ha subido
+    clock.t += 30
+    mon.auto.tick()
+    assert estado(mon, a)["level"] == 80
+
+
+def test_escena_con_transicion_apaga_bajando_el_brillo(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.command(a, "level", 60)
+    mon.apply_scene({"items": [{"device": a, "on": False}]}, fade=20)
+    assert estado(mon, a)["on"] is True                            # aún encendida: va bajando
+    clock.t += 20
+    mon.auto.tick()
+    assert estado(mon, a)["on"] is False
+
+
+def test_escena_con_transicion_desde_apagada_empieza_en_el_minimo(tmp_path):
+    cfg, mon, clock = hacer(tmp_path, 1, 0)
+    a = cfg.devices[0]["id"]
+    mon.command(a, "switch", False)
+    mon.apply_scene({"items": [{"device": a, "on": True, "mode": "white", "level": 100, "temp": 10}]}, fade=30)
+    s = estado(mon, a)
+    assert s["on"] is True and s["level"] == 1                     # enciende al mínimo y sube desde ahí
+    clock.t += 30
+    mon.auto.tick()
+    assert estado(mon, a)["level"] == 100
+
+
+def test_api_escena_puntual_y_limites(api):
+    base, cfg, mon = api
+    a, b, e = [d["id"] for d in cfg.devices]
+    st, estado_ = call(base, "/api/state")
+    lim = estado_["limits"]
+    assert lim["max_fade"] == pro.MAX_FADE and lim["fade_step_cloud"] == pro.PASO_NUBE
+    assert "escena-puntual" in estado_["features"]
+    st, r = call(base, "/api/scenes/apply", "POST", {"items": [
+        {"device": a, "on": True, "mode": "white", "level": 44, "temp": 20},
+        {"device": e, "on": False}]})
+    assert st == 200 and r["ok"] and r["id"] is None
+    assert mon.light_state(a)["level"] == 44 and mon.latest[e].on is False
+    assert cfg.scenes == []                                        # no se guarda nada
+    st, r = call(base, "/api/scenes/apply", "POST", {"items": [{"device": "no-existe", "on": True}]})
+    assert st == 400
+    st, r = call(base, "/api/scenes/apply", "POST", {"items": []})
+    assert st == 400
+
+
+def test_api_escena_guardada_admite_transicion(api):
+    base, cfg, mon = api
+    a = cfg.devices[0]["id"]
+    st, sc = call(base, "/api/scenes", "POST", {"name": "Suave", "items": [{"device": a, "on": True, "level": 90}]})
+    st, r = call(base, "/api/scenes/" + sc["id"] + "/apply", "POST", {"fade": 20})
+    assert st == 200 and r["ok"]
+    st, estado_ = call(base, "/api/state")
+    assert [f["device"] for f in estado_["fades"]] == [a]
+    st, r = call(base, "/api/scenes/" + sc["id"] + "/apply", "POST", {"fade": 99999})
+    assert st == 400
+
+
+def test_api_temporizador_en_enchufe(api):
+    base, cfg, mon = api
+    e = cfg.devices[2]["id"]
+    st, t = call(base, "/api/devices/" + e + "/timer", "POST", {"minutes": 45, "action": "off", "fade": 30})
+    assert st == 200 and t["fade"] == 0 and t["device"] == e
+    st, estado_ = call(base, "/api/state")
+    assert [x["device"] for x in estado_["timers"]] == [e]

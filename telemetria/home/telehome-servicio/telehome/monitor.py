@@ -48,6 +48,12 @@ class Monitor:
     # ---- Ciclo de vida -------------------------------------------------
     def start(self) -> None:
         self.sync()
+        try:
+            n = self.auto.restaurar()          # temporizadores que quedaron pendientes antes de parar
+            if n:
+                log.info("%d temporizador(es) recuperados", n)
+        except Exception:
+            log.exception("No se pudieron recuperar los temporizadores")
         threading.Thread(target=self._pruner, name="poda", daemon=True).start()
 
     def stop(self) -> None:
@@ -252,8 +258,10 @@ class Monitor:
         self._record(dev_id, r, self._stops.get(dev_id))
         return r
 
-    def apply_scene(self, scene: Dict[str, Any], manual: bool = True) -> List[Dict[str, Any]]:
-        """Deja cada dispositivo de la escena como dice. Una orden por dispositivo, en paralelo."""
+    def apply_scene(self, scene: Dict[str, Any], manual: bool = True, fade: int = 0) -> List[Dict[str, Any]]:
+        """Deja cada dispositivo de la escena como dice. Una orden por dispositivo, en paralelo.
+        Con `fade` (segundos) las luces llegan a su brillo poco a poco: el color o el blanco se ponen ya,
+        el brillo arranca donde esté la luz (1 % si estaba apagada) y sube o baja durante la transición."""
         def uno(item: Dict[str, Any]) -> Dict[str, Any]:
             dev_id = item["device"]
             res = {"device": dev_id, "ok": False}
@@ -266,6 +274,8 @@ class Monitor:
                 self.auto.cancelar(dev_id)
                 if dev.get("type") != "luz":
                     plug.set_power(bool(item.get("on", True)))
+                elif fade > 0:
+                    self._escena_con_fade(dev_id, dev, plug, item, fade)
                 else:
                     plug.apply_steps(luces.plan_estado(item, dev))
                 if manual:
@@ -283,6 +293,21 @@ class Monitor:
             return [uno(i) for i in items]
         with ThreadPoolExecutor(max_workers=min(4, len(items)), thread_name_prefix="escena") as ex:
             return list(ex.map(uno, items))
+
+    def _escena_con_fade(self, dev_id: str, dev: Dict[str, Any], plug, item: Dict[str, Any], fade: int) -> None:
+        """Una luz dentro de una escena con transición: estado nuevo ya, brillo poco a poco."""
+        cur = self.light_state(dev_id)
+        if not item.get("on", True):                       # apagar poco a poco: bajar el brillo hasta apagarse
+            if cur.get("on"):
+                self.auto.fade(dev_id, "level", 0, fade)
+            else:
+                plug.set_power(False)
+            return
+        destino = item.get("level")
+        arranque = int(cur.get("level") or 1) if cur.get("on") else 1
+        plug.apply_steps(luces.plan_estado({**item, "level": arranque}, dev))
+        if destino is not None and int(destino) != arranque:
+            self.auto.fade(dev_id, "level", int(destino), fade)
 
     def group_command(self, group: Dict[str, Any], action: str, value: Any, manual: bool = True, fade: int = 0) -> List[Dict[str, Any]]:
         """Una orden a todos los miembros de un grupo. Los que no la admiten (un enchufe con «level») se saltan."""

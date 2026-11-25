@@ -208,17 +208,22 @@ funcionan por la nube); si algún DPS no coincide, se ajustan en *Avanzado* igua
 (`dp_switch`, `dp_mode`, `dp_level`, `dp_temp`, `dp_color`). Los colores de las escenas y de la música de Tuya no se
 manejan: TeleHome puede poner esos modos (0.11.0) pero no editarlos.
 
-## TeleHome Pro: escenas, grupos, transiciones y temporizadores (0.11.0)
+## TeleHome Pro: escenas, grupos, transiciones y temporizadores (0.11.0 y 0.12.0)
 
 La versión 0.11.0 añade, sin tocar lo anterior, lo que usa la app **TeleHome Pro** (`telemetria/home/telehome-pro`
 del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se activan según `features`
-(`["luces","escenas","grupos","transiciones","temporizadores","parametros-luz"]`) en `GET /api/health` y `GET /api/state`.
+(`["luces","escenas","grupos","transiciones","temporizadores","parametros-luz"]`, más
+`"escena-puntual"`, `"escena-transicion"` y `"temporizador-persistente"` desde la 0.12.0) en `GET /api/health` y
+`GET /api/state`.
 
 - **Escenas** (máx. 24). Una escena es una lista de `items` `{device, on, mode, level, temp, color}`; aplicarla manda a
   cada dispositivo su orden **en paralelo** (en la nube, una sola llamada a Tuya por dispositivo). Si uno falla, los
   demás se aplican y la respuesta dice cuál (`resultados`).
   `POST /api/scenes` · `PUT|DELETE /api/scenes/<id>` · `POST /api/scenes/<id>/apply`. Aplicar es de usuario de
   confianza; crear, editar y borrar, de administrador.
+  Desde la 0.12.0, aplicar admite `{"fade": segundos}`: el color o el blanco se ponen ya y el brillo llega poco a
+  poco (desde donde esté la luz, o desde el 1 % si estaba apagada). Y `POST /api/scenes/apply {"items":[…],"fade"?}`
+  aplica una **escena puntual** que no se guarda: es lo que usan el «Deshacer» y las acciones rápidas de la app.
 - **Grupos** (máx. 8). Una lista de dispositivos que se manejan juntos: `POST /api/groups/<id>/command
   {"action","value","fade"?}`. Los miembros que no admiten la orden (un enchufe no tiene brillo) se saltan; solo si
   ninguno la admite es un error. `POST /api/groups` · `PUT|DELETE /api/groups/<id>`.
@@ -227,11 +232,13 @@ del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se ac
   una orden y, por la nube, **una llamada a Tuya**: una transición de un minuto cuesta unas 15 llamadas, no 60. Una
   orden manual sobre esa luz cancela la transición. `GET /api/state` lista las que están en curso en `fades`.
 - **Temporizadores.** `POST /api/devices/<id>/timer {"minutes":1-1440,"action":"off"|"on","fade"?}` apaga o enciende
-  la luz dentro de N minutos (uno por dispositivo; poner otro sustituye al anterior); `DELETE` lo cancela. Los
-  pendientes salen en `timers`. **Están en memoria: si el servicio se reinicia, se pierden.** Para algo a una hora fija
-  están las programaciones, que sí se guardan.
+  **cualquier dispositivo** (también un enchufe; ahí la transición se ignora) dentro de N minutos: uno por
+  dispositivo, poner otro sustituye al anterior, y `DELETE` lo cancela. Los pendientes salen en `timers`.
+  Desde la 0.12.0 **se guardan en el fichero de configuración**, así que un reinicio no los pierde: al arrancar, los
+  que vencieron mientras el servicio estaba parado se ejecutan si fue hace menos de 15 minutos y se descartan si
+  fue hace más. Para algo a una hora fija siguen estando las programaciones.
 - **Programaciones.** Admiten la acción `scene` (`value` = id de la escena, sin dispositivo), el destino `grupo:<id>` y
-  el campo `fade`. Con escenas y grupos no hay condiciones.
+  el campo `fade`, que desde la 0.12.0 vale también para una escena. Con escenas y grupos no hay condiciones.
 - **Parámetros de la bombilla** (`PUT /api/devices/<id>`, administrador): `level_min` y `level_max` (1-100; TeleHome
   recorta el brillo antes de mandarlo, p. ej. un máximo del 60 % convierte «100» en 60), y `kelvin_min` y `kelvin_max`
   (solo para que las apps muestren «2 700 K» en vez de un porcentaje; no se mandan a la bombilla). Los códigos y escalas
@@ -242,6 +249,9 @@ del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se ac
   devuelve, para ajustar los parámetros avanzados. Por la nube cuesta una llamada a Tuya.
 - **Ligereza.** Todo lo que ocurre «con el tiempo» (transiciones y temporizadores) vive en **un solo hilo** que duerme
   mientras no haya nada pendiente. Sin uso, no gasta CPU ni hace llamadas.
+- **Límites a la vista.** `GET /api/health` y `GET /api/state` traen `limits` (`max_fade`, `max_timer`, `max_scenes`,
+  `max_groups`, `max_schedules`, `max_devices`, `fade_max_steps`, `fade_step_cloud`, `fade_step_local`): así la app
+  avisa de lo que va a costar una transición en vez de llevar los topes a mano.
 - La exportación e importación de la configuración incluyen escenas y grupos; al borrar un dispositivo se quita de
   las escenas y los grupos (y desaparecen los que se quedan vacíos).
 
@@ -304,7 +314,7 @@ del repo `apps`). Las apps anteriores siguen funcionando igual; las nuevas se ac
 ## API (JSON)
 
 `GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` (las luces admiten además `level`, `temp`, `color` y `mode`, 0.10.0, y `fade`, 0.11.0) ·
-`POST|PUT|DELETE /api/scenes` · `POST /api/scenes/<id>/apply` · `POST|PUT|DELETE /api/groups` · `POST /api/groups/<id>/command` · `POST|DELETE /api/devices/<id>/timer` · `GET /api/devices/<id>/raw` (0.11.0, ver [Pro](#telehome-pro-escenas-grupos-transiciones-y-temporizadores-0110)) ·
+`POST|PUT|DELETE /api/scenes` · `POST /api/scenes/<id>/apply` · `POST /api/scenes/apply` (escena puntual, 0.12.0) · `POST|PUT|DELETE /api/groups` · `POST /api/groups/<id>/command` · `POST|DELETE /api/devices/<id>/timer` · `GET /api/devices/<id>/raw` (0.11.0, ver [Pro](#telehome-pro-escenas-grupos-transiciones-y-temporizadores-0110)) ·
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·

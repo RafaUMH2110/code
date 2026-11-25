@@ -18,16 +18,24 @@ from urllib.parse import parse_qs, urlsplit
 from . import APP_NAME, __version__
 from .cloud import REGIONS, CloudError
 from .config import (DEVICE_TYPES, MAX_DEVICES, MAX_GROUPS, MAX_SCENES, MAX_SCHEDULES, Config, ConfigError,
-                     public_device, verify_password)
+                     normalize_scene, public_device, verify_password)
 from .devices import PlugError, scan_network
 from .monitor import Monitor
-from .pro import MAX_FADE
+from .pro import MAX_FADE, MAX_PASOS, MAX_TEMPORIZADOR, PASO_LOCAL, PASO_NUBE
 from .store import Store
 
 log = logging.getLogger("telehome")
 
 # Funciones que ofrece este servicio además de lo básico; las apps Pro miran esta lista.
-FEATURES = ["luces", "escenas", "grupos", "transiciones", "temporizadores", "parametros-luz"]
+FEATURES = ["luces", "escenas", "grupos", "transiciones", "temporizadores", "parametros-luz",
+            # 0.12.0: escena puntual (sin guardar), transición al aplicar una escena, temporizador en
+            # cualquier dispositivo y temporizadores que sobreviven a un reinicio
+            "escena-puntual", "escena-transicion", "temporizador-persistente"]
+# Lo que la app necesita saber para avisar antes de pedir algo caro (cada paso de una transición por la
+# nube es una llamada a Tuya) y para no llevar los topes a mano.
+LIMITS = {"max_devices": MAX_DEVICES, "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS,
+          "max_schedules": MAX_SCHEDULES, "max_fade": MAX_FADE, "max_timer": MAX_TEMPORIZADOR,
+          "fade_max_steps": MAX_PASOS, "fade_step_cloud": PASO_NUBE, "fade_step_local": PASO_LOCAL}
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -313,7 +321,7 @@ def r_health(h: Handler, q):
     # «app» no cambia, para que las apps anteriores sigan reconociendo el servicio;
     # «api» y «types» le dicen a la app genérica TeleHome que puede hablarle directamente.
     h._json(200, {"app": APP_NAME, "version": __version__, "ok": True,
-                  "api": "telehome", "types": list(DEVICE_TYPES), "features": FEATURES,
+                  "api": "telehome", "types": list(DEVICE_TYPES), "features": FEATURES, "limits": LIMITS,
                   "admin_required": bool(h._admin_hash()), "user_required": bool(h._user_hash())})
 
 
@@ -348,7 +356,7 @@ def r_state(h: Handler, q):
                   "schedules": [dict(x) for x in c.config.schedules] if admin else [],
                   "max_schedules": MAX_SCHEDULES,
                   "scenes": [dict(x) for x in c.config.scenes], "groups": [dict(x) for x in c.config.groups],
-                  "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS,
+                  "max_scenes": MAX_SCENES, "max_groups": MAX_GROUPS, "limits": LIMITS,
                   **c.monitor.auto.listar(),
                   "options": options, "regions": REGIONS,
                   "cloud": llamadas,
@@ -410,12 +418,24 @@ def r_scene_del(h: Handler, q, scene_id):
 
 
 def r_scene_apply(h: Handler, q, scene_id):
-    """Aplica una escena: deja cada dispositivo como dice. Devuelve el resultado de cada uno."""
+    """Aplica una escena guardada: {"fade": 0} opcional para que las luces lleguen poco a poco."""
     sc = h.ctx.config.get_scene(scene_id)
     if sc is None:
         raise KeyError(scene_id)
-    res = h.ctx.monitor.apply_scene(sc)
+    res = h.ctx.monitor.apply_scene(sc, fade=_fade(_obj(h)))
     h._json(200, {"id": scene_id, "ok": all(r["ok"] for r in res), "resultados": res})
+
+
+def r_scene_apply_adhoc(h: Handler, q):
+    """Aplica una escena puntual sin guardarla: {"items":[…], "fade":0}. La usa «Deshacer» y las
+    acciones rápidas de la app, que necesitan dejar los dispositivos como estaban sin crear una escena."""
+    body = _obj(h)
+    sc = normalize_scene({"name": str(body.get("name") or "Escena puntual"), "items": body.get("items")})
+    faltan = [i["device"] for i in sc["items"] if h.ctx.config.get(i["device"]) is None]
+    if faltan:
+        raise ConfigError("No hay ningún dispositivo con el identificador «%s»" % faltan[0])
+    res = h.ctx.monitor.apply_scene(sc, fade=_fade(body))
+    h._json(200, {"id": None, "ok": all(r["ok"] for r in res), "resultados": res})
 
 
 def r_group_add(h: Handler, q):
@@ -447,7 +467,8 @@ def r_group_command(h: Handler, q, group_id):
 
 
 def r_timer_set(h: Handler, q, dev_id):
-    """Temporizador de una luz: {"minutes": 30, "action": "off"|"on", "fade": 0}."""
+    """Temporizador de un dispositivo: {"minutes": 30, "action": "off"|"on", "fade": 0}.
+    La transición solo se aplica a las luces; en un enchufe se ignora."""
     body = _obj(h)
     try:
         t = h.ctx.monitor.auto.temporizador(dev_id, float(body.get("minutes") or 0), str(body.get("action") or "off"), _fade(body))
@@ -805,6 +826,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("POST", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_set),
     ("DELETE", _r(r"/api/devices/([a-z0-9-]+)/timer"), r_timer_del),
     ("GET", _r(r"/api/devices/([a-z0-9-]+)/raw"), r_raw),
+    ("POST", _r(r"/api/scenes/apply"), r_scene_apply_adhoc),
     ("POST", _r(r"/api/scenes"), r_scene_add),
     ("PUT", _r(r"/api/scenes/([a-z0-9-]+)"), r_scene_upd),
     ("DELETE", _r(r"/api/scenes/([a-z0-9-]+)"), r_scene_del),
@@ -845,7 +867,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
 SIN_SESION = {r_login, r_logout, r_admin_login}
 # Solo lee: no cambia nada, así que no exige ni usuario ni administrador (basta con poder ver el estado).
 SOLO_LEE = {r_refresh}
-SOLO_MANDO = {r_power, r_command, r_scene_apply, r_group_command, r_timer_set, r_timer_del}
+SOLO_MANDO = {r_power, r_command, r_scene_apply, r_scene_apply_adhoc, r_group_command, r_timer_set, r_timer_del}
 
 
 def make_server(ctx: AppContext, host: str, port: int) -> ThreadingHTTPServer:
