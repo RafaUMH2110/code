@@ -10,6 +10,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from . import luces
+
 
 class PlugError(Exception):
     """Fallo de comunicación con un enchufe.
@@ -23,6 +25,14 @@ class PlugError(Exception):
         self.detalle = detalle
 
 
+class TipoIncorrecto(PlugError):
+    """El dispositivo responde como otro tipo (p. ej. una bombilla dada de alta como enchufe)."""
+
+    def __init__(self, tipo: str, mensaje: str):
+        super().__init__(mensaje)
+        self.tipo = tipo
+
+
 @dataclass
 class Reading:
     ts: float
@@ -32,6 +42,10 @@ class Reading:
     voltage_v: Optional[float] = None
     current_a: Optional[float] = None
     error: Optional[str] = None
+    # Solo luces: brillo que se ve (0 si está apagada, 0-100) y estado completo en unidades de persona
+    # (modo, brillo, temperatura, color y qué controles tiene la bombilla). Ver luces.py.
+    level: Optional[float] = None
+    extra: Optional[Dict[str, Any]] = None
 
 
 _ERR_HINTS = {
@@ -57,6 +71,8 @@ def _scaled(dps: Dict[str, Any], dp: Any, scale: float) -> Optional[float]:
 
 def parse_dps(dps: Dict[str, Any], dev: Dict[str, Any], ts: Optional[float] = None) -> Reading:
     """Convierte los DPS crudos de Tuya a unidades físicas según la configuración."""
+    if dev.get("type") == "luz":
+        return _reading_luz(luces.read_local(dps, dev), ts)
     sw = dps.get(str(dev["dp_switch"]))
     return Reading(
         ts=ts if ts is not None else time.time(),
@@ -68,9 +84,17 @@ def parse_dps(dps: Dict[str, Any], dev: Dict[str, Any], ts: Optional[float] = No
     )
 
 
+def _reading_luz(estado: Dict[str, Any], ts: Optional[float] = None, online: Optional[bool] = True) -> Reading:
+    on, level = estado["on"], estado["level"]
+    visible = None if on is None else (0.0 if not on else level)    # apagada, 0 %; encendida sin dato de brillo, desconocido
+    return Reading(ts=ts if ts is not None else time.time(), online=online is not False, on=on, level=visible, extra=estado)
+
+
 def parse_cloud_status(status: Dict[str, Any], dev: Dict[str, Any], online: Optional[bool] = True,
                        ts: Optional[float] = None) -> Reading:
     """Igual que parse_dps, pero con los códigos de la nube (switch_1, cur_power...)."""
+    if dev.get("type") == "luz":
+        return _reading_luz(luces.read_cloud(status, dev), ts, online)
     sw = status.get(dev["code_switch"])
     return Reading(
         ts=ts if ts is not None else time.time(),
@@ -120,6 +144,7 @@ class TuyaPlug:
         self.dev = dev
         self.lock = threading.Lock()
         self._ip: Optional[str] = None if dev["ip"] == "Auto" else dev["ip"]
+        self._color_len = 12   # largo del dato de color de la bombilla (12 o 14 dígitos), para escribirlo igual
 
     def _resolve_ip(self) -> str:
         if self._ip:
@@ -158,7 +183,28 @@ class TuyaPlug:
                 raise _error_lan(exc)
             if not isinstance(resp, dict) or "dps" not in resp:
                 raise self._fail(resp if isinstance(resp, dict) else {})
+            dps = resp["dps"]
+            if self.dev.get("type") != "luz" and str(self.dev["dp_switch"]) not in dps and "20" in dps and ("21" in dps or "22" in dps):
+                raise TipoIncorrecto("luz", "Este dispositivo es una luz, no un enchufe: se reconfigura como luz.")
+            if self.dev.get("type") == "luz":
+                col = resp["dps"].get(str(self.dev["dp_color"]))
+                if isinstance(col, str) and len(col) in (12, 14):
+                    self._color_len = len(col)
             return parse_dps(resp["dps"], self.dev)
+
+    def apply(self, action: str, value: Any) -> None:
+        """Orden de una luz (brillo, temperatura, color, modo) en una sola escritura."""
+        pasos = luces.plan(action, value, self.read().extra)
+        dps = luces.local_dps(self.dev, pasos, self._color_len)
+        with self.lock:
+            try:
+                resp = self._client().set_multiple_values(dps)
+            except PlugError:
+                raise
+            except Exception as exc:
+                raise _error_lan(exc)
+            if isinstance(resp, dict) and (resp.get("Error") or resp.get("Err")):
+                raise self._fail(resp)
 
     def set_power(self, on: bool) -> None:
         with self.lock:
@@ -187,6 +233,7 @@ class CloudPlug:
         self.dev = dev
         self.hub = hub
         self._max_age = max_age  # función: segundos de validez de la caché
+        self._eff = dev          # configuración efectiva (una luz de la API antigua usa otros códigos)
 
     def read(self) -> Reading:
         from .cloud import CloudError
@@ -196,14 +243,30 @@ class CloudPlug:
         except CloudError as exc:
             raise PlugError(str(exc), exc.detalle)
         if online is False:
-            raise PlugError("El enchufe aparece desconectado en la nube de Tuya")
-        return parse_cloud_status(status, self.dev, online)
+            raise PlugError("%s aparece desconectado en la nube de Tuya" %
+                            ("La luz" if self.dev.get("type") == "luz" else "El enchufe"))
+        dev = self.dev
+        if dev.get("type") == "luz":
+            dev = self._eff = luces.adaptar(self.dev, status)
+        elif dev["code_switch"] not in status and luces.es_luz_por_codigos(status):
+            raise TipoIncorrecto("luz", "Este dispositivo es una luz, no un enchufe: se reconfigura como luz.")
+        return parse_cloud_status(status, dev, online)
 
     def set_power(self, on: bool) -> None:
         from .cloud import CloudError
 
         try:
             self.hub.command(self.dev["dev_id"], self.dev["code_switch"], bool(on))
+        except CloudError as exc:
+            raise PlugError(str(exc), exc.detalle)
+
+    def apply(self, action: str, value: Any) -> None:
+        """Orden de una luz (brillo, temperatura, color, modo): todos los códigos en una sola llamada."""
+        from .cloud import CloudError
+
+        pasos = luces.plan(action, value, self.read().extra)
+        try:
+            self.hub.commands(self.dev["dev_id"], luces.cloud_commands(self._eff, pasos))
         except CloudError as exc:
             raise PlugError(str(exc), exc.detalle)
 
@@ -251,9 +314,55 @@ class SimPlug:
         return {"1": self.on, "18": 0, "19": 0, "20": 2300}
 
 
+class SimLight:
+    """Luz simulada: blanco cálido/frío y color, con las mismas órdenes que una bombilla real."""
+
+    def __init__(self, dev: Dict[str, Any]):
+        self.dev = dev
+        self.lock = threading.Lock()
+        self.s = {"on": True, "mode": "white", "level": 60.0, "temp": 30.0, "color": {"h": 210, "s": 80, "v": 70}}
+        self.offline = False
+
+    def _estado(self) -> Dict[str, Any]:
+        st = dict(self.s)
+        c = st["color"]
+        bright = c["v"] if st["mode"] == "colour" else st["level"]
+        return {"on": st["on"], "mode": st["mode"], "level": bright, "temp": st["temp"], "color": dict(c),
+                "hex": luces.hsv_to_hex(c["h"], c["s"], c["v"]),
+                "caps": {"mode": True, "level": True, "temp": True, "color": True}}
+
+    def read(self) -> Reading:
+        with self.lock:
+            if self.offline:
+                raise PlugError("La luz no está alcanzable (simulado)")
+            return _reading_luz(self._estado(), time.time())
+
+    def set_power(self, on: bool) -> None:
+        self.apply("switch", bool(on))
+
+    def apply(self, action: str, value: Any) -> None:
+        with self.lock:
+            if self.offline:
+                raise PlugError("La luz no está alcanzable (simulado)")
+            for clave, v in luces.plan(action, value, self._estado()):
+                if clave == "switch":
+                    self.s["on"] = bool(v)
+                elif clave == "mode":
+                    self.s["mode"] = v
+                elif clave == "level":
+                    self.s["level"] = float(v)
+                elif clave == "temp":
+                    self.s["temp"] = float(v)
+                elif clave == "color":
+                    self.s["color"] = {"h": v[0], "s": v[1], "v": v[2]}
+
+    def probe(self) -> Dict[str, Any]:
+        return {"20": self.s["on"], "21": self.s["mode"]}
+
+
 def make_plug(dev: Dict[str, Any], simulate: bool = False, hub=None, max_age=None):
     if simulate:
-        return SimPlug(dev)
+        return SimLight(dev) if dev.get("type") == "luz" else SimPlug(dev)
     if dev.get("mode") == "nube":
         return CloudPlug(dev, hub, max_age or (lambda: 60))
     return TuyaPlug(dev)

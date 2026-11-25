@@ -368,12 +368,19 @@ class CloudHub:
     # Tuya tiene autorizadas unas u otras según cuándo se creó y qué servicios
     # tiene suscritos. Se recuerda la que funciona.
     _CMD_STRATEGIES = (
-        ("iot03", "/v1.0/iot-03/devices/%s/commands", lambda code, value: {"commands": [{"code": code, "value": value}]}),
-        ("v1", "/v1.0/devices/%s/commands", lambda code, value: {"commands": [{"code": code, "value": value}]}),
-        ("shadow", "/v2.0/cloud/thing/%s/shadow/properties/issue", lambda code, value: {"properties": json.dumps({code: value})}),
+        ("iot03", "/v1.0/iot-03/devices/%s/commands",
+         lambda pares: {"commands": [{"code": c, "value": v} for c, v in pares]}),
+        ("v1", "/v1.0/devices/%s/commands",
+         lambda pares: {"commands": [{"code": c, "value": v} for c, v in pares]}),
+        ("shadow", "/v2.0/cloud/thing/%s/shadow/properties/issue",
+         lambda pares: {"properties": json.dumps(dict(pares))}),
     )
 
     def command(self, dev_id: str, code: str, value: Any) -> None:
+        self.commands(dev_id, [(code, value)])
+
+    def commands(self, dev_id: str, pares: List[Tuple[str, Any]]) -> None:
+        """Manda una o varias órdenes (código, valor) en una sola llamada, en ese orden."""
         with self._lock:
             estrategias = list(self._CMD_STRATEGIES)
             if self._cmd_strategy:
@@ -381,7 +388,7 @@ class CloudHub:
             fallos = []
             for nombre, url, cuerpo in estrategias:
                 try:
-                    r = self._req(url % dev_id, post=cuerpo(code, value), action="POST")
+                    r = self._req(url % dev_id, post=cuerpo(pares), action="POST")
                 except CloudError:
                     raise
                 except Exception as exc:
@@ -405,7 +412,7 @@ class CloudHub:
             if dev_id in self._cache:  # actualización optimista: evita otra llamada
                 online, st = self._cache[dev_id]
                 st = dict(st)
-                st[code] = value
+                st.update(dict(pares))
                 self._cache[dev_id] = (online, st)
 
     def list_devices(self) -> List[Dict[str, Any]]:

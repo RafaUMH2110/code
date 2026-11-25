@@ -354,6 +354,7 @@ details.hint > p { margin:6px 0 0; }
     </div>
   </section>
 
+  <p id="lucesAviso" class="note" hidden style="margin:14px 0 0;color:var(--muted);font-size:13px"></p>
   <div class="sec-h"><h2>Enchufes</h2><span><button class="btn" id="btnRefresh" type="button" title="Pide ahora al servicio que lea de nuevo todos los enchufes (útil si has cambiado alguno con otra app)">Actualizar</button> <button class="btn" id="btnGraphs" type="button" aria-pressed="false" title="Oculta o muestra las minigráficas de cada enchufe (no afecta al histórico)">Ocultar gráficas</button> <span style="margin-left:10px">Pulsa un enchufe para ver solo ese en el histórico</span></span></div>
   <section class="plugs" id="cards" aria-label="Enchufes"></section>
 
@@ -402,7 +403,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-23 22:44</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-25 17:33</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -1691,6 +1692,12 @@ async function refresh() {
   try { S.state = await api("api/state"); }
   catch (e) { setStatus(false, "Sin conexión con el servicio", S.lastOk ? "Último dato a las " + new Date(S.lastOk).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "Reintentando…"); throw e; }
   S.lastOk = Date.now();
+  /* Esta página solo sabe mostrar enchufes: las luces (y lo que venga) se manejan desde la app TeleHome */
+  const otros = S.state.devices.filter((d) => d.type && d.type !== "enchufe");
+  if (otros.length) S.state.devices = S.state.devices.filter((d) => !d.type || d.type === "enchufe");
+  $("#lucesAviso").hidden = !otros.length;
+  $("#lucesAviso").textContent = otros.length ? otros.length + (otros.length === 1 ? " dispositivo que no es un enchufe (" : " dispositivos que no son enchufes (")
+    + otros.map((d) => d.name).join(", ") + ") no se muestran en esta página: manéjalos desde la app TeleHome, que sí tiene los controles de luz." : "";
   $("#ver").textContent = "v" + S.state.version;
   const sim = !!S.state.simulate;
   $("#simBanner").hidden = BACKEND && BACKEND.banner ? !BACKEND.banner() : !sim;

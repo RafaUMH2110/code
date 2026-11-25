@@ -358,7 +358,8 @@ def r_power(h: Handler, q, dev_id):
 
 
 def r_command(h: Handler, q, dev_id):
-    """Orden genérica de TeleHome: {"action": "switch", "value": true|false}."""
+    """Orden genérica de TeleHome: {"action": "switch", "value": true|false}. Una luz admite además
+    "level" (0-100), "temp" (0 cálida - 100 fría), "color" ("#rrggbb" o {"h","s","v"}) y "mode" ("white"|"colour")."""
     body = h._body()
     if not isinstance(body, dict):
         raise ConfigError("Se esperaba un objeto JSON")
@@ -366,8 +367,9 @@ def r_command(h: Handler, q, dev_id):
         r = h.ctx.monitor.command(dev_id, str(body.get("action") or ""), body.get("value"))
     except ValueError as exc:
         raise ConfigError(str(exc))
+    pub = h.ctx.monitor._public_reading(r, h.ctx.config.get(dev_id).get("type") == "luz")
     h._json(200, {"id": dev_id, "online": r.online, "error": r.error,
-                  "state": {"on": r.on}, "on": r.on})
+                  "state": pub["state"], "on": r.on})
 
 
 def r_refresh(h: Handler, q):
@@ -402,7 +404,8 @@ def r_csv(h: Handler, q):
     plug = _wanted(q, "")
     if h.ctx.config.get(plug) is None:
         raise KeyError(plug)
-    data = "".join(h.ctx.store.export_csv(plug, t0, t1)).encode("utf-8")
+    luz = h.ctx.config.get(plug).get("type") == "luz"
+    data = "".join(h.ctx.store.export_csv(plug, t0, t1, luz=luz)).encode("utf-8")
     fname = "telehome-%s-%s.csv" % (plug, time.strftime("%Y%m%d-%H%M"))
     h._send(200, data, "text/csv; charset=utf-8", {"Content-Disposition": 'attachment; filename="%s"' % fname})
 
@@ -445,7 +448,8 @@ def r_import(h: Handler, q):
         raise ConfigError("Se esperaba una lista de dispositivos (devices.json de TinyTuya)")
     if mode not in ("local", "nube"):
         raise ConfigError("Modo no válido")
-    report = h.ctx.config.import_devices(rows, mode)
+    report = h.ctx.config.import_devices(rows, mode, str(body.get("type") or "").lower() or None
+                                         if isinstance(body, dict) else None)
     _changed(h)
     h._json(200, report)
 
@@ -658,12 +662,13 @@ def r_cloud_import(h: Handler, q):
     ids = body.get("dev_ids") if isinstance(body, dict) else None
     if not isinstance(ids, list) or not ids:
         raise ConfigError("Se esperaba {\"dev_ids\": [...]}")
-    dtype = str((body.get("type") if isinstance(body, dict) else None) or "enchufe").strip().lower()
-    if dtype not in DEVICE_TYPES:
+    # Sin «type», cada dispositivo toma el tipo de su categoría en Tuya (bombillas y tiras → luz).
+    dtype = str((body.get("type") if isinstance(body, dict) else None) or "").strip().lower() or None
+    if dtype is not None and dtype not in DEVICE_TYPES:
         raise ConfigError("Tipo de dispositivo no admitido por este servicio (%s)" % ", ".join(DEVICE_TYPES))
     wanted = {str(i) for i in ids}
     rows = [d for d in h.ctx.hub.list_devices() if d["dev_id"] in wanted]
-    report = h.ctx.config.import_devices(rows, "nube")
+    report = h.ctx.config.import_devices(rows, "nube", dtype)
     _changed(h)
     h._json(200, report)
 

@@ -1,6 +1,6 @@
 # TeleHome
 
-> TeleHome (0.9.4): macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
+> TeleHome (0.10.0): enchufes y luces (bombillas y tiras LED regulables, blancos y color), macOS y Linux, modo local y modo nube de Tuya, contraseña opcional. Sustituye a la antigua versión «local» (0.1.0, solo macOS y red local), que ya está incluida aquí: el modo local funciona igual y el modo nube es opcional. Para probar los enchufes antes de instalar nada: [`telehome-pruebas`](../telehome-pruebas/).
 
 Telemetría y control de enchufes Wi-Fi con medidor de consumo **Energeeks EG-EW008MC**
 (el pack de 3 se vende como EG-EW009MC: son los mismos enchufes), hasta **7 enchufes**, en **macOS** o **Linux**.
@@ -163,6 +163,51 @@ Valores por defecto de un enchufe Tuya con medidor: interruptor `1`, corriente `
 tensión `20` (÷10 → V). **No he podido verificarlos con un EG-EW008MC real**; si las lecturas salen mal, mira los DPS
 crudos con `python -m telehome probe <nombre>` y ajústalos en *Ajustes → Avanzado* de ese enchufe.
 
+## Luces (bombillas y tiras LED, 0.10.0)
+
+Además de enchufes, TeleHome maneja **luces** Tuya (tipo `luz`): encendido, brillo, blanco cálido/frío, color y
+modo. Se dan de alta igual que un enchufe (modo nube o local) y las apps (web genérica, iPhone, iPad) les muestran un
+panel propio: interruptor, brillo, deslizador cálido↔frío, tono e intensidad del color, colores y blancos rápidos.
+
+**Unidades.** Las apps y la API hablan siempre en las mismas unidades, sea cual sea la escala de la bombilla:
+`level` 0-100 (0 apaga), `temp` 0-100 (0 cálido, 100 frío), `color` como `"#rrggbb"` (o `{"h":0-360,"s":0-100,"v":0-100}`),
+`mode` `"white"` o `"colour"`. El servicio convierte a los códigos de Tuya: `switch_led`, `work_mode`,
+`bright_value_v2` (10-1000), `temp_value_v2` (0-1000) y `colour_data_v2` (`{"h","s","v"}`, s y v en 0-1000); en modo
+local, los DPS 20-24. Las bombillas con códigos antiguos (`bright_value`, `temp_value`, `colour_data`, escala 0-255) se
+detectan solas y no hay que tocar nada. El brillo mínimo es 1 %: para apagar se usa `switch`.
+
+**Órdenes** (`POST /api/devices/<id>/command {"action":…,"value":…}`):
+
+| acción | valor | efecto |
+|---|---|---|
+| `switch` | `true` / `false` | enciende o apaga |
+| `level` | 0-100 | brillo (0 = apagar); en modo color es el brillo del color |
+| `temp` | 0-100 | pasa a modo blanco con ese tono (0 cálido, 100 frío) |
+| `color` | `"#rrggbb"` o `{h,s,v}` | pasa a modo color |
+| `mode` | `white` / `colour` | cambia de modo sin tocar el resto |
+
+`level`, `temp` y `color` encienden la luz si estaba apagada; `mode` no. En la nube, todos los códigos de una orden
+van en **una sola** llamada a Tuya. La respuesta incluye el estado completo de la luz.
+
+**Lectura.** `reading.state` lleva `on`, `br`, `temp`, `mode`, `color {h,s,v}` y `hex`; `reading.values` solo `br`
+(0 si está apagada). Cada dispositivo añade `caps` (`mode`, `level`, `temp`, `color`) con lo que **esa** bombilla sabe
+hacer, deducido de los códigos que devuelve: una bombilla solo blanca no muestra el selector de color. El brillo se
+guarda en el histórico (`br`), en el resumen (`m.br`) y en el CSV (`brillo_pct`).
+
+**Programaciones.** Admiten `switch`, `level`, `temp`, `color` y `mode` para luces (p. ej. «a las 21:00, blanco cálido al
+30 %»: dos programaciones, `temp` 10 y `level` 30), y la condición puede usar la métrica `br`.
+
+**Importar.** Al importar desde la nube el tipo sale de la categoría de Tuya (`dj`, `dd`, `xdd`, `fwd`, `dc`, `tgq` → luz;
+el resto → enchufe); un `type` explícito manda sobre la categoría. **Si ya tenías una bombilla dada de alta como
+«enchufe»** (las versiones anteriores a la 0.10.0 lo hacían), el servicio se da cuenta de que responde como luz, la
+convierte a `luz` por sí solo (cambia sus códigos, conserva nombre, estancia, Device ID y clave) y sigue. También se puede
+cambiar a mano: *Editar* → tipo. El tope de 7 dispositivos cuenta enchufes y luces juntos.
+
+**Límites.** El modo local de las luces solo está probado con simulaciones de la bombilla (las bombillas del autor
+funcionan por la nube); si algún DPS no coincide, se ajustan en *Avanzado* igual que los del enchufe
+(`dp_switch`, `dp_mode`, `dp_level`, `dp_temp`, `dp_color`). Los colores de las escenas y la música de Tuya no se
+manejan, solo `white` y `colour`.
+
 ## Límites y buenas prácticas
 
 - **Máximo 7 enchufes** en total, sumando ambos modos (límite aplicado en la configuración, la API y la interfaz).
@@ -221,7 +266,7 @@ crudos con `python -m telehome probe <nombre>` y ajústalos en *Ajustes → Avan
 
 ## API (JSON)
 
-`GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` ·
+`GET /api/state` · `POST /api/refresh` (lectura inmediata de todos los dispositivos, 0.9.4) · `POST /api/devices/<id>/command {"action":"switch","value":true}` (las luces admiten además `level`, `temp`, `color` y `mode`, 0.10.0) ·
 `GET /api/history?dev=all&range=3600` · `GET /api/summary?range=86400` ·
 `GET /api/export.csv?dev=<id>&range=86400` · `POST|PUT|DELETE /api/devices` ·
 `POST /api/devices/import` · `PUT /api/options` · `POST /api/discover` · `PUT /api/cloud` ·
@@ -241,11 +286,11 @@ La app genérica [TeleHome](https://rafaumh2110.github.io/apps/telemetria/home/t
 varios tipos de dispositivo, no solo enchufes, y este servicio ya habla su protocolo. Nada de lo
 anterior desaparece: las apps TeleHome (web, iPhone, iPad) siguen funcionando igual.
 
-- `GET /api/health` y `GET /api/state` añaden `"api": "telehome"` y `"types": ["enchufe"]`.
+- `GET /api/health` y `GET /api/state` añaden `"api": "telehome"` y `"types": ["enchufe", "luz"]`.
   `app` es `TeleHome` (hasta la 0.9.0 era `TeleHome Enchufes`); las apps reconocen el servicio por `api` y le
   hablan directamente: su adaptador de compatibilidad solo se usa con servicios anteriores a la 0.5.0. En `types` están los tipos que
   este servicio sabe leer: la app deshabilita en el alta los que no estén.
-- Cada dispositivo lleva `type` (de momento solo `enchufe`) y `room` (estancia, opcional, hasta 24
+- Cada dispositivo lleva `type` (`enchufe` o `luz`) y `room` (estancia, opcional, hasta 24
   caracteres; la app agrupa por ella).
 - Cada lectura añade el modelo común `state` y `values`, junto a los campos de siempre:
 
@@ -259,14 +304,14 @@ anterior desaparece: las apps TeleHome (web, iPhone, iPad) siguen funcionando ig
   Y el acumulado del día va también en `accum` (`{"energy_today_kwh": 6.23}`).
 - `POST /api/devices/<id>/command` con `{"action": "switch", "value": true|false}` es la orden
   genérica; un enchufe solo admite `switch`, y cualquier otra (`level`, `position`, `setpoint`) se
-  rechaza con 400. `POST /api/plugs/<id>/power {"on":…}` se mantiene como alias.
+  rechaza con 400. Una luz admite `switch`, `level`, `temp`, `color` y `mode` (ver [Luces](#luces-bombillas-y-tiras-led-0100)). `POST /api/plugs/<id>/power {"on":…}` se mantiene como alias.
 - `GET /api/summary` devuelve los mismos datos en `devices` (nombre genérico) y en `plugs`
   (compatibilidad), y cada fila añade el bloque `m` con una entrada por magnitud
   (`{"p":{"avg","min","max"},"v":{…},"i":{…}}`) y `on_ratio`.
 - En `history`, `export.csv` y `summary`, `dev=` es el nombre genérico y `plug=` sigue valiendo.
 - `POST /api/cloud/import` acepta `type` y lo valida contra `types`.
 
-Para añadir un tipo nuevo (sensor, luz, persiana): añádelo a `DEVICE_TYPES` en `config.py` con sus
+Para añadir un tipo nuevo (sensor, persiana; la luz ya está): añádelo a `DEVICE_TYPES` en `config.py` con sus
 campos, enséñale a `devices.py` a leer sus DPS o códigos, devuelve sus magnitudes en
 `reading.values` y declara sus órdenes en `Monitor.ACTIONS`. En la app, una entrada en su catálogo
 `TYPES` con las mismas claves de magnitud.

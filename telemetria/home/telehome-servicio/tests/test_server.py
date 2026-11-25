@@ -127,9 +127,9 @@ def test_generic_protocol(app):
     """api/health, api/state y api/summary hablan también el modelo genérico de TeleHome."""
     base, cfg, mon = app
     st, h = call(base, "/api/health")
-    assert st == 200 and h["api"] == "telehome" and h["types"] == ["enchufe"]
+    assert st == 200 and h["api"] == "telehome" and h["types"] == ["enchufe", "luz"]
     st, state = call(base, "/api/state")
-    assert state["api"] == "telehome" and state["types"] == ["enchufe"]
+    assert state["api"] == "telehome" and state["types"] == ["enchufe", "luz"]
     d = state["devices"][0]
     assert d["type"] == "enchufe" and "room" in d
     assert d["reading"]["state"]["on"] is True
@@ -168,8 +168,13 @@ def test_type_and_room(app):
                     "dev_id": "bf7777777777", "local_key": "0123456789abcdef"})
     assert st == 201 and dev["room"] == "Garaje" and dev["type"] == "enchufe"
     st, err = call(base, "/api/devices", "POST",
-                   {"name": "Lámpara", "type": "luz", "dev_id": "bf8888888888", "local_key": "0123456789abcdef"})
+                   {"name": "Persiana", "type": "persiana", "dev_id": "bf8888888888", "local_key": "0123456789abcdef"})
     assert st == 400 and "no admitido" in err["error"]
+    st, lamp = call(base, "/api/devices", "POST",
+                    {"name": "Lámpara", "type": "luz", "dev_id": "bf9999999999", "local_key": "0123456789abcdef"})
+    assert st == 201 and lamp["type"] == "luz" and lamp["code_level"] == "bright_value_v2" and "code_power" not in lamp
+    st, cambiada = call(base, "/api/devices/%s" % lamp["id"], "PUT", {"type": "enchufe"})
+    assert st == 200 and cambiada["type"] == "enchufe" and cambiada["code_power"] == "cur_power" and "code_level" not in cambiada
 
 
 def _cors_server(tmp_path, origins):

@@ -42,8 +42,8 @@ class FakeCloud:
                 if nombre == "shadow":
                     self.state[dev].update(json.loads(post["properties"]))
                 else:
-                    c = post["commands"][0]
-                    self.state[dev][c["code"]] = c["value"]
+                    for c in post["commands"]:
+                        self.state[dev][c["code"]] = c["value"]
                 return {"success": True, "result": True}
         ids = (query or {}).get("device_ids", "").split(",")
         if url == "/v1.0/devices":

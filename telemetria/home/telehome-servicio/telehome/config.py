@@ -18,6 +18,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from . import luces
+
 MAX_DEVICES = 7
 MIN_POLL = 5            # s; los medidores de energía Tuya no admiten sondeos locales más rápidos
 MIN_CLOUD_POLL = 60     # s; la cuenta gratuita de Tuya tiene un cupo de llamadas muy limitado
@@ -26,12 +28,12 @@ VERSIONS = ("3.1", "3.2", "3.3", "3.4", "3.5")
 MODES = ("local", "nube")
 # Tipos de dispositivo que sabe leer este servicio. La app genérica TeleHome los
 # consulta en api/health y api/state y deshabilita en el alta los que no estén.
-DEVICE_TYPES = ("enchufe",)
+DEVICE_TYPES = ("enchufe", "luz")
 CLOUD_REGIONS = ("eu", "eu-w", "us", "us-e", "in", "sg", "cn")
 
 # ---- Programaciones -------------------------------------------------------
 MAX_SCHEDULES = 32
-SCHEDULE_ACTIONS = ("switch", "level", "position", "stop")
+SCHEDULE_ACTIONS = ("switch", "level", "temp", "color", "mode", "position", "stop")
 WHEN_KINDS = ("clock", "sunrise", "sunset")      # hora fija, amanecer o anochecer
 CONDITION_OPS = ("<", "<=", ">", ">=")
 MAX_OFFSET = 720                                  # min; desplazamiento sobre el amanecer o el anochecer
@@ -90,6 +92,19 @@ DEVICE_DEFAULTS: Dict[str, Any] = {
     "scale_current": 1000.0,  # corriente = valor / 1000 (A, el dato viene en mA)
 }
 
+# Campos propios de cada tipo (el resto son comunes). Al cambiar de tipo, los del tipo anterior se descartan.
+TYPE_FIELDS = {
+    "enchufe": ("dp_switch", "dp_power", "dp_voltage", "dp_current", "code_switch", "code_power", "code_voltage",
+                "code_current", "scale_power", "scale_voltage", "scale_current"),
+    "luz": luces.LIGHT_FIELDS,
+}
+COMMON_FIELDS = ("id", "slot", "type", "mode", "name", "room", "dev_id", "local_key", "ip", "version")
+TYPE_DEFAULTS = {
+    "enchufe": {k: DEVICE_DEFAULTS[k] for k in TYPE_FIELDS["enchufe"]},
+    "luz": dict(luces.LIGHT_DEFAULTS),
+}
+NOMBRE_TIPO = {"enchufe": "enchufe", "luz": "luz"}
+
 _DEV_ID_RE = re.compile(r"^[A-Za-z0-9]{8,40}$")
 _CODE_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 _PBKDF2_ITER = 200_000
@@ -125,7 +140,7 @@ def _slug(text: str) -> str:
 
 
 def _num(raw: Dict[str, Any], key: str, lo: float, hi: float, as_int: bool = False):
-    value = raw.get(key, DEVICE_DEFAULTS[key])
+    value = raw.get(key, DEVICE_DEFAULTS.get(key, luces.LIGHT_DEFAULTS.get(key)))
     try:
         value = int(value) if as_int else float(value)
     except (TypeError, ValueError):
@@ -136,20 +151,25 @@ def _num(raw: Dict[str, Any], key: str, lo: float, hi: float, as_int: bool = Fal
 
 
 def _code(raw: Dict[str, Any], key: str) -> str:
-    value = str(raw.get(key) or DEVICE_DEFAULTS[key]).strip()
+    value = str(raw.get(key) or DEVICE_DEFAULTS.get(key) or luces.LIGHT_DEFAULTS.get(key) or "").strip()
     if not _CODE_RE.match(value):
         raise ConfigError("«%s» debe ser un código Tuya (minúsculas, números y _)" % key)
     return value
 
 
 def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Valida un enchufe. Si `existing` se indica, los campos ausentes se heredan."""
+    """Valida un dispositivo. Si `existing` se indica, los campos ausentes se heredan."""
     base = dict(existing) if existing else {}
-    merged = {**DEVICE_DEFAULTS, **base, **{k: v for k, v in raw.items() if v is not None}}
-
-    dtype = str(merged.get("type") or "enchufe").strip().lower()
+    nuevo_tipo = str(raw.get("type") or "").strip().lower()
+    if base and nuevo_tipo and nuevo_tipo != base.get("type", "enchufe"):
+        # cambio de tipo: se conservan los datos de la cuenta y el dispositivo, no los códigos del tipo anterior
+        base = {k: v for k, v in base.items() if k in COMMON_FIELDS}
+    dtype = str(raw.get("type") or base.get("type") or "enchufe").strip().lower()
     if dtype not in DEVICE_TYPES:
         raise ConfigError("Tipo de dispositivo no admitido por este servicio (%s)" % ", ".join(DEVICE_TYPES))
+    merged = {**DEVICE_DEFAULTS, **TYPE_DEFAULTS[dtype], **base, **{k: v for k, v in raw.items() if v is not None}}
+    merged["type"] = dtype
+    quien = NOMBRE_TIPO[dtype]
 
     mode = str(merged.get("mode") or "local").strip().lower()
     if mode not in MODES:
@@ -157,7 +177,7 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
 
     name = str(merged.get("name", "")).strip()
     if not name:
-        raise ConfigError("El nombre del enchufe es obligatorio")
+        raise ConfigError("El nombre del %s es obligatorio" % quien)
     if len(name) > 40:
         raise ConfigError("El nombre no puede superar 40 caracteres")
 
@@ -171,7 +191,7 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
 
     key = str(raw.get("local_key") or base.get("local_key") or "").strip()
     if mode == "local" and not key:
-        raise ConfigError("Falta la Local Key del enchufe (necesaria en modo local)")
+        raise ConfigError("Falta la Local Key del %s (necesaria en modo local)" % quien)
     if len(key) > 64:
         raise ConfigError("Local Key demasiado larga")
 
@@ -188,9 +208,9 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
     if version not in VERSIONS:
         raise ConfigError("Versión de protocolo no válida (%s)" % ", ".join(VERSIONS))
 
-    return {
+    out = {
         "id": base.get("id") or raw.get("id") or "",
-        "slot": base.get("slot", raw.get("slot")),  # color fijo del enchufe (0-6)
+        "slot": base.get("slot", raw.get("slot")),  # color fijo del dispositivo (0-6)
         "type": dtype,
         "mode": mode,
         "name": name,
@@ -199,18 +219,15 @@ def normalize_device(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = N
         "local_key": key,
         "ip": ip,
         "version": version,
-        "dp_switch": _num(merged, "dp_switch", 1, 255, True),
-        "dp_power": _num(merged, "dp_power", 1, 255, True),
-        "dp_voltage": _num(merged, "dp_voltage", 1, 255, True),
-        "dp_current": _num(merged, "dp_current", 1, 255, True),
-        "code_switch": _code(merged, "code_switch"),
-        "code_power": _code(merged, "code_power"),
-        "code_voltage": _code(merged, "code_voltage"),
-        "code_current": _code(merged, "code_current"),
-        "scale_power": _num(merged, "scale_power", 0.001, 1e6),
-        "scale_voltage": _num(merged, "scale_voltage", 0.001, 1e6),
-        "scale_current": _num(merged, "scale_current", 0.001, 1e6),
     }
+    for campo in TYPE_FIELDS[dtype]:
+        if campo.startswith("dp_"):
+            out[campo] = _num(merged, campo, 1, 255, True)
+        elif campo.startswith("code_"):
+            out[campo] = _code(merged, campo)
+        else:
+            out[campo] = _num(merged, campo, 0.001, 1e6)
+    return out
 
 
 def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -236,13 +253,22 @@ def normalize_schedule(raw: Dict[str, Any], existing: Optional[Dict[str, Any]] =
     if action == "switch":
         if not isinstance(value, bool):
             raise ConfigError("«switch» necesita un valor true o false")
-    elif action in ("level", "position"):
+    elif action in ("level", "position", "temp"):
         try:
             value = int(value)
         except (TypeError, ValueError):
             raise ConfigError("«%s» necesita un porcentaje de 0 a 100" % action)
         if not 0 <= value <= 100:
             raise ConfigError("«%s» necesita un porcentaje de 0 a 100" % action)
+    elif action == "color":
+        try:
+            h, s_, v_ = luces.parse_color_arg(value)
+        except ValueError as exc:
+            raise ConfigError(str(exc))
+        value = luces.hsv_to_hex(h, s_, v_)       # se guarda como «#rrggbb»
+    elif action == "mode":
+        if value not in luces.MODES:
+            raise ConfigError("«mode» debe ser «white» (blanco) o «colour» (color)")
     else:
         value = None
 
@@ -476,14 +502,32 @@ class Config:
             self.devices.remove(cur)
             self.save()
 
-    def import_devices(self, rows: List[Dict[str, Any]], mode: str = "local") -> Dict[str, Any]:
-        """Importa el devices.json de TinyTuya o la lista de la nube (id/dev_id, key, name, ip, version)."""
+    def retype_device(self, dev_id: str, tipo: str) -> Dict[str, Any]:
+        """Cambia el tipo de un dispositivo (p. ej. enchufe → luz) con los códigos por omisión del nuevo tipo."""
+        with self.lock:
+            cur = self.get(dev_id)
+            if cur is None:
+                raise KeyError(dev_id)
+            if cur.get("type") == tipo:
+                return cur
+            new = normalize_device({"type": tipo}, cur)
+            new["id"] = dev_id
+            self.devices[self.devices.index(cur)] = new
+            self.save()
+            return new
+
+    def import_devices(self, rows: List[Dict[str, Any]], mode: str = "local", dtype: Optional[str] = None) -> Dict[str, Any]:
+        """Importa el devices.json de TinyTuya o la lista de la nube (id/dev_id, key, name, ip, version).
+
+        El tipo sale de la categoría de Tuya (bombillas y tiras → luz, lo demás → enchufe) salvo que se indique."""
         added, skipped = [], []
         for row in rows:
             if not isinstance(row, dict):
                 continue
-            name = row.get("name") or row.get("id") or row.get("dev_id") or "Enchufe"
+            tipo = dtype or ("luz" if str(row.get("category") or "") in luces.LIGHT_CATEGORIES else "enchufe")
+            name = row.get("name") or row.get("id") or row.get("dev_id") or NOMBRE_TIPO[tipo].capitalize()
             raw = {
+                "type": tipo,
                 "mode": mode,
                 "name": str(name)[:40],
                 "dev_id": row.get("id") or row.get("dev_id"),

@@ -62,7 +62,7 @@ def instante(sch: Dict[str, Any], dia: date, lat: float, lon: float) -> Optional
 def _cumple_ahora(cond: Dict[str, Any], lectura) -> Tuple[bool, str]:
     if lectura is None or not getattr(lectura, "online", False):
         return False, "sin lectura del dispositivo"
-    valores = {"p": lectura.power_w, "v": lectura.voltage_v, "i": lectura.current_a}
+    valores = {"p": lectura.power_w, "v": lectura.voltage_v, "i": lectura.current_a, "br": getattr(lectura, "level", None)}
     v = valores.get(cond["metric"])
     if v is None:
         return False, "el dispositivo no mide «%s»" % cond["metric"]
@@ -79,7 +79,7 @@ def _cumple_durante(cond: Dict[str, Any], store, dev_id: str, ahora: float) -> T
     puntos = store.history(dev_id, ahora - durante, ahora, 400)
     if not puntos:
         return False, "no hay histórico para comprobar la condición"
-    clave = {"p": "p", "v": "v", "i": "i"}.get(cond["metric"])
+    clave = {"p": "p", "v": "v", "i": "i", "br": "br"}.get(cond["metric"])
     vistos = 0
     for p in puntos:
         v = p.get(clave)

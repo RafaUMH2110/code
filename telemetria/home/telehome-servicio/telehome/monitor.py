@@ -9,7 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Any, Dict, List, Optional
 
 from .config import MIN_CLOUD_POLL, MIN_POLL, Config
-from .devices import PlugError, Reading, make_plug
+from . import luces
+from .devices import PlugError, Reading, TipoIncorrecto, make_plug
 from .store import Store
 
 log = logging.getLogger("telehome")
@@ -100,11 +101,23 @@ class Monitor:
     def _read(self, dev_id: str, plug) -> Reading:
         try:
             return plug.read()
+        except TipoIncorrecto as exc:
+            self._retipar(dev_id, exc.tipo)
+            return Reading(ts=time.time(), online=False, error=str(exc))
         except PlugError as exc:
             return Reading(ts=time.time(), online=False, error=str(exc))
         except Exception as exc:  # no dejar morir el hilo por un error inesperado
             log.exception("Error inesperado leyendo %s", dev_id)
             return Reading(ts=time.time(), online=False, error="Error interno: %s" % exc)
+
+    def _retipar(self, dev_id: str, tipo: str) -> None:
+        """Cambia el tipo de un dispositivo que contesta como otro (típico: una bombilla importada como enchufe)."""
+        try:
+            self.config.retype_device(dev_id, tipo)
+        except (KeyError, ValueError):
+            return
+        log.info("«%s» responde como «%s»: se cambia su tipo y se reinicia su sondeo", dev_id, tipo)
+        self.sync()
 
     def _record(self, dev_id: str, r: Reading, stop: Optional[threading.Event]) -> None:
         if stop is not None and stop.is_set():
@@ -112,7 +125,7 @@ class Monitor:
         with self._lock:
             self.latest[dev_id] = r
             self._account(dev_id, r)
-        self.store.add(dev_id, r.ts, r.online, r.on, r.power_w, r.voltage_v, r.current_a)
+        self.store.add(dev_id, r.ts, r.online, r.on, r.power_w, r.voltage_v, r.current_a, level=r.level)
 
     def _account(self, dev_id: str, r: Reading) -> None:  # energía de hoy (trapecios)
         acc = self._energy.get(dev_id)
@@ -191,7 +204,7 @@ class Monitor:
         return r
 
     # Órdenes que admite cada tipo de dispositivo (protocolo genérico TeleHome).
-    ACTIONS: Dict[str, tuple] = {"enchufe": ("switch",)}
+    ACTIONS: Dict[str, tuple] = {"enchufe": ("switch",), "luz": luces.LIGHT_ACTIONS}
 
     def actions_for(self, dev_id: str) -> tuple:
         dev = self.config.get(dev_id)
@@ -200,12 +213,36 @@ class Monitor:
         return self.ACTIONS.get(dev.get("type", "enchufe"), ())
 
     def command(self, dev_id: str, action: str, value: Any, manual: bool = True) -> Reading:
-        """Orden genérica: de momento solo «switch», el único que admite un enchufe."""
+        """Orden genérica. Un enchufe solo admite «switch»; una luz, también brillo, temperatura, color y modo."""
         if action not in self.actions_for(dev_id):
             raise ValueError("Orden «%s» no admitida por este dispositivo" % action)
-        if not isinstance(value, bool):
-            raise ValueError("«value» debe ser true o false")
-        return self.set_power(dev_id, value, manual=manual)
+        if action == "switch" or self.config.get(dev_id).get("type") != "luz":
+            if not isinstance(value, bool):
+                raise ValueError("«value» debe ser true o false")
+            return self.set_power(dev_id, value, manual=manual)
+        plug = self.plugs.get(dev_id)
+        if plug is None:
+            raise KeyError(dev_id)
+        luces.plan(action, value)          # valida el valor antes de tocar nada
+        plug.apply(action, value)
+        if manual:
+            self.last_manual[dev_id] = time.time()
+        r = self._read(dev_id, plug)
+        self._record(dev_id, r, self._stops.get(dev_id))
+        return r
+
+    @staticmethod
+    def _public_reading(r: Reading, luz: bool) -> Dict[str, Any]:
+        if luz:
+            e = r.extra or {}
+            return {"ts": r.ts, "online": r.online, "on": r.on, "error": r.error,
+                    "state": {"on": r.on, "br": e.get("level"), "temp": e.get("temp"), "mode": e.get("mode"),
+                              "color": e.get("color"), "hex": e.get("hex")},
+                    "values": {"br": r.level}}
+        return {"ts": r.ts, "online": r.online, "on": r.on, "power_w": r.power_w,
+                "voltage_v": r.voltage_v, "current_a": r.current_a, "error": r.error,
+                "state": {"on": r.on},
+                "values": {"p": r.power_w, "v": r.voltage_v, "i": r.current_a}}
 
     # ---- Estado --------------------------------------------------------------
     def state(self) -> List[Dict[str, Any]]:
@@ -215,15 +252,13 @@ class Monitor:
                 r = self.latest.get(dev["id"])
                 acc = self._energy.get(dev["id"])
                 kwh = None if acc is None else round(acc["kwh"], 4)
+                luz = dev.get("type") == "luz"
                 out.append({
                     "id": dev["id"],
                     # «state» y «values» son el modelo genérico de TeleHome; los campos
                     # planos (on, power_w...) se conservan para las apps anteriores.
-                    "reading": None if r is None else {
-                        "ts": r.ts, "online": r.online, "on": r.on, "power_w": r.power_w,
-                        "voltage_v": r.voltage_v, "current_a": r.current_a, "error": r.error,
-                        "state": {"on": r.on},
-                        "values": {"p": r.power_w, "v": r.voltage_v, "i": r.current_a}},
+                    "reading": None if r is None else self._public_reading(r, luz),
+                    **({"caps": (r.extra or {}).get("caps", {}) if r else {}} if luz else {}),
                     "energy_today_kwh": kwh,
                     "accum": {"energy_today_kwh": kwh},
                 })
