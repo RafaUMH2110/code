@@ -42,7 +42,9 @@ LIMITS = {"max_devices": MAX_DEVICES, "max_scenes": MAX_SCENES, "max_groups": MA
 STATIC_INDEX = Path(__file__).with_name("static") / "index.html"
 MAX_BODY = 1_000_000
 LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
-ADMIN_TTL = 12 * 3600          # s; duración de una sesión (administrador o usuario de confianza)
+ADMIN_TTL = 12 * 3600          # s; duración de una sesión de administrador
+USER_TTL = 7 * 24 * 3600       # s; duración de una sesión de usuario de confianza
+SESSION_TTL = {"admin": ADMIN_TTL, "user": USER_TTL}
 ADMIN_MAX_SESSIONS = 50
 # Niveles de acceso, de menos a más: solo lectura, usuario de confianza (manda órdenes) y administrador.
 NIVELES = ("none", "user", "admin")
@@ -68,7 +70,8 @@ class AppContext:
         self.extra_origins = {o.strip().rstrip("/").lower() for o in (extra_origins or []) if o.strip()}
         self.scheduler = scheduler
         self.scan_lock = threading.Lock()
-        self.admin_tokens: Dict[str, Tuple[float, str, str]] = {}   # token -> (caduca, huella de las contraseñas, nivel)
+        # token -> (caduca, huella de las contraseñas, nivel, abierta)
+        self.admin_tokens: Dict[str, Tuple[float, str, str, float]] = {}
         self.admin_lock = threading.Lock()
 
 
@@ -123,11 +126,17 @@ class Handler(BaseHTTPRequestHandler):
         now = time.time()
         with self.ctx.admin_lock:
             toks = {t: e for t, e in self.ctx.admin_tokens.items() if e[0] > now}
-            while len(toks) >= ADMIN_MAX_SESSIONS:                 # se descartan las más antiguas
-                toks.pop(min(toks, key=lambda t: toks[t][0]))
-            toks[tok] = (now + ADMIN_TTL, self._huella(), nivel)
+            while len(toks) >= ADMIN_MAX_SESSIONS:                 # se descartan las abiertas hace más tiempo
+                toks.pop(min(toks, key=lambda t: toks[t][3]))
+            toks[tok] = (now + SESSION_TTL.get(nivel, ADMIN_TTL), self._huella(), nivel, now)
             self.ctx.admin_tokens = toks
         return tok
+
+    def _sesiones(self, nivel: str) -> int:
+        """Cuántas sesiones de ese nivel siguen vivas."""
+        now = time.time()
+        with self.ctx.admin_lock:
+            return sum(1 for e in self.ctx.admin_tokens.values() if e[0] > now and e[2] == nivel)
 
     # ---- utilidades -------------------------------------------------------
     def log_message(self, fmt, *args):  # silencia el log por petición
@@ -355,7 +364,8 @@ def r_state(h: Handler, q):
                   "api": "telehome", "types": list(DEVICE_TYPES), "features": FEATURES,
                   "admin": {"required": bool(h._admin_hash()), "active": admin},
                   "sesion": {"nivel": nivel, "admin_required": bool(h._admin_hash()), "user_required": bool(h._user_hash()),
-                             "puede_mandar": nivel in ("user", "admin")},
+                             "puede_mandar": nivel in ("user", "admin"), "ttl": dict(SESSION_TTL),
+                             "user_sessions": h._sesiones("user") if admin else 0},
                   "schedules": [dict(x) for x in c.config.schedules] if admin else [],
                   "max_schedules": MAX_SCHEDULES,
                   "scenes": [dict(x) for x in c.config.scenes], "groups": [dict(x) for x in c.config.groups],
@@ -642,7 +652,7 @@ def r_login(h: Handler, q):
         time.sleep(0.5)  # frena los intentos por fuerza bruta
         return h._json(403, {"error": "Contraseña incorrecta"})
     h._json(200, {"nivel": nivel, "required": True, "active": nivel == "admin",
-                  "token": h._new_admin_token(nivel), "expires_in": ADMIN_TTL})
+                  "token": h._new_admin_token(nivel), "expires_in": SESSION_TTL.get(nivel, ADMIN_TTL)})
 
 
 def r_admin_login(h: Handler, q):
@@ -664,6 +674,21 @@ def r_logout(h: Handler, q):
         h.ctx.admin_tokens.pop(tok, None)
     abierto = not h._admin_hash() and not h._user_hash()
     h._json(200, {"nivel": "admin" if abierto else "none", "required": bool(h._admin_hash()), "active": abierto})
+
+
+def r_revocar_sesiones(h: Handler, q):
+    """Cierra las sesiones de usuario de confianza abiertas (solo un administrador).
+
+    Sirve para echar a quien ya no deba entrar sin cambiar la contraseña: los administradores siguen dentro,
+    y quien tuviera la contraseña de usuario puede volver a entrar con ella. Para cerrarle la puerta del todo,
+    hay que cambiar o quitar esa contraseña.
+    """
+    now = time.time()
+    with h.ctx.admin_lock:
+        vivas = {t: e for t, e in h.ctx.admin_tokens.items() if e[0] > now}
+        cerradas = sum(1 for e in vivas.values() if e[2] == "user")
+        h.ctx.admin_tokens = {t: e for t, e in vivas.items() if e[2] != "user"}
+    h._json(200, {"cerradas": cerradas, "user_sessions": 0})
 
 
 def r_user_password(h: Handler, q):
@@ -869,6 +894,7 @@ ROUTES: List[Tuple[str, "re.Pattern", Callable]] = [
     ("DELETE", _r(r"/api/devices/([a-z0-9-]+)"), r_dev_del),
     ("POST", _r(r"/api/login"), r_login),
     ("POST", _r(r"/api/logout"), r_logout),
+    ("POST", _r(r"/api/sessions/revoke-users"), r_revocar_sesiones),
     ("POST", _r(r"/api/admin/login"), r_admin_login),      # compatibilidad con las apps anteriores
     ("POST", _r(r"/api/admin/logout"), r_logout),
     ("PUT", _r(r"/api/admin/password"), r_admin_password),

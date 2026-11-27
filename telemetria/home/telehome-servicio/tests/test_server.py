@@ -455,7 +455,8 @@ def test_usuario_de_confianza_manda_ordenes_pero_no_configura(app):
     assert salud["admin_required"] is True and salud["user_required"] is True
     # sin sesión: solo lectura
     st, state = call(base, "/api/state")
-    assert state["sesion"] == {"nivel": "none", "admin_required": True, "user_required": True, "puede_mandar": False}
+    assert state["sesion"] == {"nivel": "none", "admin_required": True, "user_required": True,
+                               "puede_mandar": False, "ttl": {"admin": 12 * 3600, "user": 7 * 24 * 3600}, "user_sessions": 0}
     assert call(base, "/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": True})[0] == 403
     # con la contraseña de usuario
     st, r = _login(base, "clave-usuario-1")
@@ -546,7 +547,8 @@ def test_cerrar_sesion_y_compatibilidad_con_la_ruta_de_administrador(app):
 def test_sin_contrasenas_el_servicio_sigue_abierto(app):
     base, cfg, mon = app
     st, state = call(base, "/api/state")
-    assert state["sesion"] == {"nivel": "admin", "admin_required": False, "user_required": False, "puede_mandar": True}
+    assert state["sesion"] == {"nivel": "admin", "admin_required": False, "user_required": False,
+                               "puede_mandar": True, "ttl": {"admin": 12 * 3600, "user": 7 * 24 * 3600}, "user_sessions": 0}
     assert call(base, "/api/options", "PUT", {"poll_interval": 9})[0] == 200
     assert _login(base, "")[1]["nivel"] == "admin"
 
@@ -627,3 +629,45 @@ def test_las_programaciones_son_cosa_de_administradores(app):
     assert call(base, "/api/schedules/mananas", "PUT", {"enabled": False}, headers={"X-TeleHome-Admin": atok})[0] == 200
     # api/sun es de lectura: lo ve cualquiera
     assert call(base, "/api/sun")[0] == 200
+
+
+def test_la_sesion_de_usuario_dura_siete_dias_y_la_de_administrador_doce_horas(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    assert _login(base, "clave-usuario-1")[1]["expires_in"] == 7 * 24 * 3600
+    atok = _login(base, "clave-admin-1")[1]
+    assert atok["expires_in"] == 12 * 3600
+    assert call(base, "/api/state", headers=_hdr(atok["token"]))[1]["sesion"]["ttl"] == {"admin": 12 * 3600, "user": 7 * 24 * 3600}
+
+
+def test_el_administrador_cierra_las_sesiones_de_usuario(app):
+    base, cfg, mon = app
+    dev0 = cfg.devices[0]["id"]
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    utok = _login(base, "clave-usuario-1")[1]["token"]
+    otro = _login(base, "clave-usuario-1")[1]["token"]
+    atok = _login(base, "clave-admin-1")[1]["token"]
+    orden = ("/api/devices/%s/command" % dev0, "POST", {"action": "switch", "value": True})
+    assert call(base, *orden, headers=_hdr(utok))[0] == 200
+    assert call(base, "/api/state", headers=_hdr(atok))[1]["sesion"]["user_sessions"] == 2
+    # un usuario no puede revocar
+    assert call(base, "/api/sessions/revoke-users", "POST", {}, headers=_hdr(utok))[0] == 403
+    st, r = call(base, "/api/sessions/revoke-users", "POST", {}, headers=_hdr(atok))
+    assert st == 200 and r["cerradas"] == 2
+    # las dos sesiones de usuario quedan fuera; la del administrador sigue valiendo
+    assert call(base, *orden, headers=_hdr(utok))[0] == 403
+    assert call(base, *orden, headers=_hdr(otro))[0] == 403
+    assert call(base, "/api/options", "PUT", {"poll_interval": 6}, headers=_hdr(atok))[0] == 200
+    assert call(base, "/api/state", headers=_hdr(atok))[1]["sesion"]["user_sessions"] == 0
+    # la contraseña sigue siendo válida: puede volver a entrar
+    nuevo = _login(base, "clave-usuario-1")[1]["token"]
+    assert call(base, *orden, headers=_hdr(nuevo))[0] == 200
+
+
+def test_quien_no_ha_entrado_no_puede_cerrar_sesiones_de_usuario(app):
+    base, cfg, mon = app
+    cfg.set_admin_password("clave-admin-1")
+    cfg.set_user_password("clave-usuario-1")
+    assert call(base, "/api/sessions/revoke-users", "POST", {})[0] == 403

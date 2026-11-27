@@ -403,7 +403,7 @@ details.hint > p { margin:6px 0 0; }
   <div id="footExtra"></div>
   <p>TeleHome <span id="ver"></span> · <span id="footMode">datos guardados en este equipo</span></p>
   <p>Rafael Puerto · Departamento de Ingeniería de Sistemas y Automática · Universidad Miguel Hernández de Elche · <a href="mailto:r.puerto@umh.es">r.puerto@umh.es</a></p>
-  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-25 17:33</span></p>
+  <p>Generado con IA · Revisado por el autor · Última modificación: <span id="lastmod">2026-11-27 20:09</span></p>
 </footer>
 
 <div class="toast" id="toast" hidden role="alert"><span id="toastTxt"></span><button type="button" id="toastX" aria-label="Cerrar aviso">×</button></div>
@@ -418,7 +418,7 @@ details.hint > p { margin:6px 0 0; }
         <div class="full"><button class="btn primary" type="submit">Entrar</button></div>
       </form>
       <div class="msg" id="admMsg" role="alert"></div>
-      <p class="hint">La sesión dura 12 horas y se cierra al cerrar la pestaña. Las contraseñas se ponen con <code>telehome admin-password</code> y <code>telehome user-password</code>.</p>
+      <p class="hint"><span id="admHint">La sesión de usuario dura 7 días y sigue abierta aunque cierres la pestaña; la de administrador dura 12 horas y se cierra con ella.</span> Las contraseñas se ponen con <code>telehome admin-password</code> y <code>telehome user-password</code>.</p>
     </section>
   </div>
 </dialog>
@@ -558,6 +558,14 @@ details.hint > p { margin:6px 0 0; }
         </form>
         <div class="msg" id="userMsg" role="alert"></div>
         <p class="hint">Tampoco se puede mostrar la actual: se guarda cifrada en un solo sentido. Sin contraseña de administrador puesta, esta por sí sola deja la configuración accesible solo desde la línea de órdenes.</p>
+      </section>
+      <section id="userRevokeBox" hidden>
+        <h3>Sesiones de usuario abiertas</h3>
+        <p class="desc">Hay <strong id="userSesiones">0</strong> ahora mismo. Al cerrarlas, quien estuviera dentro vuelve a
+        solo lectura. La contraseña sigue valiendo, así que podrá entrar otra vez con ella: para cerrarle la puerta del todo,
+        cámbiala o quítala.</p>
+        <button class="btn danger" id="btnUserRevoke" type="button">Cerrar las sesiones de usuario</button>
+        <div class="msg" id="userRevokeMsg" role="alert"></div>
       </section>
       <section>
         <h3>Llamadas a la API de Tuya</h3>
@@ -704,14 +712,22 @@ const S = { state: null, range: savedRange(), scale: savedScale(), metric: "p", 
      «admin» administrador: también configura y cambia contraseñas
    Si el servicio no tiene ninguna contraseña puesta, todo sigue abierto como antes. */
 const ADMIN = {
-  KEY: "telehome_admin", token: "", nivel: "admin", adminRequired: false, userRequired: false,
-  load() { try { this.token = sessionStorage.getItem(this.KEY) || ""; } catch (e) { this.token = ""; } },
-  set(tok) { this.token = tok || ""; try { tok ? sessionStorage.setItem(this.KEY, tok) : sessionStorage.removeItem(this.KEY); } catch (e) { /* sin almacenamiento */ } },
+  KEY: "telehome_admin", token: "", nivel: "admin", adminRequired: false, userRequired: false, ttl: null,
+  load() { try { this.token = sessionStorage.getItem(this.KEY) || localStorage.getItem(this.KEY) || ""; } catch (e) { this.token = ""; } },
+  /* La sesión de usuario dura días, así que su token se guarda en el navegador y aguanta cerrar la pestaña.
+     La de administrador se queda solo en esta pestaña: abre la configuración y las contraseñas. */
+  set(tok, nivel) {
+    this.token = tok || "";
+    try {
+      sessionStorage.removeItem(this.KEY); localStorage.removeItem(this.KEY);
+      if (tok) ((nivel || this.nivel) === "user" ? localStorage : sessionStorage).setItem(this.KEY, tok);
+    } catch (e) { /* sin almacenamiento */ }
+  },
   headers(h) { if (this.token) h["X-TeleHome-Admin"] = this.token; return h; },
   /* api/state trae «sesion» desde 0.8.0; en servicios anteriores se deduce de «admin» */
   sync(st) {
     const ses = st && st.sesion, a = (st && st.admin) || null;
-    if (ses) { this.nivel = ses.nivel; this.adminRequired = !!ses.admin_required; this.userRequired = !!ses.user_required; }
+    if (ses) { this.nivel = ses.nivel; this.adminRequired = !!ses.admin_required; this.userRequired = !!ses.user_required; this.ttl = ses.ttl || null; }
     else { this.adminRequired = !!(a && a.required); this.userRequired = false; this.nivel = a ? (a.active ? "admin" : "none") : "admin"; }
     if (!this.pideClave()) this.set("");
     return this.nivel;
@@ -785,7 +801,19 @@ function aplicarSoloLectura() {
   $("#roNote").hidden = !ro;
   pintarEstadoPw();
 }
+/* Cuánto dura cada sesión lo dice el servicio en api/state; si es uno anterior, se deja el texto escrito. */
+function pintarAvisoSesion() {
+  const t = ADMIN.ttl;
+  if (!t || !t.user || !t.admin) return;
+  const dur = (s) => {
+    const d = Math.round(s / 86400), ho = Math.round(s / 3600);
+    return s >= 86400 ? d + (d === 1 ? " día" : " días") : ho + (ho === 1 ? " hora" : " horas");
+  };
+  $("#admHint").textContent = "La sesión de usuario dura " + dur(t.user) + " y sigue abierta aunque cierres la pestaña; "
+    + "la de administrador dura " + dur(t.admin) + " y se cierra con ella.";
+}
 function abrirAdmin(texto) {
+  pintarAvisoSesion();
   $("#admMsg").textContent = texto || ""; $("#admMsg").className = "msg ok";
   $("#admForm").password.value = "";
   $("#admDlg").showModal();
@@ -1351,6 +1379,10 @@ function pintarEstadoPw() {
     ? "Ahora mismo hay una contraseña de usuario puesta."
     : "Ahora mismo no hay ninguna: sin ella, quien no sea administrador solo puede mirar.";
   $("#btnUserDel").hidden = !o.user_set;
+  const abiertas = ((S.state && S.state.sesion) || {}).user_sessions;      // los servicios anteriores no lo mandan
+  $("#userRevokeBox").hidden = !ADMIN.isAdmin() || abiertas === undefined;
+  $("#userSesiones").textContent = abiertas || 0;
+  $("#btnUserRevoke").disabled = !abiertas;
   $("#pwState").textContent = o.password_set
     ? "Ahora mismo hay una contraseña puesta."
     : "Ahora mismo no hay ninguna: cualquiera que llegue al servicio ve la interfaz.";
@@ -1534,7 +1566,7 @@ function bindDialog() {
     e.preventDefault();
     try {
       const r = await entrar(e.target.password.value);
-      ADMIN.set(r.token || ""); ADMIN.nivel = r.nivel || "admin";
+      ADMIN.nivel = r.nivel || "admin"; ADMIN.set(r.token || "", ADMIN.nivel);
       e.target.password.value = ""; $("#admDlg").close();
       renderAdmin(); await refresh(); toast("Has entrado como " + ADMIN.etiqueta().toLowerCase() + ".");
     } catch (err) { $("#admMsg").textContent = err.message; $("#admMsg").className = "msg bad"; }
@@ -1586,6 +1618,16 @@ function bindDialog() {
       setMsg("#userMsg", "Contraseña de usuario quitada.", true);
       await refresh(); fillOptions();
     } catch (err) { setMsg("#userMsg", err, false); }
+  });
+  $("#btnUserRevoke").addEventListener("click", async () => {
+    if (!confirm("Se cerrarán las sesiones de usuario abiertas y quien estuviera dentro volverá a solo lectura. ¿Seguir?")) return;
+    try {
+      const r = await api("api/sessions/revoke-users", { method: "POST", body: {} });
+      setMsg("#userRevokeMsg", r.cerradas ? "Sesiones de usuario cerradas: " + r.cerradas + "." : "No había ninguna sesión de usuario abierta.", true);
+      await refresh(); pintarEstadoPw();
+    } catch (err) {
+      setMsg("#userRevokeMsg", /404/.test(String((err && err.message) || err)) ? "Este servicio todavía no sabe cerrar sesiones: actualízalo." : err, false);
+    }
   });
   /* ---- contraseña del servicio (solo en modo Administrador; la actual no se puede mostrar) ---- */
   $("#pwForm").addEventListener("submit", async (e) => {

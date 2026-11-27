@@ -274,6 +274,19 @@ ofrecer un desplegable al dar de alta o editar un dispositivo, en vez de tener q
   guardando el **nombre** de su estancia, así que las apps anteriores siguen funcionando igual.
 - La exportación y la importación de la configuración incluyen las estancias.
 
+## Sesiones: 7 días para el usuario y cierre desde la app (0.14.0)
+
+- La sesión de **usuario de confianza** dura **7 días** y la de **administrador**, **12 horas**. Antes las dos
+  duraban 12 horas. `api/login` devuelve la que toca en `expires_in` y `api/state` las trae en `sesion.ttl`.
+- La app guarda el token de usuario en `localStorage`, así que su sesión **aguanta cerrar la pestaña** durante
+  esos 7 días; el de administrador sigue en `sessionStorage` y se pierde al cerrarla.
+- Un administrador puede **cerrar de golpe las sesiones de usuario** sin tocar las contraseñas:
+  `POST /api/sessions/revoke-users` → `{"cerradas": n}`. En la app, en *Ajustes → Opciones → Sesiones de usuario
+  abiertas*, con el número de sesiones vivas (`sesion.user_sessions`, solo para administradores). Quien tenga la
+  contraseña puede volver a entrar con ella: para cerrarle la puerta del todo, hay que cambiarla o quitarla.
+- Al pasar de 50 sesiones a la vez se descartan **las abiertas hace más tiempo** (antes, las que caducaban antes;
+  con dos duraciones distintas ya no es lo mismo).
+
 ## Límites y buenas prácticas
 
 - **Máximo 7 enchufes** en total, sumando ambos modos (límite aplicado en la configuración, la API y la interfaz).
@@ -342,6 +355,7 @@ ofrecer un desplegable al dar de alta o editar un dispositivo, en vez de tener q
 `POST /api/config/export {"ruta":"/rafa/telehome/"}` (descarga la configuración completa; por POST para exigir `X-TeleHome`; `ruta` es opcional) ·
 `POST /api/config/import {"config":{…},"modo":"reemplazar"|"añadir"}` ·
 `POST /api/login {"password":"…"}` (devuelve `nivel`) · `POST /api/logout` ·
+`POST /api/sessions/revoke-users` (cierra las sesiones de usuario de confianza, 0.14.0; solo administradores) ·
 `POST /api/admin/login` y `POST /api/admin/logout` (compatibilidad) ·
 `PUT /api/admin/password {"password":"…"|"quitar":true}` · `PUT /api/user-password {"password":"…"|"quitar":true}` ·
 `PUT /api/password {"password":"…"|"quitar":true}` (contraseña del servicio; solo administradores) ·
