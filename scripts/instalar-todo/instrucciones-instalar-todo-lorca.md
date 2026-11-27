@@ -35,6 +35,7 @@ chmod +x instalar-todo-lorca.sh
 - **TeleHome** se instala por defecto si `code/telemetria/home` está entre los repos clonados (`--sin-telehome` para omitirlo) y queda en `http://lorca.umh.es/rafa/telehome/`.
 - La plantilla `index.html` (y los iconos) deben estar junto al script; si no, se usa la del repo `code` ya clonado y, en último caso, se genera un índice simple.
 - Las apps meteorológicas de `apps` están en `telemetria/meteo/` y aparecen en la categoría **Meteo** del portal.
+- El **catálogo** del repo `apps` (`.../rafa/apps/appindex/`) enlaza en relativo: desde este servidor abre las apps de este servidor, no las de GitHub Pages. Si solo se despliega parte del repo, el instalador quita de esa copia las entradas cuya app no está aquí y avisa en el registro de los enlaces rotos que queden en las portadas escritas a mano.
 
 ## 4. Comprobación
 
@@ -44,4 +45,4 @@ curl -s http://lorca.umh.es/rafa/apps.json | jq '.apps | length'
 ```
 
 ---
-*Última modificación: 20/11/2026*
+*Última modificación: 27/11/2026*

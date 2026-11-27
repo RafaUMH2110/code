@@ -30,7 +30,7 @@ Diferencia de fondo: el servidor ya tiene configuración propia (`<Directory /va
 - Debian 13 con Apache ya funcionando para isa.umh.es.
 - Usuario con `sudo`.
 - `index.html` (el portal) y su favicon: se toman del repo `code` ya actualizado (`scripts/instalar-todo/`); la copia que haya junto al script solo se usa si el repo no está disponible (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`).
-  El portal tiene el mismo diseño que la página de entrada de GitHub Pages (https://rafaumh2110.github.io/apps/): cabecera *Herramientas de IA para la Docencia*, una tarjeta por área (Moda y textil, Telemetría —estación meteorológica y hogar—, Análisis de PDF, Consulta con IA, Código y utilidades) con cada app y sus versiones (Pro, ProMax, Lite…) como etiquetas, buscador y el mismo pie. Las apps salen de `apps.json`; si el repo `apps` está desplegado, añade los botones *Catálogo completo* y *Agrupado por tema* (que abren `apps/appindex/`).
+  El portal tiene el mismo diseño que la página de entrada de GitHub Pages (https://rafaumh2110.github.io/apps/): cabecera *Herramientas de IA para la Docencia*, una tarjeta por área (Moda y textil, Telemetría —estación meteorológica y hogar—, Análisis de PDF, Consulta con IA, Código y utilidades) con cada app y sus versiones (Pro, ProMax, Lite…) como etiquetas, buscador y el mismo pie. Las apps salen de `apps.json`; si el repo `apps` está desplegado, añade los botones *Catálogo completo* y *Agrupado por tema* (que abren `apps/appindex/`). Ese catálogo enlaza en relativo: abre las apps de este servidor, no las de GitHub Pages. Si solo se despliega parte del repo `apps`, el instalador quita de la copia desplegada del catálogo las entradas cuya app no está aquí, y avisa en el registro de los enlaces rotos que queden en las portadas escritas a mano.
 - Acceso a `api.github.com` y `github.com` (repos públicos de `RafaUMH2110`).
 
 El script instala por sí mismo `git`, `curl`, `jq`, `rsync` y `python3` si faltan.
@@ -133,4 +133,4 @@ sudo systemctl reload apache2
 ```
 
 ---
-*Última modificación: 04/11/2026 02:25*
+*Última modificación: 27/11/2026*
