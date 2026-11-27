@@ -703,6 +703,94 @@ elif [ "$INDICE" -eq 1 ]; then
   log "Índice generado: $DESTINO/index.html"
 fi
 
+# Catálogo del repo apps (appindex): sus páginas se despliegan tal cual vienen
+# del repositorio y enlazan a TODAS las apps del repo, en relativo (la copia de
+# este servidor abre las apps de este servidor, no las de GitHub Pages). Si aquí
+# solo se ha desplegado una parte (selección de carpetas), se quitan de ESTA
+# copia las entradas cuya app no está, para no dejar enlaces rotos; el catálogo
+# completo sigue a un clic en el pie de página (GitHub).
+while IFS= read -r pagina; do
+  [ -n "$pagina" ] || continue
+  $SUDO python3 -I - "$pagina" <<'PYEOF' | while IFS= read -r l; do log "$l"; done
+import json, os, re, sys
+
+ruta = sys.argv[1]
+base = os.path.dirname(ruta)
+with open(ruta, encoding='utf-8') as f:
+    texto = f.read()
+m = re.search(r'(<script id="catalog-data" type="application/json">)(.*?)(</script>)', texto, re.S)
+if not m:
+    raise SystemExit(0)
+try:
+    catalogo = json.loads(m.group(2))
+except ValueError:
+    raise SystemExit(0)
+
+def desplegada(entrada):
+    url = (entrada.get('url') or '').split('#')[0].split('?')[0]
+    if not url or url.startswith('//') or re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:', url):
+        return True                      # enlace externo (otro sitio): se respeta
+    destino = os.path.normpath(os.path.join(base, url))
+    if os.path.isdir(destino):
+        destino = os.path.join(destino, 'index.html')
+    return os.path.isfile(destino)
+
+quedan = [e for e in catalogo if desplegada(e)]
+fuera = len(catalogo) - len(quedan)
+if fuera == 0:
+    raise SystemExit(0)
+
+texto = texto[:m.start(2)] + json.dumps(quedan, ensure_ascii=False) + texto[m.end(2):]
+
+def cifra(t, etiqueta, valor):
+    for patron in (r'(<div class="num">)[^<]*(</div><div class="label">%s)',
+                   r'(<b>)[^<]*(</b><span>%s)'):
+        t = re.sub(patron % re.escape(etiqueta), lambda mm: mm.group(1) + valor + mm.group(2), t)
+    return t
+
+total = len(quedan)
+navegador = sum(1 for e in quedan if e.get('client_only'))
+texto = cifra(texto, 'Herramientas', str(total))
+texto = cifra(texto, 'Categorías', str(len({c for e in quedan for c in e.get('categories', [])})))
+texto = cifra(texto, 'Temas', str(len({e.get('group') for e in quedan if e.get('group')})))
+texto = cifra(texto, 'En el navegador', ('%d%%' % round(100 * navegador / total)) if total else '0')
+
+with open(ruta, 'w', encoding='utf-8') as f:
+    f.write(texto)
+print('Catalogo ajustado a este servidor: %s (%d apps no desplegadas aqui, fuera del listado)' % (ruta, fuera))
+PYEOF
+done < <($SUDO find "$DESTINO" -mindepth 3 -maxdepth 4 -path '*/appindex/*' -name 'index.html' 2>/dev/null | grep -v 'index-anterior')
+
+# Aviso (no modifica nada): enlaces de las páginas de entrada escritas a mano
+# —la portada de cada repo desplegado— que apuntan a una app que no está en
+# este servidor. Pasa cuando solo se despliega parte de un repo.
+$SUDO python3 -I - "$DESTINO" <<'PYEOF' | while IFS= read -r l; do log "$l"; done
+import os, re, sys
+
+destino = sys.argv[1]
+paginas = [os.path.join(destino, n, 'index.html') for n in sorted(os.listdir(destino))
+           if os.path.isdir(os.path.join(destino, n)) and not n.startswith('.')]
+for pagina in paginas:
+    if not os.path.isfile(pagina):
+        continue
+    base = os.path.dirname(pagina)
+    rotos = []
+    with open(pagina, encoding='utf-8', errors='replace') as f:
+        texto = f.read()
+    for url in re.findall(r'<a [^>]*href="([^"#?][^"]*)"', texto):
+        url = url.split('#')[0].split('?')[0]
+        if not url or url.startswith('//') or re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:', url):
+            continue
+        ruta = os.path.normpath(os.path.join(base, url))
+        if os.path.isdir(ruta):
+            ruta = os.path.join(ruta, 'index.html')
+        if not os.path.isfile(ruta) and url not in rotos:
+            rotos.append(url)
+    if rotos:
+        print('AVISO: %s enlaza a %d apps que no estan en este servidor (despliegue parcial): %s%s'
+              % (pagina, len(rotos), ', '.join(rotos[:5]), ' ...' if len(rotos) > 5 else ''))
+PYEOF
+
 # Permisos solo sobre lo que gestiona el script (no sobre contenido ajeno de DESTINO)
 for item in "$DESTINO/index.html" "$DESTINO/apps.json" "$DESTINO/favicon.svg" "$DESTINO/favicon.ico" "$DESTINO/apple-touch-icon.png"; do
   $SUDO test -f "$item" && $SUDO chown "$USUARIO_WEB:$USUARIO_WEB" "$item"

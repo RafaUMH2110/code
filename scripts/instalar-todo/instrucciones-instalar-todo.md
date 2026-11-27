@@ -241,6 +241,7 @@ Solo se tocan `index.html`, `apps.json`, los ficheros del favicon y las carpetas
 - **Fichas:** muestran el título del HTML, su descripción (`<meta description>` o, si no hay, el resumen del README más cercano), el proyecto, el sistema operativo (en `code`: Linux/macOS/Windows), el tamaño y la fecha del último commit. Las versiones `pro`, `lite`, etc. se muestran como una insignia junto al nombre de la app.
 - **Búsqueda y filtros:** el cuadro de búsqueda (atajo `/`) y los botones de categoría filtran en el momento.
 - **Tema:** claro u oscuro según el sistema.
+- **Catálogo del repo `apps`:** las páginas `apps/appindex/` (*Catálogo completo* y *Agrupado por tema*) vienen del propio repositorio y enlazan en relativo, así que abren las apps de este servidor y no las de GitHub Pages. Si solo se despliega parte del repo, el script quita de la copia desplegada las entradas cuya app no está aquí (y ajusta sus cifras), y avisa en el registro de los enlaces rotos que queden en las portadas escritas a mano.
 - **Catálogo:** `apps.json` se regenera en cada ejecución del script. Si abres el `index.html` directamente desde el disco (`file://`) o sin `apps.json` al lado, aparece el aviso «No se pudo cargar el catálogo».
 
 Para cambiar el diseño, edita `index.html` junto al script y vuelve a ejecutarlo. Para cambiar solo la página sin tocar los repos:
