@@ -1,0 +1,17 @@
+{
+  "proveedor": "anthropic",
+  "modelos_defecto": {
+    "anthropic": "claude-sonnet-5",
+    "openai": "gpt-6-luna"
+  },
+  "max_tokens": 24000,
+  "autor": {
+    "nombre": "Rafael Puerto",
+    "departamento": "Departamento de Ingeniería de Sistemas y Automática, UMH",
+    "email": "r.puerto@umh.es"
+  },
+  "puerto_preview": 8000,
+  "color": true,
+  "_precios": "Opcional. Rellena 'precios' con el coste por millón de tokens de los modelos que uses y el script mostrará el gasto estimado de cada llamada.",
+  "precios": {}
+}

@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.tmp
+# Historial de versiones y conversaciones guardadas (datos locales de trabajo)
+.generar_app/
+# Apps generadas durante las pruebas (guarda aquí solo las que quieras conservar)
+salida*.html
