@@ -1092,4 +1092,6 @@ fi
 
 echo | tee -a "$LOG"
 log "FIN. Entrada: http://$IP$ENTRADA  |  Errores: $errores  |  Duración: ${SECONDS}s  |  Copia de seguridad: $COPIA"
+
+log "Terminado el $(date '+%d/%m/%Y a las %H:%M:%S')"
 [ "$errores" -eq 0 ]

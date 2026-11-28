@@ -1112,4 +1112,6 @@ fi
 
 echo | tee -a "$LOG"
 log "FIN. Portal: $URL_BASE$ENTRADA  |  Errores: $errores  |  Duración: ${SECONDS}s${BKP:+  |  Copia de seguridad: $BKP}"
+
+log "Terminado el $(date '+%d/%m/%Y a las %H:%M:%S')"
 [ "$errores" -eq 0 ]

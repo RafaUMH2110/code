@@ -423,10 +423,11 @@ Resumen despliegue -> nuevos: 0 | modificados: 1 | borrados: 0 | transferido 191
 - **Resúmenes:** una línea al final de cada paso con los totales, y la línea final con la duración total.
 - Los ficheros «modificados» del despliegue incluyen los que solo cambian de fecha o permisos.
 
-Al terminar, el script imprime una línea final con la entrada, el número de errores y la ruta de la copia de seguridad:
+Al terminar, el script imprime una línea con la entrada, el número de errores y la ruta de la copia de seguridad, y otra con la fecha y la hora de fin (útil sobre todo cuando lo lanza `cron` y el registro se lee mucho después):
 
 ```
-FIN. Entrada: http://192.168.0.129/rafa/  |  Errores: 0  |  Duración: 12s  |  Copia de seguridad: /var/backups/entrada-apache-…
+[2026-11-28 00:57:12] FIN. Entrada: http://192.168.0.129/rafa/  |  Errores: 0  |  Duración: 12s  |  Copia de seguridad: /var/backups/entrada-apache-…
+[2026-11-28 00:57:12] Terminado el 28/11/2026 a las 00:57:12
 ```
 
 El código de salida es `0` si no hubo errores.
